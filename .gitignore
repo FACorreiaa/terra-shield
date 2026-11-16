@@ -1,0 +1,17 @@
+.DS_Store
+backend/bin/
+*.test
+*.out
+.env
+.env.*
+# Apple
+xcuserdata/
+DerivedData/
+*.xcuserstate
+shield-apple/fastlane/build/
+shield-apple/fastlane/test_output/
+shield-apple/fastlane/report.xml
+shield-apple/Config/Secrets.xcconfig
+# Web (phase 2)
+node_modules/
+.svelte-kit/

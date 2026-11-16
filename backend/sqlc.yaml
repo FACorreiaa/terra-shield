@@ -1,0 +1,31 @@
+# One generated package per domain: db/queries/<domain>/ → internal/store/<domain>db.
+# Add a block per new domain, reusing the overrides anchor. Generated code is
+# committed; CI runs `sqlc diff`.
+version: "2"
+sql:
+  - engine: postgresql
+    schema: db/migrations
+    queries: db/queries/sources
+    gen:
+      go:
+        package: sourcesdb
+        out: internal/store/sourcesdb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides: &overrides
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: pg_catalog.timestamptz
+            go_type: time.Time
+          - db_type: pg_catalog.timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID

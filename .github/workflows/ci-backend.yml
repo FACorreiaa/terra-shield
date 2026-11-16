@@ -1,0 +1,73 @@
+name: CI backend
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", ".github/workflows/ci-backend.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["backend/**", ".github/workflows/ci-backend.yml"]
+
+concurrency:
+  group: ci-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: shield
+          POSTGRES_PASSWORD: shield
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shield"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://shield:shield@localhost:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      # sqlc output is committed; a stale file means the build compiles
+      # against queries that no longer match db/queries.
+      - name: Verify sqlc output is current
+        run: go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 diff
+
+      - name: Test
+        run: go test ./... -count=1 -race
+
+      - name: Build
+        run: CGO_ENABLED=0 go build -trimpath -o /tmp/shield ./cmd/shield
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      # Built from source: released binaries are compiled with go1.26 and
+      # reject go1.27-only files (same as norviq).
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+      - name: golangci-lint
+        run: golangci-lint run
+
+  # image.yml (build, push ghcr, promote PR into LuminaVaultInfra) lands with
+  # S0.7/S0.8, once the GitHub repo and INFRA_TOKEN exist.

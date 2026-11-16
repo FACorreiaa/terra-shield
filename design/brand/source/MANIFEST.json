@@ -1,0 +1,182 @@
+{
+  "title": "Aegis Terra Complete Asset Library",
+  "version": "1.1",
+  "note": "External visual inspiration remains linked, not copied",
+  "files": [
+    {
+      "path": "01_Brand/Aegis_Terra_Original_Logo_Transparent.png",
+      "size_bytes": 1478950,
+      "sha256": "a679676ba684ef3c50139b1396c4727ff7f0751ead0151ca130546301209b3bf"
+    },
+    {
+      "path": "02_Mascot/Aegis_Terra_Sentinel_Transparent_Version_A.png",
+      "size_bytes": 1524880,
+      "sha256": "59e12a5114dac78b7da7efe949a26cbfe9e92ac923cbbee63fb2b6a669b4d5f3"
+    },
+    {
+      "path": "02_Mascot/Aegis_Terra_Sentinel_Transparent_Version_B_User_Reference.png",
+      "size_bytes": 1692842,
+      "sha256": "a4cb1e8da874d8503c6f2e0dc5f29bc60fee8ff8eb4aa72be2e9a2c2a3e2903a"
+    },
+    {
+      "path": "03_Backgrounds/01_Orbital_Earth.png",
+      "size_bytes": 357457,
+      "sha256": "7e6ac01a7f14c0484bd4d711d25ad50c2f12f7725c0013bbfe0fc7de9576cc04"
+    },
+    {
+      "path": "03_Backgrounds/01_Orbital_Earth.svg",
+      "size_bytes": 18084,
+      "sha256": "89dadc0a162a8d9db4c0ee673c704665f515a51de203b3aec2452924287286f2"
+    },
+    {
+      "path": "03_Backgrounds/02_Radar_Grid.png",
+      "size_bytes": 407572,
+      "sha256": "044c0c7e987e11527b48fad4a515fc3422ff31b74dd5fb2e1e58815112857543"
+    },
+    {
+      "path": "03_Backgrounds/02_Radar_Grid.svg",
+      "size_bytes": 6094,
+      "sha256": "4f4f44a03fc0a64b8729db0c4af57a19277b3d413bc4226cbcad7b781c841214"
+    },
+    {
+      "path": "03_Backgrounds/03_Precipitation_Atmosphere.png",
+      "size_bytes": 588892,
+      "sha256": "87bcaba9b18517a2ac8e0cc5df5a31551dcb69a530dfa86238307faf9d9ca94d"
+    },
+    {
+      "path": "03_Backgrounds/03_Precipitation_Atmosphere.svg",
+      "size_bytes": 20068,
+      "sha256": "68f6daca465fff4e06ead5e123be2e3b2512f5b711cb2fbc96485047fb430fcf"
+    },
+    {
+      "path": "03_Backgrounds/04_Wildfire_Contours.png",
+      "size_bytes": 469585,
+      "sha256": "fd00c43d3810f18408ad75f9c2caf0576d05fa8217ecdd38ad7d9383e226d70d"
+    },
+    {
+      "path": "03_Backgrounds/04_Wildfire_Contours.svg",
+      "size_bytes": 6540,
+      "sha256": "0a59f2f6714d54354d94a9a17f77e25d36064d62a3551fa0c150c86b1539b939"
+    },
+    {
+      "path": "04_Design_Inspiration/Inspiration_Links_and_Credits.md",
+      "size_bytes": 1915,
+      "sha256": "4cfd08264c08b4c13fab9221974759749562eb1ce817f71b94dfa2ad63a8240b"
+    },
+    {
+      "path": "04_Design_Inspiration/Offline_Gallery.html",
+      "size_bytes": 3945,
+      "sha256": "6938adae49fbb47ef7b1708392bc24af1c1251f8bde20d895625346a96c22df1"
+    },
+    {
+      "path": "05_UI_Design_System/Claude_UI_Brief.md",
+      "size_bytes": 2077,
+      "sha256": "b817bd8977dcc03f4ce3e5b03b05a4161624b833ade3bc527ccda111c22ec19a"
+    },
+    {
+      "path": "05_UI_Design_System/design-tokens.css",
+      "size_bytes": 389,
+      "sha256": "83b3babe3232ae9e5e199b953762c2d1dc71b2e3f0ef81618d46b230ea208bad"
+    },
+    {
+      "path": "05_UI_Design_System/design-tokens.json",
+      "size_bytes": 507,
+      "sha256": "fcb0809d759dbb9cc6552e8d1159fc056714b20d041f31ea6e3e37cf7fd3f38c"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/Aegis_Terra_GLB_Production_Brief.pdf",
+      "size_bytes": 16654534,
+      "sha256": "2f13c8df0dac52d90ca82b1f72153128050e7e0ceb32ee299a692feebc9d3b95"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/README.md",
+      "size_bytes": 4902,
+      "sha256": "bbd68f81de5c2a46aa8bde59f7403bb9e1d4b601ba1812fc54314fc4a170f2b6"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/blender/generate_reference_blockout.py",
+      "size_bytes": 14884,
+      "sha256": "e885dcce6c2223059e3b0fe9626b7f642c17e376471a9cee3262b8db92b729d5"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/docs/01_Art_Direction_and_Modeling.md",
+      "size_bytes": 5829,
+      "sha256": "96e80dc41349a03c01eb2f0e57806473ee98dccd99dfbbe3ec590f3f0e367143"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/docs/02_PBR_UV_and_LOD.md",
+      "size_bytes": 4566,
+      "sha256": "3e1788e10926267a7b8997a0a6a84e06f2ba8ff5822afb34ea64f8f19258f999"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/docs/03_Rig_Animation_and_Implementation.md",
+      "size_bytes": 4595,
+      "sha256": "6c300403a687658bdb089b844877b2a4961d52f90a67c08a2d41ddcd9638bcfd"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/docs/04_Production_Roadmap_and_QA.md",
+      "size_bytes": 3605,
+      "sha256": "8f7f01324ff8b4f61524ca5965f158e6db9d27d2de6e0b7670df5b5c28bdf315"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/meta/asset_manifest.json",
+      "size_bytes": 1369,
+      "sha256": "caa070b7fe20f72c5c6243edd1812f37bc3fbafa0e4a9389b9d3a5d6cd063626"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/meta/materials.json",
+      "size_bytes": 1673,
+      "sha256": "c312fff199064283b88d16e9428e3128867c2c2ad1c39b07d3fe864a16a2227c"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/meta/rig.json",
+      "size_bytes": 2306,
+      "sha256": "a2bceb205db6e52781c8c7ce4a9822429f1e6bc53fde87ce40abf81ab73cbbdf"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/models/aegis_terra_REFERENCE_BLOCKOUT.glb",
+      "size_bytes": 804324,
+      "sha256": "62205cad68afade7be493312c623c5bb652b06c149620f9241530d05c9bfc5c7"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/qa/validate_blockout.py",
+      "size_bytes": 1487,
+      "sha256": "3f1b1045f7793b1d7d4706d3e0a7c6a7ca389ea0ab83f40d3715b5030d7a0434"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/references/01_Original_Mascot.png",
+      "size_bytes": 1692842,
+      "sha256": "a4cb1e8da874d8503c6f2e0dc5f29bc60fee8ff8eb4aa72be2e9a2c2a3e2903a"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/references/02_Original_Brand_Logo.png",
+      "size_bytes": 1478950,
+      "sha256": "a679676ba684ef3c50139b1396c4727ff7f0751ead0151ca130546301209b3bf"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/references/03_Concept_Turnaround.png",
+      "size_bytes": 2711384,
+      "sha256": "2972e679370fd81fa53353dcc3185d83864bd5c14b041b638472070ba969d319"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/references/04_Components_PBR.png",
+      "size_bytes": 2838059,
+      "sha256": "b34407754da3b37e29b572f818973656d6b48f264480ddd0b304c150a75c68d3"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/references/05_Mechanical_Detail_Sheet.png",
+      "size_bytes": 2667411,
+      "sha256": "1e4fc27d83224673555c5a708185ad9d4aace8a924e8de0840ea15468cc5e94d"
+    },
+    {
+      "path": "06_3D_Production/Aegis_Terra_GLB_Production_Pack/web/index.html",
+      "size_bytes": 2496,
+      "sha256": "0cb90e6dd97e3a455d4352c77ea90ba8f3fa5f5da84710e454379ba20300d596"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 1894,
+      "sha256": "8c9f11ff81d4722286cff000090015934aaacf7c514d34c540c261a5d8ef45e9"
+    }
+  ]
+}

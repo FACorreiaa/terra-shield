@@ -1,0 +1,25 @@
+{
+  "brand": "Aegis Terra",
+  "colors": {
+    "background": "#080E1A",
+    "panel": "#111C2D",
+    "slate": "#203550",
+    "informational": "#52B6FF",
+    "warning": "#FFB54A",
+    "danger": "#F35D62",
+    "energy-cyan": "#00E9FF",
+    "alert-red": "#FF2D3D",
+    "armor-silver": "#C9CDD4",
+    "graphite": "#2B2F36"
+  },
+  "radius": {
+    "sm": 8,
+    "md": 12,
+    "lg": 18
+  },
+  "spacingBasePx": 4,
+  "fontStacks": {
+    "native": "-apple-system",
+    "web": "system-ui, -apple-system, sans-serif"
+  }
+}

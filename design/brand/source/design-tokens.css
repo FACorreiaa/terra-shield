@@ -1,0 +1,14 @@
+:root {
+  --aegis-background: #080E1A;
+  --aegis-panel: #111C2D;
+  --aegis-slate: #203550;
+  --aegis-informational: #52B6FF;
+  --aegis-warning: #FFB54A;
+  --aegis-danger: #F35D62;
+  --aegis-energy-cyan: #00E9FF;
+  --aegis-alert-red: #FF2D3D;
+  --aegis-armor-silver: #C9CDD4;
+  --aegis-graphite: #2B2F36;
+  --aegis-radius-card: 18px;
+  --aegis-font: system-ui, -apple-system, sans-serif;
+}

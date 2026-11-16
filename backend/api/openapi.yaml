@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: Shield API
+  version: 0.1.0
+  description: >
+    Global natural-hazard events, normalized from official and scientific
+    sources. Every record carries its source, its source's own severity next
+    to Shield's derived severity, and freshness timestamps. Shield does not
+    replace national emergency services.
+servers:
+  - url: http://localhost:8080
+paths:
+  /health/live:
+    get:
+      operationId: getLive
+      tags: [ops]
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+  /health/ready:
+    get:
+      operationId: getReady
+      tags: [ops]
+      responses:
+        "200":
+          description: Ready to serve.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+        "503":
+          description: A dependency is unhealthy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+  /metrics:
+    get:
+      operationId: getMetrics
+      tags: [ops]
+      responses:
+        "200":
+          description: Prometheus exposition format.
+          content:
+            text/plain: {}
+  /openapi.yaml:
+    get:
+      operationId: getOpenAPI
+      tags: [ops]
+      responses:
+        "200":
+          description: This document.
+          content:
+            application/yaml: {}
+  /v1/sources:
+    get:
+      operationId: listSources
+      tags: [sources]
+      summary: Every feed Shield ingests, with license, attribution and freshness.
+      responses:
+        "200":
+          description: Sources, ordered by id.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sources]
+                properties:
+                  sources:
+                    type: array
+                    items: { $ref: "#/components/schemas/Source" }
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  responses:
+    Error:
+      description: Error envelope.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [error, code, reason]
+      properties:
+        error: { type: boolean }
+        code: { type: string }
+        reason: { type: string }
+        requestId: { type: string }
+    Readiness:
+      type: object
+      required: [status, checks, version]
+      properties:
+        status: { type: string, enum: [ready, not_ready] }
+        version: { type: string }
+        checks:
+          type: object
+          additionalProperties:
+            type: object
+            required: [status]
+            properties:
+              status: { type: string, enum: [healthy, unhealthy] }
+              message: { type: string }
+    Source:
+      type: object
+      required: [id, name, url, license, attribution, pollIntervalSeconds, enabled]
+      properties:
+        id: { type: string, examples: [usgs] }
+        name: { type: string }
+        url: { type: string, format: uri }
+        license: { type: string }
+        attribution: { type: string }
+        pollIntervalSeconds: { type: integer }
+        enabled: { type: boolean }
+        lastSuccessAt: { type: string, format: date-time }
+        lastErrorAt: { type: string, format: date-time }
+        stale:
+          type: boolean
+          description: True when the last success is older than three poll intervals.

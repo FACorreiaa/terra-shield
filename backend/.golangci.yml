@@ -1,0 +1,59 @@
+# Copied from norviq-backend-v2; see its comments for the reasoning.
+version: '2'
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - errcheck
+    - errorlint
+    - gocheckcompilerdirectives
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nilerr
+    - noctx
+    - nolintlint
+    - revive
+    - rowserrcheck
+    - unconvert
+    - unparam
+    - whitespace
+    # staticcheck and unused stay off under Go 1.27 (IR builder panics).
+  settings:
+    errorlint:
+      asserts: false
+    gocritic:
+      enabled-tags: [diagnostic, performance]
+      disabled-checks: [hugeParam]
+    govet:
+      enable-all: true
+      disable: [fieldalignment, shadow]
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: unexported-return
+          disabled: true
+  exclusions:
+    generated: lax
+    presets: [comments, common-false-positives, std-error-handling]
+    rules:
+      - path: _test\.go
+        linters: [gosec]
+    paths:
+      - internal/store/.*\.go$ # sqlc output
+formatters:
+  enable:
+    - gofumpt
+  settings:
+    gofumpt:
+      module-path: shield
+  exclusions:
+    generated: lax
+    paths:
+      - internal/store/.*\.go$
