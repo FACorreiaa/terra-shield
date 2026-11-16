@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aegis Terra · Saved regions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#080E1A}
+a{color:#52B6FF;text-decoration:none}a:hover{color:#8FD0FF}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #080E1A; color: #E8EEF6; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; -webkit-font-smoothing: antialiased">
+  <div style="padding: 54px 20px 0">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <a href="Main.dc.html" style="height: 36px; display: flex; align-items: center; gap: 4px; font-size: 15px">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#52B6FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Map</a>
+      <button aria-label="Add region" style="width: 36px; height: 36px; border-radius: 18px; border: 0; background: #203550; color: #52B6FF; font-size: 22px; line-height: 1; cursor: pointer; padding: 0">+</button>
+    </div>
+    <h1 style="margin: 10px 0 0; font-size: 30px; font-weight: 700; letter-spacing: -0.4px">Saved regions</h1>
+    <div style="margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #111C2D; border: 1px solid #24324A; font-size: 12px; color: #9AABC2; display: flex; gap: 8px; align-items: center">
+      <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: #52B6FF; border: 1px solid rgba(82,182,255,0.45); border-radius: 4px; padding: 2px 5px">PHASE 3</span>
+      Design only. Builds after 10 strangers, with accounts.
+    </div>
+
+    <sc-if value="{{hasRegions}}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center">
+        <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">3 REGIONS · BY SEVERITY</span>
+        <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: #FFB54A; border: 1px solid rgba(255,181,74,0.45); border-radius: 4px; padding: 2px 5px">SAMPLE DATA</span>
+      </div>
+      <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 10px">
+        <sc-for list="{{regions}}" as="g" hint-placeholder-count="3">
+          <a href="Country.dc.html" style="display: block; padding: 12px; border-radius: 12px; background: #111C2D; border: 1px solid #24324A; color: #E8EEF6">
+            <div style="display: flex; gap: 12px">
+              <div style="position: relative; width: 112px; height: 56px; flex: 0 0 auto; border-radius: 8px; overflow: hidden; background: #060B15; border: 1px solid #24324A">
+                <img src="{{g.map}}" alt="" style="position: absolute; left: {{g.left}}px; top: {{g.top}}px; width: {{g.w}}px; height: {{g.h}}px; max-width: none">
+                <div style="position: absolute; left: 50%; top: 50%; width: 46px; height: 30px; transform: translate(-50%,-50%); border: 1.5px solid #52B6FF; border-radius: 4px; background: rgba(82,182,255,0.08)"></div>
+              </div>
+              <div style="flex: 1; min-width: 0">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px">
+                  <div style="min-width: 0">
+                    <div style="font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{g.name}}</div>
+                    <div style="font-size: 12px; color: #9AABC2">{{g.place}}</div>
+                  </div>
+                  <span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px; border-radius: 6px; background: {{g.badgeBg}}; font-size: 12px; font-weight: 600; color: {{g.c}}"><span style="width: 9px; height: 9px; background: {{g.c}}; clip-path: {{g.clip}}"></span>{{g.word}}</span>
+                </div>
+                <div style="margin-top: 6px; font-size: 13px; color: #C3CEDD; font-variant-numeric: tabular-nums">Active {{g.active}} · Severe or worse {{g.severe}}</div>
+              </div>
+            </div>
+            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #1B2840; display: flex; justify-content: space-between; gap: 8px; font-size: 13px">
+              <span style="color: #E8EEF6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{g.change}}</span>
+              <span style="color: #9AABC2; white-space: nowrap">{{g.at}}</span>
+            </div>
+          </a>
+        </sc-for>
+      </div>
+      <button style="margin-top: 12px; width: 100%; height: 48px; border-radius: 12px; border: 1px dashed #3A4A63; background: transparent; color: #52B6FF; font: 600 15px -apple-system, system-ui, sans-serif; cursor: pointer">Add region</button>
+      <p style="margin: 12px 0 0; font-size: 12px; line-height: 1.45; color: #9AABC2">Regions match official warnings and observed events at Moderate or worse. Satellite heat detections are off unless you turn them on.</p>
+    </sc-if>
+
+    <sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top: 28px; position: relative; height: 540px; border-radius: 18px; overflow: hidden; background: #0A1220; border: 1px solid #1B2840; text-align: center">
+        <img src="/_blob/2018eab40c8c4c1f2fa1d6b25b9b5ebd" alt="" style="position: absolute; left: -330px; top: 0; height: 540px; width: 960px; max-width: none; opacity: 0.55">
+        <img src="/_blob/b02c6690c44d0bd120eb28740e78a951" alt="Sentinel, the Aegis Terra mascot" style="position: relative; display: block; margin: 24px auto 0; width: 250px; height: 250px; object-fit: contain">
+        <h2 style="position: relative; margin: 12px 0 0; font-size: 20px; font-weight: 600">Watch the places that matter to you</h2>
+        <p style="position: relative; margin: 8px 28px 0; font-size: 14px; line-height: 1.45; color: #9AABC2">Save a country or draw an area. You will see official warnings and observed events for it here.</p>
+        <button style="position: relative; margin-top: 18px; height: 44px; padding: 0 22px; border-radius: 10px; border: 0; background: #52B6FF; color: #080E1A; font: 600 15px -apple-system, system-ui, sans-serif; cursor: pointer">Add region</button>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"empty":{"editor":"boolean","default":false,"section":"State"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var empty = this.props.empty ?? false;
+    var WORLD = '/_blob/2dbdd4b7f3e26d3844dbb6145ff6e6d4';
+    var IBERIA = '/_blob/be63e52c08408f99713075049624ba5f';
+    return {
+      hasRegions: !empty,
+      isEmpty: empty,
+      regions: [
+        { name: 'Family', place: 'Coquimbo, Chile', map: WORLD, w: 8640, h: 3456, left: -2553, top: -2708,
+          word: 'Severe', c: '#FF8540', clip: 'polygon(50% 4%,100% 94%,0 94%)', badgeBg: 'rgba(255,133,64,0.14)',
+          active: 1, severe: 1, change: 'M6.1 earthquake observed', at: '12 min ago' },
+        { name: 'Home', place: 'Leiria district, Portugal', map: IBERIA, w: 1170, h: 944, left: -164, top: -448,
+          word: 'Moderate', c: '#FFB54A', clip: 'polygon(50% 0,100% 50%,50% 100%,0 50%)', badgeBg: 'rgba(255,181,74,0.14)',
+          active: 3, severe: 0, change: 'Wildfire near Leiria grew', at: '40 min ago' },
+        { name: 'Trip in March', place: 'Southwest Iceland', map: WORLD, w: 8640, h: 3456, left: -3748, top: -452,
+          word: 'Minor', c: '#8DA2BE', clip: 'circle(50% at 50% 50%)', badgeBg: 'rgba(141,162,190,0.14)',
+          active: 1, severe: 0, change: 'Volcanic activity update', at: '3 h ago' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Allow-list: the build context carries only what `go build ./cmd/shield`
+# needs. Everything else (tests, fixtures, tooling config, local data, git)
+# stays out of the context and the image.
+*
+
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!db/
+!api/
+
+# Re-exclude inside the allowed directories (later lines win).
+**/*_test.go
+**/testdata/
+**/.DS_Store
+# sqlc inputs (generated code is committed) and test-only helpers.
+db/queries/
+internal/testutil/

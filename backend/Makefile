@@ -7,7 +7,7 @@ PG_PORT      := 55440
 export DATABASE_URL      ?= postgres://shield:shield@127.0.0.1:$(PG_PORT)/shield?sslmode=disable
 export TEST_DATABASE_URL ?= postgres://shield:shield@127.0.0.1:$(PG_PORT)/postgres?sslmode=disable
 
-.PHONY: db-up db-down run worker migrate migrate-status routes build test lint generate sqlc-check docker
+.PHONY: db-up db-down run worker migrate migrate-status seed-countries routes build test lint generate sqlc-check docker
 
 db-up: ## start local PostGIS on $(PG_PORT)
 	@docker start $(PG_CONTAINER) 2>/dev/null || docker run -d --platform linux/amd64 --name $(PG_CONTAINER) \
@@ -30,6 +30,13 @@ migrate:
 
 migrate-status:
 	go run ./cmd/shield migrate status
+
+# Natural Earth borders. migrate seeds them on an empty table; this reloads.
+# Uses the local copy in data/ when present (offline), else downloads; the
+# SHA-256 is verified either way.
+COUNTRIES_FILE := data/ne_50m_admin_0_countries.geojson
+seed-countries:
+	go run ./cmd/shield seed-countries $(if $(wildcard $(COUNTRIES_FILE)),--file $(COUNTRIES_FILE))
 
 routes:
 	go run ./cmd/shield routes

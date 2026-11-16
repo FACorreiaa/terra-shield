@@ -1,0 +1,50 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Portugal", "NAME": "Portugal", "ISO_A2_EH": "PT", "ISO_A3_EH": "PRT"},
+      "geometry": {"type": "Polygon", "coordinates": [[[-9.5, 37.0], [-6.2, 37.0], [-6.2, 42.1], [-9.5, 42.1], [-9.5, 37.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Spain", "NAME": "Spain", "ISO_A2_EH": "ES", "ISO_A3_EH": "ESP"},
+      "geometry": {"type": "Polygon", "coordinates": [[[-6.2, 36.0], [3.3, 36.0], [3.3, 43.8], [-6.2, 43.8], [-6.2, 36.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Australia", "NAME": "Australia", "ISO_A2_EH": "AU", "ISO_A3_EH": "AUS"},
+      "geometry": {"type": "Polygon", "coordinates": [[[113.0, -39.0], [153.0, -39.0], [153.0, -11.0], [113.0, -11.0], [113.0, -39.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Ashmore and Cartier Islands", "NAME": "Ashmore and Cartier Is.", "ISO_A2_EH": "AU", "ISO_A3_EH": "AUS"},
+      "geometry": {"type": "Polygon", "coordinates": [[[123.0, -10.5], [123.2, -10.5], [123.2, -10.3], [123.0, -10.3], [123.0, -10.5]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Somalia", "NAME": "Somalia", "ISO_A2_EH": "SO", "ISO_A3_EH": "SOM"},
+      "geometry": {"type": "Polygon", "coordinates": [[[41.0, -1.7], [51.0, -1.7], [51.0, 9.0], [41.0, 9.0], [41.0, -1.7]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Somaliland", "NAME": "Somaliland", "ISO_A2_EH": "-99", "ISO_A3_EH": "-99"},
+      "geometry": {"type": "Polygon", "coordinates": [[[43.0, 9.0], [49.0, 9.0], [49.0, 11.5], [43.0, 11.5], [43.0, 9.0]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Kosovo", "NAME": "Kosovo", "ISO_A2_EH": "XK", "ISO_A3_EH": "-99"},
+      "geometry": {"type": "Polygon", "coordinates": [[[20.0, 41.9], [21.8, 41.9], [21.8, 43.3], [20.0, 43.3], [20.0, 41.9]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Siachen Glacier", "NAME": "Siachen Glacier", "ISO_A2_EH": "-99", "ISO_A3_EH": "-99"},
+      "geometry": {"type": "Polygon", "coordinates": [[[76.8, 35.2], [77.8, 35.2], [77.8, 35.7], [76.8, 35.7], [76.8, 35.2]]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"ADMIN": "Bowtie", "NAME": "Bowtie", "ISO_A2_EH": "ZZ", "ISO_A3_EH": "ZZZ"},
+      "geometry": {"type": "Polygon", "coordinates": [[[0.0, 0.0], [2.0, 2.0], [2.0, 0.0], [0.0, 2.0], [0.0, 0.0]]]}
+    }
+  ]
+}

@@ -10,6 +10,8 @@ package ingest
 import (
 	"context"
 	"time"
+
+	"shield/internal/fetch"
 )
 
 // Info is a source's static metadata, written to the sources table on worker
@@ -26,10 +28,7 @@ type Info struct {
 
 // Validators are the HTTP cache validators from the last successful poll,
 // sent back as If-None-Match / If-Modified-Since.
-type Validators struct {
-	ETag         string
-	LastModified string
-}
+type Validators = fetch.Validators
 
 // Result is what one poll did.
 type Result struct {

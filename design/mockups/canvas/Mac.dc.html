@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aegis Terra · macOS Monitor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#080E1A}
+a{color:#52B6FF;text-decoration:none}a:hover{color:#8FD0FF}
+@keyframes at-pulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.55}100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}}
+.at-halo{animation:at-pulse 1.8s ease-out infinite}
+@media (prefers-reduced-motion: reduce){.at-halo{animation:none;opacity:.35;transform:translate(-50%,-50%) scale(1.6)}}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; display: flex; background: #080E1A; color: #E8EEF6; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; -webkit-font-smoothing: antialiased">
+
+  <!-- Sidebar -->
+  <nav aria-label="Sidebar" style="width: 260px; flex: 0 0 auto; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0D1626; border-right: 1px solid #1B2840">
+    <div style="height: 52px; display: flex; align-items: center; gap: 7px; padding: 0 16px 0 84px">
+      <span style="width: 12px; height: 12px; border-radius: 50%; background: #3A4A63; position: absolute; left: 20px; top: 20px"></span>
+      <span style="width: 12px; height: 12px; border-radius: 50%; background: #3A4A63; position: absolute; left: 40px; top: 20px"></span>
+      <span style="width: 12px; height: 12px; border-radius: 50%; background: #3A4A63; position: absolute; left: 60px; top: 20px"></span>
+    </div>
+    <div style="padding: 4px 16px 12px; display: flex; align-items: center; gap: 10px">
+      <img src="/_blob/3de165abf46116ce45ba402127a17db1" alt="" style="width: 30px; height: 33px; object-fit: contain">
+      <div>
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 1px">AEGIS TERRA</div>
+        <div style="margin-top: 1px; font-size: 11px; color: #9AABC2; display: flex; align-items: center; gap: 5px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4FD1A1"></span>Live · 30 s ago</div>
+      </div>
+    </div>
+    <div style="padding: 0 8px; display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="4">
+        <button style="height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 7px; background: {{n.bg}}; color: #E8EEF6; font: 500 13px -apple-system, system-ui, sans-serif; cursor: pointer; text-align: left">
+          <span style="flex: 1">{{n.label}}</span>
+          <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: {{n.tagColor}}">{{n.tag}}</span>
+          <span style="font-size: 11px; color: #6F819A">{{n.key}}</span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="margin: 16px 16px 6px; display: flex; justify-content: space-between">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">IN VIEW · BY SEVERITY</span>
+      <span style="font-size: 11px; color: #6F819A">↑ ↓</span>
+    </div>
+    <div style="flex: 1; overflow-y: auto; padding: 0 8px">
+      <sc-for list="{{list}}" as="r" hint-placeholder-count="8">
+        <button onClick="{{r.pick}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border: 0; border-radius: 8px; background: {{r.bg}}; color: #E8EEF6; cursor: pointer; text-align: left; font-family: inherit; opacity: {{r.opacity}}">
+          <span style="position: relative; width: 24px; height: 24px; flex: 0 0 auto">
+            <span style="position: absolute; inset: 0; background: {{r.c1}}; clip-path: {{r.clip}}"></span>
+            <span style="position: absolute; inset: {{r.inset}}px; background: {{r.c2}}; clip-path: {{r.clip}}"></span>
+            <img src="{{r.icon}}" alt="" style="position: absolute; left: 50%; top: {{r.iconTop}}%; width: 12px; height: 12px; transform: translate(-50%,-50%)">
+          </span>
+          <span style="flex: 1; min-width: 0">
+            <span style="display: block; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.title}}</span>
+            <span style="display: block; font-size: 11px; color: {{r.metaColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.kindWord}} · {{r.meta}}</span>
+          </span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="padding: 12px 16px 16px; border-top: 1px solid #1B2840">
+      <button style="width: 100%; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: #E8EEF6; font: 500 13px -apple-system, system-ui, sans-serif; cursor: pointer">
+        <span style="width: 7px; height: 7px; border-radius: 50%; background: #4FD1A1"></span><span style="flex: 1; text-align: left">Sources · 5 of 5 up to date</span><span style="font-size: 11px; color: #6F819A">⌘5</span>
+      </button>
+      <p style="margin: 8px 8px 0; font-size: 11px; line-height: 1.4; color: #6F819A">Does not replace your national emergency service.</p>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <main style="position: relative; width: 1180px; height: 900px; overflow: hidden; background: #060B15">
+    <img src="/_blob/2dbdd4b7f3e26d3844dbb6145ff6e6d4" alt="" style="position: absolute; left: -607px; top: 52px; width: 2120px; height: 848px; max-width: none">
+
+    <svg aria-hidden="true" width="1180" height="900" style="position: absolute; left: 0; top: 0">
+      <circle cx="88" cy="450" r="26" fill="#F35D62" fill-opacity="0.18" stroke="#F35D62" stroke-width="1.5"></circle>
+      <path d="M88 437 L-10 368 L-25 416 L88 463 Z" fill="none" stroke="#F35D62" stroke-width="1.5" stroke-dasharray="6 4"></path>
+      <path d="M495 279 L536 271 L550 284 L531 297 L500 295 Z" fill="#FF8540" fill-opacity="0.10" stroke="#FF8540" stroke-width="2"></path>
+    </svg>
+
+    <sc-if value="{{showDetections}}" hint-placeholder-val="{{ true }}">
+      <sc-for list="{{dets}}" as="d" hint-placeholder-count="20">
+        <span style="position: absolute; left: {{d.x}}px; top: {{d.y}}px; width: {{d.s}}px; height: {{d.s}}px; border-radius: 50%; background: #F7D774; opacity: 0.85; transform: translate(-50%,-50%)"></span>
+      </sc-for>
+    </sc-if>
+
+    <sc-for list="{{clusters}}" as="c" hint-placeholder-count="2">
+      <button aria-label="{{c.aria}}" style="position: absolute; left: {{c.x}}px; top: {{c.y}}px; transform: translate(-50%,-50%); width: 36px; height: 36px; border-radius: 50%; background: #111C2D; border: 2px solid {{c.color}}; color: #E8EEF6; font: 600 13px -apple-system, system-ui, sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; padding: 0">{{c.count}}</button>
+    </sc-for>
+
+    <sc-for list="{{markers}}" as="m" hint-placeholder-count="8">
+      <button onClick="{{m.pick}}" aria-label="{{m.aria}}" style="position: absolute; left: {{m.x}}px; top: {{m.y}}px; width: 40px; height: 40px; transform: translate(-50%,-50%); border: 0; background: transparent; padding: 0; cursor: pointer">
+        <span style="position: absolute; left: 50%; top: 50%; width: {{m.sel}}px; height: {{m.sel}}px; transform: translate(-50%,-50%); border-radius: 50%; border: 2px solid #52B6FF"></span>
+        <span class="{{m.haloClass}}" style="position: absolute; left: 50%; top: 50%; width: {{m.l3}}px; height: {{m.l3}}px; transform: translate(-50%,-50%); border-radius: 50%; border: 2px solid {{m.color}}; opacity: {{m.haloOpacity}}"></span>
+        <span style="position: absolute; left: 50%; top: 50%; width: {{m.l1}}px; height: {{m.l1}}px; transform: translate(-50%,-50%); background: {{m.c1}}; clip-path: {{m.clip}}"></span>
+        <span style="position: absolute; left: 50%; top: 50%; width: {{m.l2}}px; height: {{m.l2}}px; transform: translate(-50%,-50%); background: {{m.c2}}; clip-path: {{m.clip}}"></span>
+        <span style="position: absolute; left: 50%; top: 50%; width: {{m.l3}}px; height: {{m.l3}}px; transform: translate(-50%,-50%); background: {{m.c3}}; clip-path: {{m.clip}}"></span>
+        <img src="{{m.icon}}" alt="" style="position: absolute; left: 50%; top: {{m.iconTop}}; width: {{m.glyph}}px; height: {{m.glyph}}px; transform: translate(-50%,-50%)">
+      </button>
+    </sc-for>
+
+    <!-- Toolbar -->
+    <header style="position: absolute; left: 0; top: 0; width: 1180px; height: 52px; box-sizing: border-box; padding: 0 16px; display: flex; align-items: center; gap: 12px; background: rgba(13,22,38,0.82); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid #1B2840">
+      <div style="min-width: 0">
+        <div style="font-size: 15px; font-weight: 600">Monitor</div>
+        <div style="font-size: 11px; color: #9AABC2">Worldwide · last 24 h</div>
+      </div>
+      <span style="flex: 1"></span>
+      <label style="width: 280px; height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 7px; background: #203550">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9AABC2" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <input placeholder="Search places, countries, events" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: #E8EEF6; font: 400 13px -apple-system, system-ui, sans-serif">
+        <span style="font-size: 11px; color: #6F819A">⌘F</span>
+      </label>
+      <div role="group" aria-label="Time window" style="display: flex; padding: 2px; border-radius: 7px; background: #111C2D; border: 1px solid #24324A">
+        <sc-for list="{{windows}}" as="w" hint-placeholder-count="4">
+          <button onClick="{{w.pick}}" style="height: 24px; padding: 0 10px; border: 0; border-radius: 5px; background: {{w.bg}}; color: {{w.fg}}; font: 500 12px -apple-system, system-ui, sans-serif; cursor: pointer">{{w.label}}</button>
+        </sc-for>
+      </div>
+      <button onClick="{{toggleDetections}}" aria-label="Toggle satellite heat detections layer" style="height: 30px; padding: 0 10px; display: flex; align-items: center; gap: 6px; border-radius: 7px; border: 1px solid {{detBorder}}; background: {{detBg}}; color: {{detFg}}; font: 500 12px -apple-system, system-ui, sans-serif; cursor: pointer">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7l10-5Z"></path><path d="m2 12 10 5 10-5"></path><path d="m2 17 10 5 10-5"></path></svg>Heat detections</button>
+      <button onClick="{{toggleInspector}}" aria-label="Toggle inspector (Option Command I)" style="width: 32px; height: 30px; border-radius: 7px; border: 1px solid #24324A; background: {{inspBg}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8EEF6" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg>
+      </button>
+    </header>
+
+    <!-- Stat strip -->
+    <div style="position: absolute; left: 16px; top: 68px; padding: 12px 14px; border-radius: 14px; background: rgba(17,28,45,0.82); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(232,238,246,0.08); box-shadow: 0 8px 24px rgba(0,0,0,.35)">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px">
+        <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">EARTH / MONITOR</span>
+        <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: #FFB54A; border: 1px solid rgba(255,181,74,0.45); border-radius: 4px; padding: 2px 5px">SAMPLE DATA</span>
+      </div>
+      <div style="margin-top: 8px; display: flex; gap: 24px">
+        <div><div style="font-size: 30px; font-weight: 600; letter-spacing: -0.4px; font-variant-numeric: tabular-nums">2,481</div><div style="font-size: 12px; color: #9AABC2">Observed events</div></div>
+        <div><div style="font-size: 30px; font-weight: 600; letter-spacing: -0.4px; font-variant-numeric: tabular-nums; color: #FF8540">37</div><div style="font-size: 12px; color: #9AABC2">High severity</div></div>
+        <div><div style="font-size: 30px; font-weight: 600; letter-spacing: -0.4px; font-variant-numeric: tabular-nums">12</div><div style="font-size: 12px; color: #9AABC2">Official warnings</div></div>
+      </div>
+    </div>
+
+    <!-- Map controls -->
+    <div style="position: absolute; right: {{ctrlRight}}px; top: 68px; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; background: rgba(17,28,45,0.82); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(232,238,246,0.08)">
+      <button aria-label="Zoom in" style="width: 36px; height: 36px; border: 0; background: transparent; color: #E8EEF6; font-size: 18px; cursor: pointer; padding: 0">+</button>
+      <div style="height: 1px; background: #24324A"></div>
+      <button aria-label="Zoom out" style="width: 36px; height: 36px; border: 0; background: transparent; color: #E8EEF6; font-size: 18px; cursor: pointer; padding: 0">−</button>
+      <div style="height: 1px; background: #24324A"></div>
+      <button aria-label="Fit world (Command 0)" style="width: 36px; height: 36px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8EEF6" stroke-width="1.8"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20"></path></svg>
+      </button>
+    </div>
+
+    <!-- Legend -->
+    <div style="position: absolute; left: 16px; bottom: 16px; padding: 10px 12px; border-radius: 12px; background: rgba(17,28,45,0.82); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(232,238,246,0.08); display: flex; gap: 20px; font-size: 12px; color: #C3CEDD">
+      <div>
+        <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.8px; color: #9AABC2; margin-bottom: 6px">SEVERITY</div>
+        <div style="display: flex; gap: 10px">
+          <sc-for list="{{legendSev}}" as="l" hint-placeholder-count="4">
+            <span style="display: flex; align-items: center; gap: 5px"><span style="width: 11px; height: 11px; background: {{l.c}}; clip-path: {{l.clip}}"></span>{{l.word}}</span>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.8px; color: #9AABC2; margin-bottom: 6px">KIND</div>
+        <div style="display: flex; gap: 10px; align-items: center">
+          <span style="display: flex; align-items: center; gap: 5px"><span style="width: 11px; height: 11px; border-radius: 50%; background: #C3CEDD"></span>Observed</span>
+          <span style="display: flex; align-items: center; gap: 5px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #C3CEDD; box-shadow: 0 0 0 2px #111C2D, 0 0 0 3.5px #C3CEDD"></span>Official warning</span>
+          <span style="display: flex; align-items: center; gap: 5px"><span style="width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #C3CEDD"></span>Forecast</span>
+          <span style="display: flex; align-items: center; gap: 5px"><span style="width: 5px; height: 5px; border-radius: 50%; background: #F7D774"></span>Heat detection</span>
+        </div>
+      </div>
+    </div>
+    <div style="position: absolute; right: {{attrRight}}px; bottom: 8px; font-size: 10px; color: #6F819A">Basemap: Natural Earth · events are sample data</div>
+
+    <!-- Inspector -->
+    <sc-if value="{{showInspector}}" hint-placeholder-val="{{ true }}">
+      <aside aria-label="Inspector" style="position: absolute; right: 16px; top: 68px; width: 360px; height: 816px; box-sizing: border-box; overflow-y: auto; border-radius: 18px; background: rgba(17,28,45,0.94); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(232,238,246,0.08); box-shadow: 0 8px 24px rgba(0,0,0,.35)">
+        <div style="position: relative; padding: 16px 16px 14px; overflow: hidden; border-radius: 18px 18px 0 0">
+          <sc-if value="{{s.hasBg}}" hint-placeholder-val="{{ true }}">
+            <img src="{{s.bg}}" alt="" style="position: absolute; left: 0; top: 0; width: 360px; height: 203px; opacity: 0.45; max-width: none">
+            <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(17,28,45,0) 0%, rgba(17,28,45,0.96) 100%)"></div>
+          </sc-if>
+          <div style="position: relative; display: flex; gap: 12px; align-items: flex-start">
+            <span style="position: relative; width: 40px; height: 40px; flex: 0 0 auto">
+              <span style="position: absolute; inset: 0; background: {{s.c1}}; clip-path: {{s.clip}}"></span>
+              <span style="position: absolute; inset: {{s.inset}}px; background: {{s.c2}}; clip-path: {{s.clip}}"></span>
+              <img src="{{s.icon}}" alt="" style="position: absolute; left: 50%; top: {{s.iconTop}}%; width: 18px; height: 18px; transform: translate(-50%,-50%)">
+            </span>
+            <div style="flex: 1; min-width: 0">
+              <h2 style="margin: 0; font-size: 19px; line-height: 1.25; font-weight: 600">{{s.title}}</h2>
+              <div style="margin-top: 3px; font-size: 13px; color: #9AABC2">{{s.place}}</div>
+            </div>
+            <button onClick="{{toggleInspector}}" aria-label="Close inspector" style="width: 26px; height: 26px; border-radius: 13px; border: 0; background: #203550; color: #C3CEDD; font-size: 12px; cursor: pointer; padding: 0">✕</button>
+          </div>
+        </div>
+        <div style="padding: 0 16px 20px">
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">SEVERITY · AEGIS / SOURCE</div>
+          <div style="margin-top: 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+            <div style="padding: 9px 11px; border-radius: 10px; background: {{s.sevBg}}; border: 1px solid {{s.sevBorder}}; display: flex; align-items: center; gap: 8px">
+              <span style="width: 13px; height: 13px; background: {{s.color}}; clip-path: {{s.clip}}"></span>
+              <span style="font-size: 15px; font-weight: 600; color: {{s.color}}">{{s.word}}</span>
+            </div>
+            <div style="padding: 9px 11px; border-radius: 10px; background: #0D1626; border: 1px solid #24324A">
+              <div style="font-size: 13px">{{s.srcSev}}</div>
+              <div style="font-size: 11px; color: #9AABC2">{{s.srcShort}}, verbatim</div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap">
+            <span style="height: 24px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 7px; border: 1px {{s.kindBorder}} #3A4A63; font-size: 12px; color: #C3CEDD">{{s.kindWord}}</span>
+            <span style="height: 24px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border-radius: 7px; background: #203550; font-size: 12px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #52B6FF"></span>Active</span>
+            <sc-if value="{{s.stale}}" hint-placeholder-val="{{ false }}">
+              <span style="height: 24px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 7px; background: rgba(255,181,74,0.12); color: #FFB54A; font-size: 12px">Stale · 3 h</span>
+            </sc-if>
+          </div>
+          <div style="margin-top: 10px; display: grid; grid-template-columns: 72px 1fr; row-gap: 3px; font-size: 12px; font-variant-numeric: tabular-nums">
+            <span style="color: #9AABC2">{{s.t1Label}}</span><span>{{s.t1}}</span>
+            <span style="color: #9AABC2">Updated</span><span>{{s.t2}}</span>
+          </div>
+          <div style="margin-top: 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+            <sc-for list="{{s.figures}}" as="f" hint-placeholder-count="3">
+              <div style="padding: 9px; border-radius: 10px; background: #0D1626; border: 1px solid #24324A">
+                <div style="font-size: 20px; font-weight: 600; letter-spacing: -0.3px; font-variant-numeric: tabular-nums; white-space: nowrap">{{f.v}}<span style="font-size: 12px; font-weight: 400; color: #9AABC2"> {{f.u}}</span></div>
+                <div style="font-size: 11px; color: #9AABC2">{{f.l}}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top: 16px; font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">SOURCE</div>
+          <div style="margin-top: 8px; padding: 11px; border-radius: 10px; background: #0D1626; border: 1px solid #24324A">
+            <div style="font-size: 14px; font-weight: 600">{{s.srcName}}</div>
+            <div style="margin-top: 2px; font-size: 12px; color: #9AABC2">{{s.srcLicense}}</div>
+            <a href="{{s.srcUrl}}" style="margin-top: 10px; height: 34px; border-radius: 8px; background: #52B6FF; color: #080E1A; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px">Open official source <span style="font-weight: 400; opacity: 0.7">⌘L</span></a>
+          </div>
+          <div style="margin-top: 16px; font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">TIMELINE</div>
+          <div style="margin-top: 8px">
+            <sc-for list="{{s.timeline}}" as="t" hint-placeholder-count="2">
+              <div style="display: flex; gap: 10px">
+                <div style="width: 9px; display: flex; flex-direction: column; align-items: center"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{t.dot}}; margin-top: 4px"></span><span style="flex: 1; width: 1px; background: #24324A"></span></div>
+                <div style="flex: 1; padding-bottom: 9px; display: flex; justify-content: space-between; gap: 8px; font-size: 13px"><span>{{t.text}}</span><span style="font-size: 11px; color: #9AABC2; white-space: nowrap">{{t.at}}</span></div>
+              </div>
+            </sc-for>
+          </div>
+          <p style="margin: 10px 0 0; padding-top: 10px; border-top: 1px solid #24324A; font-size: 11px; line-height: 1.45; color: #9AABC2">Aegis Terra does not replace your national emergency service. Always follow official instructions.</p>
+        </div>
+      </aside>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { sel: 'italy', insp: true, det: true, win: '24 h' }; }
+  renderVals() {
+    var self = this; var st = this.state; var CANVAS = '#080E1A';
+    var SEV = {
+      minor:    { c: '#8DA2BE', clip: 'circle(50% at 50% 50%)', k: 0.8, word: 'Minor', dy: 0, bg: 'rgba(141,162,190,0.12)' },
+      moderate: { c: '#FFB54A', clip: 'polygon(50% 0,100% 50%,50% 100%,0 50%)', k: 1.0, word: 'Moderate', dy: 0, bg: 'rgba(255,181,74,0.12)' },
+      severe:   { c: '#FF8540', clip: 'polygon(50% 4%,100% 94%,0 94%)', k: 1.15, word: 'Severe', dy: 3, bg: 'rgba(255,133,64,0.12)' },
+      extreme:  { c: '#F35D62', clip: 'polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)', k: 1.3, word: 'Extreme', dy: 0, bg: 'rgba(243,93,98,0.12)' }
+    };
+    var ICON = {
+      earthquake: ['/_blob/7e6eac9af5248001cff5976ebe1c7c17', '/_blob/d313e1881cb4c526f8f3ce3b42ee2c31'],
+      flood: ['/_blob/2439b7ebe4a07c638949e7b03da867db', '/_blob/2796d6520e4d10b3d6566a6847297fa9'],
+      tropical_cyclone: ['/_blob/8f8c9bbb178422f9a4e88790bc8384ec', '/_blob/5c31b08ad80b26103b7892acf210a104'],
+      volcano: ['/_blob/3c2587dc198090837211c6701c00a7fb', '/_blob/f97b6e85ed151e83b563963a0736577d'],
+      drought: ['/_blob/fd1861c53af0ba11c8eb253960ee03d0', '/_blob/3353fe3ea425ef7a992b1da62eaff7dc']
+    };
+    var PRECIP = '/_blob/650aec04183ac4b5c2097767d7fcbde9', CONTOURS = '/_blob/e36ded7eba6acc1740e73ff5f8dc593c';
+    var BG = { flood: PRECIP, tropical_cyclone: PRECIP, volcano: CONTOURS, drought: CONTOURS };
+    var USGS = { srcName: 'USGS Earthquake Hazards', srcShort: 'USGS', srcLicense: 'Public domain · U.S. Geological Survey', srcUrl: 'https://earthquake.usgs.gov/' };
+    var GDACS = { srcName: 'GDACS', srcShort: 'GDACS', srcLicense: 'Global Disaster Alert and Coordination System · attribution required', srcUrl: 'https://www.gdacs.org/' };
+    var EONET = { srcName: 'NASA EONET', srcShort: 'EONET', srcLicense: 'NASA Earth Observatory Natural Event Tracker · public', srcUrl: 'https://eonet.gsfc.nasa.gov/' };
+    var METEO = { srcName: 'Meteoalarm (EUMETNET)', srcShort: 'Meteoalarm', srcLicense: 'Warnings from the national weather service · attribution required', srcUrl: 'https://meteoalarm.org/' };
+    var ev = [
+      { id: 'cyc', type: 'tropical_cyclone', sev: 'extreme', kind: 'observed', x: 88, y: 450, title: 'Tropical cyclone near Lesser Antilles', place: 'Sea area east of Guadeloupe', meta: 'GDACS · 6 min ago', srcSev: 'GDACS Red', src: GDACS,
+        t1: '6 min ago · 14:08 UTC', t2: '6 min ago · 14:08 UTC', figures: [{ v: '4', u: 'cat', l: 'Category' }, { v: '215', u: 'km/h', l: 'Max wind' }, { v: '944', u: 'hPa', l: 'Pressure' }],
+        timeline: [{ text: 'Severity Severe → Extreme', at: '13:00 UTC', dot: '#F35D62' }, { text: 'Category 3 → 4', at: '12:00 UTC', dot: '#52B6FF' }, { text: 'First reported', at: 'Yesterday', dot: '#3A4A63' }] },
+      { id: 'italy', type: 'flood', sev: 'severe', kind: 'warning', x: 519, y: 285, title: 'Flood warning, Emilia-Romagna', place: 'Italy · Po valley', meta: 'Meteoalarm · 30 min ago', srcSev: 'Level 3 · Orange', src: METEO,
+        t1Label: 'Onset', t1: 'Today 18:00 UTC', t2: '30 min ago · 13:44 UTC', figures: [{ v: '4', u: '', l: 'Provinces' }, { v: '18:00', u: '', l: 'Onset UTC' }, { v: '12:00', u: '+1d', l: 'Expires UTC' }],
+        timeline: [{ text: 'Level 2 → Level 3', at: '13:44 UTC', dot: '#FF8540' }, { text: 'Area widened to Modena', at: '11:20 UTC', dot: '#52B6FF' }, { text: 'Warning issued, Level 2', at: '08:15 UTC', dot: '#3A4A63' }] },
+      { id: 'chile', type: 'earthquake', sev: 'severe', kind: 'observed', x: 31, y: 724, title: 'M6.1 earthquake off Coquimbo', place: 'Chile · 38 km W of Coquimbo', meta: 'USGS · 12 min ago', srcSev: 'M6.1 · PAGER yellow', src: USGS,
+        t1: '12 min ago · 14:02 UTC', t2: '5 min ago · 14:09 UTC', figures: [{ v: '6.1', u: 'Mw', l: 'Magnitude' }, { v: '33', u: 'km', l: 'Depth' }, { v: '412', u: '', l: 'Felt reports' }],
+        timeline: [{ text: 'Magnitude revised 6.0 → 6.1', at: '14:09 UTC', dot: '#52B6FF' }, { text: 'First reported, M6.0', at: '14:02 UTC', dot: '#3A4A63' }] },
+      { id: 'turkey', type: 'earthquake', sev: 'moderate', kind: 'observed', x: 671, y: 328, title: 'M5.4 earthquake, eastern Türkiye', place: 'Türkiye · 22 km NE of Malatya', meta: 'USGS · 48 min ago', srcSev: 'M5.4 · PAGER green', src: USGS,
+        t1: '48 min ago · 13:26 UTC', t2: '40 min ago · 13:34 UTC', figures: [{ v: '5.4', u: 'Mw', l: 'Magnitude' }, { v: '10', u: 'km', l: 'Depth' }, { v: '1,208', u: '', l: 'Felt reports' }],
+        timeline: [{ text: 'First reported, M5.4', at: '13:26 UTC', dot: '#3A4A63' }] },
+      { id: 'brazil', type: 'flood', sev: 'moderate', kind: 'observed', x: 198, y: 682, title: 'Flooding, Rio de Janeiro state', place: 'Brazil', meta: 'GDACS · 1 h ago', srcSev: 'GDACS Green', src: GDACS,
+        t1: '1 h ago · 13:10 UTC', t2: '1 h ago · 13:10 UTC', figures: [{ v: '3', u: '', l: 'Municipalities' }, { v: '1,900', u: '', l: 'Displaced (src)' }, { v: '2', u: 'd', l: 'Duration' }],
+        timeline: [{ text: 'First reported', at: '13:10 UTC', dot: '#3A4A63' }] },
+      { id: 'midatl', type: 'earthquake', sev: 'minor', kind: 'observed', x: 282, y: 458, title: 'M4.6 earthquake, Mid-Atlantic Ridge', place: 'Northern Mid-Atlantic Ridge', meta: 'USGS · 1 h ago', srcSev: 'M4.6', src: USGS,
+        t1: '1 h ago · 13:02 UTC', t2: '1 h ago · 13:05 UTC', figures: [{ v: '4.6', u: 'mb', l: 'Magnitude' }, { v: '10', u: 'km', l: 'Depth' }, { v: '0', u: '', l: 'Felt reports' }],
+        timeline: [{ text: 'First reported', at: '13:02 UTC', dot: '#3A4A63' }] },
+      { id: 'horn', type: 'drought', sev: 'minor', kind: 'observed', x: 718, y: 517, title: 'Drought, Horn of Africa', place: 'Ethiopia, Somalia, Kenya', meta: 'GDACS · 9 h ago', srcSev: 'GDACS Green', src: GDACS,
+        t1: 'Since Sep 2026', t2: '9 h ago · 05:00 UTC', figures: [{ v: '3', u: '', l: 'Countries' }, { v: '74', u: 'd', l: 'Duration' }, { v: '—', u: '', l: 'Rainfall %' }],
+        timeline: [{ text: 'Area updated', at: '05:00 UTC', dot: '#52B6FF' }] },
+      { id: 'ice', type: 'volcano', sev: 'minor', kind: 'observed', x: 321, y: 170, title: 'Volcanic activity, Reykjanes', place: 'Iceland', meta: 'last update 3 h ago', srcSev: 'Source: no level', src: EONET, stale: true,
+        t1: 'Since 2 days', t2: '3 h ago · 11:10 UTC', figures: [{ v: '—', u: '', l: 'VEI (src)' }, { v: '2', u: 'd', l: 'Active for' }, { v: '1', u: '', l: 'Fissures' }],
+        timeline: [{ text: 'Activity update', at: '11:10 UTC', dot: '#52B6FF' }] }
+    ];
+    var ORDER = ['minor', 'moderate', 'severe', 'extreme'];
+    var KW = { observed: 'Observed', warning: 'Official warning', forecast: 'Forecast' };
+    var markers = ev.map(function (e) {
+      var s = SEV[e.sev]; var base = Math.round(24 * s.k);
+      var m = { x: e.x, y: e.y, clip: s.clip, color: s.c, l3: base, glyph: Math.round(base * 0.5), iconTop: 'calc(50% + ' + s.dy + 'px)',
+        haloClass: e.sev === 'extreme' ? 'at-halo' : '', haloOpacity: e.sev === 'extreme' ? 1 : 0, sel: st.sel === e.id ? base + 18 : 0,
+        aria: s.word + ' ' + e.title + ', ' + KW[e.kind] + ', ' + e.meta, pick: function () { self.setState({ sel: e.id, insp: true }); } };
+      m.l1 = e.kind === 'warning' ? base + 9 : 0; m.c1 = s.c; m.l2 = base + 4; m.c2 = CANVAS; m.c3 = e.stale ? '#4A5A72' : s.c; m.icon = ICON[e.type][0];
+      return m;
+    });
+    var list = ev.slice().sort(function (a, b) { return ORDER.indexOf(b.sev) - ORDER.indexOf(a.sev); }).map(function (e) {
+      var s = SEV[e.sev];
+      return { title: e.title, meta: e.meta, kindWord: KW[e.kind], clip: s.clip, c1: e.stale ? '#4A5A72' : s.c, c2: e.stale ? '#4A5A72' : s.c, inset: 0,
+        icon: ICON[e.type][0], iconTop: s.dy ? 60 : 50, bg: st.sel === e.id ? '#203550' : 'transparent', opacity: e.stale ? 0.8 : 1,
+        metaColor: e.stale ? '#FFB54A' : '#9AABC2', aria: s.word + ' ' + e.title, pick: function () { self.setState({ sel: e.id, insp: true }); } };
+    });
+    var e = ev.filter(function (x) { return x.id === st.sel; })[0] || ev[0];
+    var s = SEV[e.sev];
+    var sel = { title: e.title, place: e.place, word: s.word, color: s.c, clip: s.clip, sevBg: s.bg, sevBorder: s.c + '73',
+      c1: e.stale ? '#4A5A72' : s.c, c2: e.stale ? '#4A5A72' : s.c, inset: 0, icon: ICON[e.type][0], iconTop: s.dy ? 60 : 50,
+      srcSev: e.srcSev, srcShort: e.src.srcShort, srcName: e.src.srcName, srcLicense: e.src.srcLicense, srcUrl: e.src.srcUrl,
+      kindWord: KW[e.kind], kindBorder: e.kind === 'forecast' ? 'dashed' : 'solid', stale: !!e.stale,
+      t1Label: e.t1Label || 'Observed', t1: e.t1, t2: e.t2, figures: e.figures, timeline: e.timeline,
+      hasBg: !!BG[e.type], bg: BG[e.type] || '' };
+    var dets = []; var seed = 7;
+    var rnd = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    var proj = function (lon, lat) { return [(lon + 180) * 5.8889 - 607, (84 - lat) * 5.8889 + 52]; };
+    var zones = [[14, 32, -12, 8, 46], [-60, -45, -15, -5, 16], [-9, -6, 37, 41, 4], [95, 105, 12, 20, 6]];
+    zones.forEach(function (z) { for (var i = 0; i < z[4]; i++) { var p = proj(z[0] + rnd() * (z[1] - z[0]), z[2] + rnd() * (z[3] - z[2])); dets.push({ x: Math.round(p[0]), y: Math.round(p[1]), s: 3 + Math.round(rnd() * 3) }); } });
+    var insp = st.insp;
+    return {
+      markers: markers, list: list, s: sel, dets: dets,
+      clusters: [
+        { x: 401, y: 313, count: 3, color: '#FFB54A', aria: 'Cluster, 3 events, highest severity moderate' },
+        { x: 423, y: 476, count: 6, color: '#FFB54A', aria: 'Cluster, 6 events, highest severity moderate' }
+      ],
+      nav: [
+        { label: 'Monitor', key: '⌘1', bg: '#203550', tag: '', tagColor: '#52B6FF' },
+        { label: 'Countries', key: '⌘2', bg: 'transparent', tag: '', tagColor: '#52B6FF' },
+        { label: 'Saved regions', key: '⌘3', bg: 'transparent', tag: 'PHASE 3', tagColor: '#52B6FF' },
+        { label: 'Alerts', key: '⌘4', bg: 'transparent', tag: 'PHASE 3', tagColor: '#52B6FF' }
+      ],
+      windows: ['1 h', '6 h', '24 h', '7 d'].map(function (w) { var on = st.win === w; return { label: w, bg: on ? '#203550' : 'transparent', fg: on ? '#E8EEF6' : '#9AABC2', pick: function () { self.setState({ win: w }); } }; }),
+      legendSev: ORDER.map(function (k) { return { word: SEV[k].word, c: SEV[k].c, clip: SEV[k].clip }; }),
+      showDetections: st.det,
+      detBorder: st.det ? 'rgba(247,215,116,0.5)' : '#24324A', detBg: st.det ? 'rgba(247,215,116,0.10)' : 'transparent', detFg: st.det ? '#F7D774' : '#C3CEDD',
+      toggleDetections: function () { self.setState({ det: !st.det }); },
+      showInspector: insp, inspBg: insp ? '#203550' : 'transparent',
+      toggleInspector: function () { self.setState({ insp: !st.insp }); },
+      ctrlRight: insp ? 392 : 16, attrRight: insp ? 392 : 16
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -28,4 +28,3 @@ make run          # API on :8080
 make worker       # ingestion worker, /metrics on :9090
 make test         # uses TEST_DATABASE_URL against the same container
 ```
-# terra-shield

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aegis Terra · Onboarding</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#080E1A}
+a{color:#52B6FF;text-decoration:none}a:hover{color:#8FD0FF}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #080E1A; color: #E8EEF6; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; -webkit-font-smoothing: antialiased">
+  <img src="/_blob/bc2c7a18e1e02d1c0a5e30993a25eb47" alt="" style="position: absolute; left: -820px; top: 0; width: 1500px; height: 844px; max-width: none; opacity: {{bgOpacity}}">
+  <div style="position: absolute; inset: 0; background: radial-gradient(120% 80% at 50% 40%, rgba(8,14,26,0) 0%, rgba(8,14,26,0.55) 60%, #080E1A 100%)"></div>
+
+  <button onClick="{{skip}}" style="position: absolute; right: 16px; top: 54px; height: 36px; padding: 0 12px; border: 0; background: transparent; color: #9AABC2; font: 400 15px -apple-system, system-ui, sans-serif; cursor: pointer">Skip</button>
+
+  <sc-if value="{{s1}}" hint-placeholder-val="{{ true }}">
+    <div style="position: absolute; left: 0; top: 120px; width: 390px; text-align: center">
+      <img src="/_blob/5381672560bef348a879e72fa6d0241d" alt="Aegis Terra" style="width: 280px; height: 280px; object-fit: contain">
+      <div style="margin-top: 18px; font-size: 11px; font-weight: 600; letter-spacing: 1.4px; color: #9AABC2">GLOBAL HAZARD INTELLIGENCE</div>
+      <h1 style="margin: 12px 32px 0; font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -0.4px">What is happening on Earth, right now.</h1>
+      <p style="margin: 12px 40px 0; font-size: 16px; line-height: 1.45; color: #9AABC2">Earthquakes, wildfires, floods, storms and volcanoes from official sources, with who said it and when.</p>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{s2}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; left: 0; top: 96px; width: 390px; text-align: center">
+      <img src="/_blob/b02c6690c44d0bd120eb28740e78a951" alt="Sentinel, the Aegis Terra mascot" style="width: 260px; height: 260px; object-fit: contain">
+      <h1 style="margin: 8px 32px 0; font-size: 26px; line-height: 1.2; font-weight: 700; letter-spacing: -0.4px">Know what you are looking at</h1>
+      <div style="margin: 18px 24px 0; display: flex; flex-direction: column; gap: 8px; text-align: left">
+        <div style="display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(17,28,45,0.85); border: 1px solid #24324A">
+          <span style="width: 18px; height: 18px; flex: 0 0 auto; background: #FFB54A; clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%)"></span>
+          <div><div style="font-size: 15px; font-weight: 600">Observed</div><div style="font-size: 13px; color: #9AABC2">It happened and was measured.</div></div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(17,28,45,0.85); border: 1px solid #24324A">
+          <span style="position: relative; width: 18px; height: 18px; flex: 0 0 auto"><span style="position: absolute; inset: -3px; background: #FFB54A; clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%)"></span><span style="position: absolute; inset: -1px; background: #111C2D; clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%)"></span><span style="position: absolute; inset: 2px; background: #FFB54A; clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%)"></span></span>
+          <div><div style="font-size: 15px; font-weight: 600">Official warning</div><div style="font-size: 13px; color: #9AABC2">Issued by a national authority.</div></div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(17,28,45,0.85); border: 1px solid #24324A">
+          <span style="position: relative; width: 18px; height: 18px; flex: 0 0 auto"><span style="position: absolute; inset: 0; background: #FFB54A; clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%)"></span><span style="position: absolute; inset: 3px; background: #111C2D; clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%)"></span></span>
+          <div><div style="font-size: 15px; font-weight: 600">Forecast</div><div style="font-size: 13px; color: #9AABC2">Expected, not yet happened.</div></div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(17,28,45,0.85); border: 1px solid #24324A">
+          <span style="width: 18px; height: 18px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 3px"><span style="width: 4px; height: 4px; border-radius: 50%; background: #F7D774"></span><span style="width: 5px; height: 5px; border-radius: 50%; background: #F7D774"></span></span>
+          <div><div style="font-size: 15px; font-weight: 600">Satellite heat detection</div><div style="font-size: 13px; color: #9AABC2">A hot spot seen from space, not a confirmed fire.</div></div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{s3}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; left: 0; top: 200px; width: 390px; text-align: center">
+      <img src="/_blob/3de165abf46116ce45ba402127a17db1" alt="" style="width: 92px; height: 100px; object-fit: contain">
+      <h1 style="margin: 20px 32px 0; font-size: 26px; line-height: 1.2; font-weight: 700; letter-spacing: -0.4px">Always follow official instructions</h1>
+      <p style="margin: 14px 36px 0; font-size: 16px; line-height: 1.5; color: #C3CEDD">Aegis Terra does not replace your national emergency service. Every event links to the source that published it.</p>
+      <p style="margin: 14px 36px 0; font-size: 14px; line-height: 1.5; color: #9AABC2">No account. No tracking. Location is asked only when you tap Locate.</p>
+    </div>
+  </sc-if>
+
+  <div style="position: absolute; left: 24px; right: 24px; bottom: 40px">
+    <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 20px">
+      <sc-for list="{{dots}}" as="d" hint-placeholder-count="3">
+        <span style="width: {{d.w}}px; height: 6px; border-radius: 3px; background: {{d.c}}; transition: width .24s"></span>
+      </sc-for>
+    </div>
+    <sc-if value="{{notLast}}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{next}}" style="width: 100%; height: 50px; border-radius: 12px; border: 0; background: #52B6FF; color: #080E1A; font: 600 17px -apple-system, system-ui, sans-serif; cursor: pointer">Continue</button>
+    </sc-if>
+    <sc-if value="{{s3}}" hint-placeholder-val="{{ false }}">
+      <a href="Main.dc.html" style="width: 100%; height: 50px; border-radius: 12px; background: #52B6FF; color: #080E1A; font-size: 17px; font-weight: 600; display: flex; align-items: center; justify-content: center">Show me the map</a>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { step: 1 }; }
+  renderVals() {
+    var self = this; var s = this.state.step;
+    return {
+      s1: s === 1, s2: s === 2, s3: s === 3, notLast: s < 3,
+      bgOpacity: s === 1 ? 1 : 0.35,
+      dots: [1, 2, 3].map(function (i) { return { w: i === s ? 22 : 6, c: i === s ? '#52B6FF' : '#3A4A63' }; }),
+      next: function () { self.setState({ step: Math.min(3, s + 1) }); },
+      skip: function () { self.setState({ step: 3 }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

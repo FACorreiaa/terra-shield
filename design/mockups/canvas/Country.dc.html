@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aegis Terra · Country overview</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#080E1A}
+a{color:#52B6FF;text-decoration:none}a:hover{color:#8FD0FF}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #060B15; color: #E8EEF6; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; -webkit-font-smoothing: antialiased">
+  <img src="/_blob/be63e52c08408f99713075049624ba5f" alt="" style="position: absolute; left: 40px; top: -30px; width: 520px; height: 419px; max-width: none">
+  <svg aria-hidden="true" width="390" height="844" style="position: absolute; left: 0; top: 0">
+    <path d="M128 170 C134 160 150 164 151 175 C153 187 141 194 131 189 C124 185 124 176 128 170 Z" fill="#FFB54A" fill-opacity="0.18" stroke="#FFB54A" stroke-width="1.5"></path>
+    <path d="M150 220 L186 214 L192 246 L172 262 L148 254 Z" fill="#FFB54A" fill-opacity="0.10" stroke="#FFB54A" stroke-width="2"></path>
+    <path d="M118 92 L160 88 L166 120 L120 124 Z" fill="none" stroke="#8DA2BE" stroke-width="1.5" stroke-dasharray="6 4"></path>
+  </svg>
+  <sc-for list="{{markers}}" as="m" hint-placeholder-count="5">
+    <div style="position: absolute; left: {{m.x}}px; top: {{m.y}}px; width: 0; height: 0">
+      <div style="position: absolute; left: 0; top: 0; width: {{m.l1}}px; height: {{m.l1}}px; transform: translate(-50%,-50%); background: {{m.c1}}; clip-path: {{m.clip}}"></div>
+      <div style="position: absolute; left: 0; top: 0; width: {{m.l2}}px; height: {{m.l2}}px; transform: translate(-50%,-50%); background: {{m.c2}}; clip-path: {{m.clip}}"></div>
+      <div style="position: absolute; left: 0; top: 0; width: {{m.l3}}px; height: {{m.l3}}px; transform: translate(-50%,-50%); background: {{m.c3}}; clip-path: {{m.clip}}"></div>
+      <img src="{{m.icon}}" alt="{{m.aria}}" style="position: absolute; left: 0; top: {{m.iconDy}}px; width: {{m.glyph}}px; height: {{m.glyph}}px; transform: translate(-50%,-50%)">
+    </div>
+  </sc-for>
+
+  <a href="Main.dc.html" aria-label="Back to map" style="position: absolute; left: 16px; top: 54px; height: 36px; padding: 0 12px 0 10px; display: flex; align-items: center; gap: 6px; border-radius: 18px; background: rgba(17,28,45,0.78); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(232,238,246,0.08); color: #E8EEF6; font-size: 13px; font-weight: 500">
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E8EEF6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>World</a>
+
+  <div style="position: absolute; left: 0; top: 300px; width: 390px; height: 544px; box-sizing: border-box; padding: 0 20px; background: #111C2D; border-top: 1px solid rgba(232,238,246,0.10); border-radius: 22px 22px 0 0; overflow-y: auto">
+    <div style="height: 22px; display: flex; align-items: center; justify-content: center"><span style="width: 36px; height: 5px; border-radius: 3px; background: #3A4A63"></span></div>
+
+    <div style="display: flex; align-items: baseline; gap: 8px">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.2px">Portugal</h1>
+      <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #9AABC2">PT</span>
+      <span style="flex: 1"></span>
+      <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: #FFB54A; border: 1px solid rgba(255,181,74,0.45); border-radius: 4px; padding: 2px 5px">SAMPLE DATA</span>
+    </div>
+    <div style="margin-top: 2px; font-size: 13px; color: #9AABC2; font-variant-numeric: tabular-nums">Updated 2 min ago · 14:12 UTC</div>
+
+    <div style="margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <div style="padding: 10px; border-radius: 12px; background: #0D1626; border: 1px solid #24324A"><div style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">7</div><div style="font-size: 12px; color: #9AABC2">Active</div></div>
+      <div style="padding: 10px; border-radius: 12px; background: #0D1626; border: 1px solid #24324A"><div style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; color: #FF8540">1</div><div style="font-size: 12px; color: #9AABC2">Severe or worse</div></div>
+      <div style="padding: 10px; border-radius: 12px; background: #0D1626; border: 1px solid #24324A"><div style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">3</div><div style="font-size: 12px; color: #9AABC2">Official warnings</div></div>
+    </div>
+
+    <!-- Type x severity matrix -->
+    <div style="margin-top: 16px; font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">TYPE × SEVERITY</div>
+    <div style="margin-top: 8px; display: grid; grid-template-columns: 104px repeat(4, minmax(0, 1fr)); gap: 4px; align-items: center">
+      <span></span>
+      <sc-for list="{{sevHeads}}" as="h" hint-placeholder-count="4">
+        <span style="display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: #9AABC2"><span style="width: 10px; height: 10px; background: {{h.c}}; clip-path: {{h.clip}}"></span>{{h.word}}</span>
+      </sc-for>
+      <sc-for list="{{matrix}}" as="row" hint-placeholder-count="4">
+        <span style="font-size: 13px; color: #C3CEDD; white-space: nowrap">{{row.label}}</span>
+        <sc-for list="{{row.cells}}" as="cell" hint-placeholder-count="4">
+          <button aria-label="{{cell.aria}}" onClick="{{cell.pick}}" style="height: 32px; border-radius: 6px; border: 1px solid {{cell.border}}; background: {{cell.bg}}; color: {{cell.fg}}; font: 600 13px -apple-system, system-ui, sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; padding: 0">{{cell.n}}</button>
+        </sc-for>
+      </sc-for>
+    </div>
+
+    <!-- Coverage -->
+    <div style="margin-top: 16px; padding: 12px; border-radius: 12px; background: rgba(255,181,74,0.07); border: 1px solid rgba(255,181,74,0.30); display: flex; gap: 10px">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFB54A" stroke-width="2" stroke-linecap="round" style="flex: 0 0 auto; margin-top: 1px"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+      <div style="font-size: 13px; line-height: 1.45; color: #C3CEDD">
+        <span style="color: #FFB54A; font-weight: 600">Limited coverage.</span> Official warnings come from Meteoalarm. Earthquakes: USGS, GDACS. Wildfires: NASA EONET, GDACS. Not covered: the national flood service.
+        <span style="display: block; margin-top: 4px; color: #9AABC2">Absence of data is not safety.</span>
+      </div>
+    </div>
+
+    <!-- Recent changes -->
+    <div style="margin-top: 16px; font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">LAST 24 H</div>
+    <div style="margin-top: 6px; font-size: 14px; line-height: 1.4">
+      <div style="display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1B2840"><span>Wildfire near Monchique raised to <span style="color: #FF8540; font-weight: 600">Severe</span></span><span style="font-size: 12px; color: #9AABC2; white-space: nowrap">40 min ago</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1B2840"><span>Heat warning issued, Alentejo</span><span style="font-size: 12px; color: #9AABC2; white-space: nowrap">2 h ago</span></div>
+    </div>
+
+    <!-- Events -->
+    <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: baseline">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">EVENTS · {{filterLabel}}</span>
+      <sc-if value="{{hasFilter}}" hint-placeholder-val="{{ false }}"><button onClick="{{clearFilter}}" style="border: 0; background: transparent; color: #52B6FF; font-size: 13px; cursor: pointer; padding: 0">Show all</button></sc-if>
+    </div>
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+      <a href="EventDetail.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1B2840; color: #E8EEF6">
+        <div style="position: relative; width: 32px; height: 32px; flex: 0 0 auto">
+          <div style="position: absolute; inset: 0; background: {{r.c}}; clip-path: {{r.clip}}"></div>
+          <div style="position: absolute; inset: {{r.inset}}px; background: {{r.c2}}; clip-path: {{r.clip}}"></div>
+          <img src="{{r.icon}}" alt="" style="position: absolute; left: 50%; top: {{r.iconTop}}%; width: 15px; height: 15px; transform: translate(-50%,-50%)">
+        </div>
+        <div style="flex: 1; min-width: 0">
+          <div style="font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.title}}</div>
+          <div style="margin-top: 2px; font-size: 12px; color: #9AABC2">{{r.kind}} · {{r.meta}}</div>
+        </div>
+        <div style="font-size: 13px; font-weight: 600; color: {{r.c}}">{{r.word}}</div>
+      </a>
+    </sc-for>
+    <p style="margin: 12px 0 28px; font-size: 12px; line-height: 1.45; color: #9AABC2">Aegis Terra does not replace your national emergency service. Always follow official instructions.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { pick: null }; }
+  renderVals() {
+    var self = this;
+    var CANVAS = '#080E1A';
+    var SEV = {
+      minor:    { c: '#8DA2BE', clip: 'circle(50% at 50% 50%)', k: 0.8, word: 'Minor', dy: 0 },
+      moderate: { c: '#FFB54A', clip: 'polygon(50% 0,100% 50%,50% 100%,0 50%)', k: 1.0, word: 'Moderate', dy: 0 },
+      severe:   { c: '#FF8540', clip: 'polygon(50% 4%,100% 94%,0 94%)', k: 1.15, word: 'Severe', dy: 3 },
+      extreme:  { c: '#F35D62', clip: 'polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)', k: 1.3, word: 'Extreme', dy: 0 }
+    };
+    var ICON = {
+      wildfire: ['/_blob/82551be4f9d7ca315bac6d33e5c5bbb9', '/_blob/6ed402466eb7a2975a3fdfff7d2ed6ed'],
+      heat: ['/_blob/d83a4cbfcf0ba670871203181c2a3cfa', '/_blob/f70ab925c4dbf3466023de8d905199e6'],
+      wind: ['/_blob/f0849420d8e27afd29363921ab7efea4', '/_blob/0454ef8eb7cf3043ba5029884ed8162d'],
+      heavy_rain: ['/_blob/6d4e2f9af12b00364f6091c56aea6f8a', '/_blob/0a9b470708145b9ae3b6359f53a147c7']
+    };
+    var TYPES = [['wildfire', 'Wildfire'], ['heat', 'Extreme heat'], ['wind', 'Wind'], ['heavy_rain', 'Heavy rain']];
+    var ORDER = ['minor', 'moderate', 'severe', 'extreme'];
+    var events = [
+      { type: 'wildfire', sev: 'severe', kind: 'observed', x: 156, y: 281, title: 'Wildfire near Monchique', meta: 'GDACS · 40 min ago' },
+      { type: 'wildfire', sev: 'moderate', kind: 'observed', x: 138, y: 180, title: 'Wildfire near Leiria', meta: 'NASA EONET · 1 h ago' },
+      { type: 'wildfire', sev: 'moderate', kind: 'observed', x: 178, y: 178, title: 'Wildfire near Castelo Branco', meta: 'NASA EONET · 3 h ago' },
+      { type: 'heat', sev: 'moderate', kind: 'warning', x: 170, y: 238, title: 'Heat warning, Alentejo', meta: 'Meteoalarm Level 2 · 2 h ago' },
+      { type: 'heat', sev: 'moderate', kind: 'warning', x: 0, y: 0, title: 'Heat warning, Algarve', meta: 'Meteoalarm Level 2 · 2 h ago', off: true },
+      { type: 'wind', sev: 'minor', kind: 'warning', x: 0, y: 0, title: 'Wind warning, Porto coast', meta: 'Meteoalarm Level 1 · 4 h ago', off: true },
+      { type: 'heavy_rain', sev: 'minor', kind: 'forecast', x: 141, y: 106, title: 'Heavy rain forecast, Minho', meta: 'Meteoalarm · from 18:00', }
+    ];
+    var markers = events.filter(function (e) { return !e.off; }).map(function (e) {
+      var s = SEV[e.sev]; var base = Math.round(24 * s.k);
+      var m = { x: e.x, y: e.y, clip: s.clip, l3: base, glyph: Math.round(base * 0.5), iconDy: s.dy, aria: s.word + ' ' + e.title };
+      if (e.kind === 'forecast') { m.l1 = 0; m.c1 = 'transparent'; m.l2 = base; m.c2 = s.c; m.c3 = CANVAS; m.l3 = base - 5; m.icon = ICON[e.type][1]; }
+      else { m.l1 = e.kind === 'warning' ? base + 9 : 0; m.c1 = s.c; m.l2 = base + 4; m.c2 = CANVAS; m.c3 = s.c; m.icon = ICON[e.type][0]; }
+      return m;
+    });
+    var pick = this.state.pick;
+    var matrix = TYPES.map(function (t) {
+      return { label: t[1], cells: ORDER.map(function (sv) {
+        var n = events.filter(function (e) { return e.type === t[0] && e.sev === sv; }).length;
+        var on = pick && pick.type === t[0] && pick.sev === sv;
+        var s = SEV[sv];
+        return { n: n || '·', aria: t[1] + ', ' + s.word + ': ' + n,
+          bg: on ? s.c : (n ? s.c + '40' : '#0D1626'), fg: on ? CANVAS : (n ? '#E8EEF6' : '#3A4A63'), border: on ? s.c : '#24324A',
+          pick: function () { if (n) self.setState({ pick: on ? null : { type: t[0], sev: sv } }); } };
+      }) };
+    });
+    var list = events.filter(function (e) { return !pick || (e.type === pick.type && e.sev === pick.sev); })
+      .sort(function (a, b) { return ORDER.indexOf(b.sev) - ORDER.indexOf(a.sev); })
+      .map(function (e) { var s = SEV[e.sev]; var fc = e.kind === 'forecast';
+        return { title: e.title, meta: e.meta, word: s.word, c: s.c, c2: fc ? '#111C2D' : s.c, inset: fc ? 3 : 0, clip: s.clip,
+          icon: ICON[e.type][fc ? 1 : 0], iconTop: s.dy ? 60 : 50, kind: e.kind === 'observed' ? 'Observed' : (fc ? 'Forecast' : 'Official warning') }; });
+    return {
+      markers: markers,
+      sevHeads: ORDER.map(function (k) { return { word: SEV[k].word, c: SEV[k].c, clip: SEV[k].clip }; }),
+      matrix: matrix,
+      rows: list,
+      hasFilter: !!pick,
+      filterLabel: pick ? (SEV[pick.sev].word.toUpperCase() + ' ' + TYPES.filter(function (t) { return t[0] === pick.type; })[0][1].toUpperCase()) : 'ALL 7',
+      clearFilter: function () { self.setState({ pick: null }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

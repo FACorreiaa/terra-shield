@@ -2,11 +2,14 @@
 //
 //	shield serve [--port 8080]       HTTP API
 //	shield worker                    River ingestion worker (+ /metrics on METRICS_PORT)
-//	shield migrate [--yes] | status  goose + River migrations
+//	shield migrate [--yes] [--no-seed] | status
+//	                                 goose + River migrations; seeds countries when empty
+//	shield seed-countries [--file f] (re)load Natural Earth boundaries
 //	shield routes                    print every route, for the spec test
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -22,6 +25,7 @@ import (
 
 	"shield/internal/config"
 	"shield/internal/features"
+	"shield/internal/geo/countries"
 	"shield/internal/ingest"
 	"shield/internal/metrics"
 	"shield/internal/migrate"
@@ -48,6 +52,8 @@ func run(args []string) error {
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	port := fs.Int("port", 0, "listen port (overrides PORT)")
 	_ = fs.Bool("yes", false, "accepted for the chart's migrate job; migrations never prompt")
+	noSeed := fs.Bool("no-seed", false, "migrate: do not seed countries when the table is empty")
+	countriesFile := fs.String("file", "", "seed-countries: read this GeoJSON instead of downloading the pinned dataset")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -73,7 +79,9 @@ func run(args []string) error {
 	case "worker":
 		return worker(ctx, cfg, logger)
 	case "migrate":
-		return runMigrate(ctx, cfg, logger, fs.Args())
+		return runMigrate(ctx, cfg, logger, fs.Args(), !*noSeed)
+	case "seed-countries":
+		return runSeedCountries(ctx, cfg, logger, *countriesFile)
 	case "routes":
 		return printRoutes(cfg)
 	}
@@ -194,7 +202,7 @@ func newHTTPServer(port int, handler http.Handler) *http.Server {
 	}
 }
 
-func runMigrate(ctx context.Context, cfg config.Base, logger *slog.Logger, args []string) error {
+func runMigrate(ctx context.Context, cfg config.Base, logger *slog.Logger, args []string, seed bool) error {
 	pool, err := openDB(ctx, cfg)
 	if err != nil {
 		return err
@@ -203,7 +211,59 @@ func runMigrate(ctx context.Context, cfg config.Base, logger *slog.Logger, args 
 	if len(args) > 0 && args[0] == "status" {
 		return migrate.Status(ctx, pool, logger)
 	}
-	return migrate.Up(ctx, pool, logger)
+	if err := migrate.Up(ctx, pool, logger); err != nil {
+		return err
+	}
+	if !seed {
+		return nil
+	}
+	// First rollout on a fresh database: load borders so country
+	// assignment works from the first poll. Later rollouts skip this.
+	n, err := countries.Count(ctx, pool)
+	if err != nil || n > 0 {
+		return err
+	}
+	logger.Info("countries table empty; seeding")
+	return seedCountries(ctx, pool, logger, "")
+}
+
+func runSeedCountries(ctx context.Context, cfg config.Base, logger *slog.Logger, file string) error {
+	pool, err := openDB(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	return seedCountries(ctx, pool, logger, file)
+}
+
+// seedCountries loads the pinned Natural Earth dataset, from file when
+// given (offline), else downloaded. Both paths verify the SHA-256.
+func seedCountries(ctx context.Context, pool *pgxpool.Pool, logger *slog.Logger, file string) error {
+	var body []byte
+	var err error
+	if file != "" {
+		body, err = os.ReadFile(file) //nolint:gosec // operator-supplied path on a CLI command
+		if err == nil {
+			err = countries.Verify(body, countries.DatasetSHA256)
+		}
+	} else {
+		client := &http.Client{Timeout: 2 * time.Minute}
+		body, err = countries.Fetch(ctx, client, countries.DatasetURL, countries.DatasetSHA256)
+	}
+	if err != nil {
+		return fmt.Errorf("countries dataset: %w", err)
+	}
+	features, skipped, err := countries.Parse(bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	start := time.Now()
+	n, err := countries.Load(ctx, pool, features)
+	if err != nil {
+		return err
+	}
+	logger.Info("countries seeded", "countries", n, "features", len(features), "skipped", skipped, "duration", time.Since(start))
+	return nil
 }
 
 // Routes lists every registered "METHOD /path", sorted.

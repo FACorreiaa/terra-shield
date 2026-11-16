@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aegis Terra · Alert center</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#080E1A}
+a{color:#52B6FF;text-decoration:none}a:hover{color:#8FD0FF}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #080E1A; color: #E8EEF6; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; -webkit-font-smoothing: antialiased">
+  <div style="height: 844px; overflow-y: auto; box-sizing: border-box; padding: 54px 20px 32px">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <a href="Main.dc.html" style="height: 36px; display: flex; align-items: center; gap: 4px; font-size: 15px">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#52B6FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Map</a>
+      <button onClick="{{markAll}}" style="height: 36px; border: 0; background: transparent; color: #52B6FF; font: 400 15px -apple-system, system-ui, sans-serif; cursor: pointer; padding: 0">Mark all read</button>
+    </div>
+    <h1 style="margin: 10px 0 0; font-size: 30px; font-weight: 700; letter-spacing: -0.4px">Alerts</h1>
+    <div style="margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #111C2D; border: 1px solid #24324A; font-size: 12px; color: #9AABC2; display: flex; gap: 8px; align-items: center">
+      <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: #52B6FF; border: 1px solid rgba(82,182,255,0.45); border-radius: 4px; padding: 2px 5px">PHASE 3</span>
+      Design only. Push alerts for saved regions.
+    </div>
+    <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center">
+      <span style="font-size: 13px; color: #9AABC2; font-variant-numeric: tabular-nums">{{unreadLabel}}</span>
+      <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: #FFB54A; border: 1px solid rgba(255,181,74,0.45); border-radius: 4px; padding: 2px 5px">SAMPLE DATA</span>
+    </div>
+
+    <sc-for list="{{groups}}" as="grp" hint-placeholder-count="2">
+      <div style="margin-top: 18px; font-size: 11px; font-weight: 600; letter-spacing: 0.9px; color: #9AABC2">{{grp.label}}</div>
+      <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{grp.items}}" as="a" hint-placeholder-count="2">
+          <button onClick="{{a.read}}" aria-label="{{a.aria}}" style="text-align: left; width: 100%; padding: 12px; border-radius: 12px; background: #111C2D; border: 1px solid {{a.border}}; color: #E8EEF6; cursor: pointer; font-family: inherit">
+            <div style="display: flex; align-items: flex-start; gap: 10px">
+              <span style="width: 8px; height: 8px; margin-top: 6px; flex: 0 0 auto; border-radius: 50%; background: {{a.dot}}"></span>
+              <div style="flex: 1; min-width: 0">
+                <div style="display: flex; justify-content: space-between; gap: 8px">
+                  <span style="font-size: 15px; font-weight: 600; line-height: 1.3">{{a.title}}</span>
+                  <span style="font-size: 12px; color: #9AABC2; white-space: nowrap; font-variant-numeric: tabular-nums">{{a.at}}</span>
+                </div>
+                <div style="margin-top: 2px; font-size: 12px; color: #9AABC2">{{a.region}} · {{a.source}}</div>
+                <div style="margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+                  <div style="padding: 6px 8px; border-radius: 8px; background: {{a.sevBg}}">
+                    <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.6px; color: #9AABC2">SEVERITY</div>
+                    <div style="margin-top: 2px; display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: {{a.c}}"><span style="width: 9px; height: 9px; background: {{a.c}}; clip-path: {{a.clip}}"></span>{{a.word}}</div>
+                  </div>
+                  <div style="padding: 6px 8px; border-radius: 8px; background: #0D1626">
+                    <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.6px; color: #9AABC2">URGENCY</div>
+                    <div style="margin-top: 2px; font-size: 13px; color: #E8EEF6">{{a.urgency}}</div>
+                  </div>
+                  <div style="padding: 6px 8px; border-radius: 8px; background: #0D1626">
+                    <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.6px; color: #9AABC2">CERTAINTY</div>
+                    <div style="margin-top: 2px; font-size: 13px; color: #E8EEF6">{{a.certainty}}</div>
+                  </div>
+                </div>
+                <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #C3CEDD">
+                  <span style="padding: 1px 6px; border-radius: 5px; border: 1px {{a.kindBorder}} #3A4A63">{{a.kind}}</span>
+                </div>
+              </div>
+            </div>
+          </button>
+        </sc-for>
+      </div>
+    </sc-for>
+    <p style="margin: 18px 0 0; font-size: 12px; line-height: 1.45; color: #9AABC2">Severity, urgency and certainty come from the source where it gives them (CAP). Aegis Terra does not replace your national emergency service.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { read: {} }; }
+  renderVals() {
+    var self = this;
+    var SEV = {
+      minor:    { c: '#8DA2BE', clip: 'circle(50% at 50% 50%)', word: 'Minor', bg: 'rgba(141,162,190,0.12)' },
+      moderate: { c: '#FFB54A', clip: 'polygon(50% 0,100% 50%,50% 100%,0 50%)', word: 'Moderate', bg: 'rgba(255,181,74,0.12)' },
+      severe:   { c: '#FF8540', clip: 'polygon(50% 4%,100% 94%,0 94%)', word: 'Severe', bg: 'rgba(255,133,64,0.12)' },
+      extreme:  { c: '#F35D62', clip: 'polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)', word: 'Extreme', bg: 'rgba(243,93,98,0.12)' }
+    };
+    var all = [
+      { id: 'a1', g: 'TODAY', sev: 'severe', title: 'M6.1 earthquake off Coquimbo', region: 'Family · Chile', source: 'USGS', at: '14:02', urgency: 'Past', certainty: 'Observed', kind: 'observed' },
+      { id: 'a3', g: 'TODAY', sev: 'moderate', title: 'Wildfire near Leiria grew', region: 'Home · Portugal', source: 'NASA EONET', at: '13:31', urgency: 'Immediate', certainty: 'Observed', kind: 'observed' },
+      { id: 'a2', g: 'TODAY', sev: 'moderate', title: 'Heat warning, Leiria', region: 'Home · Portugal', source: 'Meteoalarm', at: '12:30', urgency: 'Expected', certainty: 'Likely', kind: 'warning' },
+      { id: 'a4', g: 'YESTERDAY', sev: 'minor', title: 'Heavy rain possible from Thursday', region: 'Home · Portugal', source: 'Meteoalarm', at: '18:05', urgency: 'Future', certainty: 'Possible', kind: 'forecast', readDefault: true }
+    ];
+    var read = this.state.read;
+    var unread = 0;
+    var mk = function (a) {
+      var s = SEV[a.sev]; var isRead = read[a.id] || a.readDefault;
+      if (!isRead) unread++;
+      return { title: a.title, region: a.region, source: a.source, at: a.at, urgency: a.urgency, certainty: a.certainty,
+        word: s.word, c: s.c, clip: s.clip, sevBg: s.bg, dot: isRead ? 'transparent' : '#52B6FF', border: isRead ? '#1B2840' : '#24324A',
+        kind: a.kind === 'observed' ? 'Observed' : (a.kind === 'forecast' ? 'Forecast' : 'Official warning'), kindBorder: a.kind === 'forecast' ? 'dashed' : 'solid',
+        aria: (isRead ? '' : 'Unread. ') + s.word + ' ' + a.title + ', urgency ' + a.urgency + ', certainty ' + a.certainty,
+        read: function () { var r = Object.assign({}, self.state.read); r[a.id] = true; self.setState({ read: r }); } };
+    };
+    var today = all.filter(function (a) { return a.g === 'TODAY'; }).map(mk);
+    var yesterday = all.filter(function (a) { return a.g === 'YESTERDAY'; }).map(mk);
+    return {
+      groups: [{ label: 'TODAY', items: today }, { label: 'YESTERDAY', items: yesterday }],
+      unreadLabel: unread ? unread + ' unread' : 'All read',
+      markAll: function () { self.setState({ read: { a1: true, a2: true, a3: true, a4: true } }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -307,8 +307,8 @@ Build only after the 10-strangers gate and Phase 3 accounts. The spec is complet
 - **Data (Phase 3 API, not in v1):** saved regions (country or drawn bbox/polygon) with
   per-region filters, synced via Sign in with Apple.
 - **List:** a `SavedRegionCard` per region, with a 2:1 mini-map thumbnail (`radius.md`), the name, an
-  "Active: 4 · Severe+: 1" strip, the highest-severity colour as a 2 px left edge, and the last
-  change ("Flood warning issued · 1 h ago"). Sorting is by highest severity, then name.
+  "Active: 4 · Severe+: 1" strip, the highest severity as a `SeverityBadge` top-right (no
+  coloured left-edge bars), and the last change ("Flood warning issued · 1 h ago"). Sorting is by highest severity, then name.
 - **Add region:** draw a rectangle or polygon on the map, or pick a country. Then name it and
   pick filters (types, minimum severity, kinds). The default is official warnings + observed,
   severity ≥ moderate, with detections off.
@@ -480,4 +480,4 @@ tiles, imagery or trademarks pixel for pixel.
 - `design/tokens.json`: every value. S3.1 copies `apps/aaru/scripts/generate-tokens.mjs`
   and `ci-brand.yml` to generate `Tokens.gen.swift`, colour sets and web CSS from it.
 - `design/brand/README.md`: the asset inventory and licence notes.
-- `design/mockups/aegis-terra-key-screens.html`: the clickable mockup for owner verdicts.
+- `design/mockups/README.md`: the clickable mockup canvas for owner verdicts (live link + sources).

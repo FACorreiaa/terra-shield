@@ -24,6 +24,10 @@ type PollArgs struct {
 // Kind is the River job kind.
 func (PollArgs) Kind() string { return "poll_source" }
 
+// maxSnooze caps a source's Retry-After so a bad header cannot park a
+// source for days; the staleness alert fires long before this.
+const maxSnooze = time.Hour
+
 // pollTimeout bounds one poll, fetch and store together. FIRMS' global CSV
 // is the slowest feed.
 const pollTimeout = 2 * time.Minute
@@ -79,6 +83,12 @@ func (w *PollWorker) Work(ctx context.Context, job *river.Job[PollArgs]) error {
 			w.logger.Error("record source error", "source", id, "error", err)
 		}
 		w.logger.Warn("poll failed", "source", id, "attempt", job.Attempt, "error", pollErr)
+		// The source asked us to wait: honour it instead of River's own
+		// backoff (ADR 16: being blocked is the worst latency of all).
+		var se *fetch.StatusError
+		if errors.As(pollErr, &se) && se.RetryAfter > 0 {
+			return river.JobSnooze(min(se.RetryAfter, maxSnooze))
+		}
 		return pollErr
 	}
 

@@ -40,8 +40,10 @@ type Event struct {
 }
 
 type EventCountry struct {
-	EventID uuid.UUID
-	Iso2    string
+	EventID    uuid.UUID
+	Iso2       string
+	Relation   string
+	DistanceKm float32
 }
 
 type EventRevision struct {

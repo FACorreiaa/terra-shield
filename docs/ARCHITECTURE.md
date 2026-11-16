@@ -80,7 +80,7 @@ New product (2026-11-16): a global natural-hazard monitor answering *"What's hap
 | `GET /v1/stream?bbox=&type=` | SSE `event.created \| updated \| resolved`, heartbeat, `Last-Event-ID` |
 | `/health/live`, `/health/ready`, `/metrics`, `/openapi.yaml` | Ops (paths match the `norviq-app` chart's default probes) |
 
-Lists return `ETag` and `Cache-Control: max-age=30`. Rate limiting is per IP.
+Event lists return `ETag` and `Cache-Control: max-age` ≤ 15 s (ADR 16: below the shortest poll interval); `/v1/sources` uses 30 s. Rate limiting is per IP.
 
 
 ## 5. Repo layout (monorepo, like aaru / postitheka)
@@ -107,7 +107,7 @@ shield-app/
 ```
 
 
-## 6. Infra (`platform/infra` only; never a local `*-infra/` copy)
+## 6. Infra (`platform/infra` only; never a local `*-infra/` copy) — deferred to S3.9a, local-first until then
 
 Template: **Khepri** (web + worker from one image, namespace `horus`). Simplest reference: Postitheka.
 

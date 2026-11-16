@@ -1,0 +1,23 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-16T16:20:00Z" },
+  "title": "Aegis Terra key screens",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 470, "y": 0, "w": 390, "h": 844, "title": "iOS · Live map (Monitor)", "is_interactive": true, "radius": 44 },
+    "Onboarding.dc.html": { "x": 0, "y": 0, "w": 390, "h": 844, "title": "iOS · Onboarding", "is_interactive": true, "radius": 44 },
+    "EventDetail.dc.html": { "x": 940, "y": 0, "w": 390, "h": 844, "title": "iOS · Event detail", "is_interactive": true, "radius": 44 },
+    "Country.dc.html": { "x": 1410, "y": 0, "w": 390, "h": 844, "title": "iOS · Country overview", "is_interactive": true, "radius": 44 },
+    "Saved.dc.html": { "x": 1880, "y": 0, "w": 390, "h": 844, "title": "iOS · Saved regions (Phase 3)", "is_interactive": true, "radius": 44 },
+    "Alerts.dc.html": { "x": 2350, "y": 0, "w": 390, "h": 844, "title": "iOS · Alert center (Phase 3)", "is_interactive": true, "radius": 44 },
+    "Mac.dc.html": { "x": 0, "y": 1264, "w": 1440, "h": 900, "title": "macOS · Monitor + inspector", "is_interactive": true, "radius": 12 }
+  },
+  "order": ["Main.dc.html", "Onboarding.dc.html", "EventDetail.dc.html", "Country.dc.html", "Saved.dc.html", "Alerts.dc.html", "Mac.dc.html"],
+  "notes": {
+    "iosTitle": { "x": 0, "y": -300, "text": "Aegis Terra · iOS", "kind": "title1", "maxW": 2740 },
+    "macTitle": { "x": 0, "y": 964, "text": "Aegis Terra · macOS", "kind": "title1", "maxW": 1440 },
+    "sample": { "x": 1540, "y": 1264, "w": 420, "text": "Every number, place and event on this canvas is SAMPLE DATA for design review. None of it is a live warning.\n\nSpec: DESIGN.md + VIEWS.md + design/tokens.json in shield-app.\n\nVerdicts wanted:\n1. Severity shapes (circle / diamond / triangle / octagon) + colours\n2. Kind forms: observed filled, warning ringed, forecast outlined, detections as dots\n3. Logo + Sentinel placement\n4. MapKit muted dark vs a custom navy basemap (this mock uses a navy Natural Earth base)", "fill": "blue", "size": "m" }
+  },
+  "designSystems": []
+}

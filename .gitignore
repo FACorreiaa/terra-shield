@@ -1,17 +1,96 @@
-.DS_Store
-backend/bin/
-*.test
-*.out
+# ---------------------------------------------------------------------------
+# Secrets: never commit. Sealed secrets live in platform/infra, not here.
+# ---------------------------------------------------------------------------
 .env
 .env.*
-# Apple
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.age
+**/Config/Secrets.xcconfig
+!**/Config/Secrets.example.xcconfig
+
+# ---------------------------------------------------------------------------
+# OS / editors
+# ---------------------------------------------------------------------------
+.DS_Store
+._*
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.code-workspace
+
+# Agent / tool scratch
+.claude/settings.local.json
+.planning/
+
+# ---------------------------------------------------------------------------
+# Go backend
+# ---------------------------------------------------------------------------
+backend/bin/
+backend/tmp/
+*.test
+*.out
+*.prof
+coverage.*
+# Downloaded seed data (Natural Earth shapefiles etc.); fetched by scripts, not committed.
+backend/data/
+
+# ---------------------------------------------------------------------------
+# Apple (Xcode, SwiftPM, fastlane)
+# ---------------------------------------------------------------------------
 xcuserdata/
-DerivedData/
 *.xcuserstate
-shield-apple/fastlane/build/
-shield-apple/fastlane/test_output/
-shield-apple/fastlane/report.xml
-shield-apple/Config/Secrets.xcconfig
-# Web (phase 2)
+*.xcscmblueprint
+DerivedData/
+build/
+.build/
+.swiftpm/
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcarchive
+*.xcresult
+**/fastlane/build/
+**/fastlane/test_output/
+**/fastlane/ui_test_output/
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/README.md
+vendor/bundle/
+.bundle/
+
+# ---------------------------------------------------------------------------
+# Web (phase 2: SvelteKit)
+# ---------------------------------------------------------------------------
 node_modules/
 .svelte-kit/
+web/build/
+web/dist/
+.wrangler/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Android (phase 4)
+# ---------------------------------------------------------------------------
+.gradle/
+android/**/build/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+captures/
+.externalNativeBuild/
+.cxx/
