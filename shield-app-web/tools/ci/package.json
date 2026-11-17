@@ -1,0 +1,19 @@
+{
+  "name": "@shield/ci",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Test sharding by recorded time: plan, sequencer, timings reporter, merge.",
+  "type": "module",
+  "exports": {
+    "./sequencer": "./src/sequencer.ts",
+    "./timings-reporter": "./src/timingsReporter.ts"
+  },
+  "scripts": {
+    "test": "vp test"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vite-plus": "catalog:"
+  }
+}

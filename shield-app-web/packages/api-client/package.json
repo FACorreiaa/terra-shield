@@ -1,0 +1,22 @@
+{
+  "name": "@shield/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed client for the Shield API, generated from backend/api/openapi.yaml.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ../../../backend/api/openapi.yaml -o src/schema.gen.ts",
+    "test": "vp test"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3",
+    "vite-plus": "catalog:"
+  }
+}

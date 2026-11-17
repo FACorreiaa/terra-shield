@@ -1,0 +1,144 @@
+name: CI web
+
+# Lint, typecheck, test, build and e2e are independent jobs, so they run at the
+# same time and the slowest one sets the wall time.
+
+on:
+  push:
+    branches: [main]
+    paths: ["shield-app-web/**", ".github/workflows/ci-web.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["shield-app-web/**", ".github/workflows/ci-web.yml"]
+
+concurrency:
+  group: ci-web-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: shield-app-web
+
+env:
+  # Keep in step with the test matrix below.
+  TEST_SHARDS: 1
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          working-directory: shield-app-web
+          cache: true
+      # oxlint with every stable category on, type-aware; see vite.config.ts.
+      - run: vp lint --deny-warnings
+      - run: vp fmt --check
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          working-directory: shield-app-web
+          cache: true
+      - run: vp check --no-fmt --no-lint
+
+  # One shard today: the suite runs in under a second, so a second runner
+  # would cost more than it saves. To split it, add to the matrix and raise
+  # TEST_SHARDS; the sequencer in tools/ci already fills shards by recorded
+  # time, and the timings job below already records it.
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # --changed needs the base branch to diff against.
+          fetch-depth: 0
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          working-directory: shield-app-web
+          cache: true
+      - uses: actions/cache/restore@v4
+        with:
+          path: shield-app-web/.ci/test-timings.json
+          key: web-test-timings-${{ github.run_id }}
+          restore-keys: web-test-timings-
+      # On a PR, run only the tests whose import graph reaches a changed file;
+      # forceRerunTriggers in vite.config.ts lists what reruns everything.
+      - if: github.event_name == 'pull_request'
+        run: vp test --shard "${{ matrix.shard }}/$TEST_SHARDS" --changed "origin/${{ github.base_ref }}"
+      - if: github.event_name != 'pull_request'
+        run: vp test --shard "${{ matrix.shard }}/$TEST_SHARDS"
+        env:
+          TEST_TIMINGS_OUT: test-timings/shard-${{ matrix.shard }}.json
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-test-timings-${{ matrix.shard }}
+          path: shield-app-web/test-timings/
+          retention-days: 1
+
+  # Merge what the shards measured on main and keep it for later runs to plan
+  # with. A PR can read a cache written on main, not one written by another PR.
+  test-timings:
+    name: Record test timings
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: web-test-timings-*
+          path: shield-app-web/test-timings
+          merge-multiple: true
+      - run: mkdir -p .ci && bun tools/ci/src/merge.ts test-timings .ci/test-timings.json
+      - uses: actions/cache/save@v4
+        with:
+          path: shield-app-web/.ci/test-timings.json
+          key: web-test-timings-${{ github.run_id }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          working-directory: shield-app-web
+          cache: true
+      - run: vp run -r build
+
+  # Smoke test against the production build, API mocked per test.
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          working-directory: shield-app-web
+          cache: true
+      - run: vp run -r build
+      - run: vp exec playwright install --with-deps chromium
+        working-directory: shield-app-web/apps/web
+      - run: vp run web#e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-playwright-report
+          path: shield-app-web/apps/web/test-results/
+          retention-days: 7

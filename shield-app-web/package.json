@@ -1,0 +1,43 @@
+{
+  "name": "shield-app-web",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "ready": "vp check && vp test && vp run -r build",
+    "dev": "vp run web#dev",
+    "typecheck": "vp check --no-fmt --no-lint",
+    "lint": "vp lint --deny-warnings",
+    "fmt:check": "vp fmt --check",
+    "build": "vp run -r build",
+    "test": "vp test",
+    "e2e": "vp run web#e2e"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "overrides": {
+    "vite": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.4.4",
+      "onFail": "download"
+    }
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "catalog": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.6.0",
+    "vite-plus": "1.6.0"
+  }
+}
