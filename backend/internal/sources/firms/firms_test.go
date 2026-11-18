@@ -86,9 +86,12 @@ var _ ingest.FireStore = (*fakeFires)(nil)
 func TestPollDownloadsOnlyChangedFiles(t *testing.T) {
 	body := read(t, "J1_VIIRS_C2_Global_24h.csv")
 	etags := map[string]string{"/a.csv": `"a1"`, "/b.csv": `"b1"`}
+	t0 := time.Date(2026, 11, 18, 18, 0, 0, 0, time.UTC)
+	modified := map[string]time.Time{"/a.csv": t0, "/b.csv": t0.Add(-time.Hour)}
 	var gets atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", etags[r.URL.Path])
+		w.Header().Set("Last-Modified", modified[r.URL.Path].Format(http.TimeFormat))
 		if r.Method == http.MethodGet {
 			gets.Add(1)
 			_, _ = w.Write(body)
@@ -103,9 +106,12 @@ func TestPollDownloadsOnlyChangedFiles(t *testing.T) {
 	if err != nil || res.NotModified || res.Upserted != 80 || gets.Load() != 2 {
 		t.Fatalf("first %+v err %v gets %d", res, err, gets.Load())
 	}
+	if !res.SourceUpdatedAt.Equal(t0) {
+		t.Fatalf("updated at %s, want the newest file's %s", res.SourceUpdatedAt, t0)
+	}
 
 	res, err = s.Poll(t.Context(), domain.Validators{})
-	if err != nil || !res.NotModified || gets.Load() != 2 {
+	if err != nil || !res.NotModified || gets.Load() != 2 || !res.SourceUpdatedAt.Equal(t0) {
 		t.Fatalf("unchanged %+v err %v gets %d", res, err, gets.Load())
 	}
 

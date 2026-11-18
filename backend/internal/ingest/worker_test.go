@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"testing"
 	"time"
 
 	"shield/internal/domain"
 	"shield/internal/fetch"
+	"shield/internal/metrics"
+
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
@@ -29,6 +33,13 @@ func (f *fakeStates) Register(context.Context, domain.SourceInfo) error { return
 
 func (f *fakeStates) Validators(_ context.Context, id string) (domain.Validators, error) {
 	return f.validators[id], nil
+}
+
+func (f *fakeStates) LastSuccess(_ context.Context, id string) (*time.Time, error) {
+	if at, ok := f.successAt[id]; ok {
+		return &at, nil
+	}
+	return nil, nil
 }
 
 func (f *fakeStates) RecordSuccess(_ context.Context, id string, at time.Time, v domain.Validators) error {
@@ -141,5 +152,53 @@ func TestPeriodicJobs(t *testing.T) {
 	w := &HousekeepWorker{sources: byID([]Source{hk}), logger: slog.New(slog.DiscardHandler)}
 	if err := w.Work(context.Background(), &river.Job[HousekeepArgs]{Args: HousekeepArgs{Source: "hk"}}); err != nil || hk.ran != 1 {
 		t.Fatalf("housekeep ran %d err %v", hk.ran, err)
+	}
+}
+
+func TestPollReportsSourceLag(t *testing.T) {
+	fixed := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC) // newWorker's clock
+	lag := func(id string) float64 { return promtest.ToFloat64(metrics.SourceLag.WithLabelValues(id)) }
+
+	// From the feed's Last-Modified, kept across a bare 304.
+	src := &fakeSource{info: domain.SourceInfo{ID: "lag-lm"}, res: Result{Validators: domain.Validators{
+		LastModified: fixed.Add(-90 * time.Second).Format(http.TimeFormat),
+	}}}
+	w, _ := newWorker(src)
+	if err := w.Work(context.Background(), job("lag-lm")); err != nil {
+		t.Fatal(err)
+	}
+	if got := lag("lag-lm"); got != 90 {
+		t.Fatalf("Last-Modified lag %v, want 90", got)
+	}
+	src.res = Result{NotModified: true}
+	w.now = func() time.Time { return fixed.Add(time.Minute) }
+	if err := w.Work(context.Background(), job("lag-lm")); err != nil {
+		t.Fatal(err)
+	}
+	if got := lag("lag-lm"); got != 150 {
+		t.Fatalf("after a quiet 304 the lag should grow: %v, want 150", got)
+	}
+
+	// The adapter's own timestamp wins over Last-Modified.
+	src2 := &fakeSource{info: domain.SourceInfo{ID: "lag-own"}, res: Result{
+		SourceUpdatedAt: fixed.Add(-10 * time.Second),
+		Validators:      domain.Validators{LastModified: fixed.Add(-time.Hour).Format(http.TimeFormat)},
+	}}
+	w2, _ := newWorker(src2)
+	if err := w2.Work(context.Background(), job("lag-own")); err != nil {
+		t.Fatal(err)
+	}
+	if got := lag("lag-own"); got != 10 {
+		t.Fatalf("adapter lag %v, want 10", got)
+	}
+
+	// No timestamp at all (EONET): no series, rather than a made-up zero.
+	src3 := &fakeSource{info: domain.SourceInfo{ID: "lag-none"}, res: Result{Validators: domain.Validators{LastModified: "not a date"}}}
+	w3, _ := newWorker(src3)
+	if err := w3.Work(context.Background(), job("lag-none")); err != nil {
+		t.Fatal(err)
+	}
+	if n := promtest.CollectAndCount(metrics.SourceLag, "shield_source_lag_seconds"); n != 2 {
+		t.Fatalf("%d lag series, want 2 (none for a source without a timestamp)", n)
 	}
 }

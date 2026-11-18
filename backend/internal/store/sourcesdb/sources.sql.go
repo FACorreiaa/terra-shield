@@ -39,6 +39,19 @@ func (q *Queries) ClearSourceCoverage(ctx context.Context, sourceID string) erro
 	return err
 }
 
+const getSourceLastSuccess = `-- name: GetSourceLastSuccess :one
+SELECT last_success_at
+FROM sources
+WHERE id = $1
+`
+
+func (q *Queries) GetSourceLastSuccess(ctx context.Context, id string) (*time.Time, error) {
+	row := q.db.QueryRow(ctx, getSourceLastSuccess, id)
+	var last_success_at *time.Time
+	err := row.Scan(&last_success_at)
+	return last_success_at, err
+}
+
 const getSourceValidators = `-- name: GetSourceValidators :one
 SELECT etag, last_modified
 FROM sources

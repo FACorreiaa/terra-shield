@@ -22,7 +22,7 @@
 - [x] S1.6 NASA FIRMS VIIRS NRT: public global 24 h CSVs (NOAA-20, NOAA-21, Suomi NPP; no MAP_KEY) every 15 min; HEAD + ETag skips unchanged 6–7 MB files; `COPY` → staging → insert new rows only, country assigned on insert; hourly purge > 48 h (ingest `Housekeeper`). Verified live: 155k detections first load in ~84 s, 99% with a country.
 - [x] S1.7 Normalizer: `ST_Intersects` country assignment + 250 km `nearby` offshore fallback (migration 00002), change-only upsert (unchanged re-poll = 0 writes), revisions (S2.3), and change notification: every real change takes the next `event_change_seq` cursor + `change_op`, deletions leave tombstones, writers hold an advisory xact lock so cursor order = commit order, `pg_notify(shield_events)` fires at commit (migration 00005, ADR 20).
 - [~] S1.8 `internal/severity` + `docs/severity.md` — USGS ✓, GDACS ✓, EONET wildfires ✓, Meteoalarm ✓ (FIRMS has none: detections)
-- [ ] S1.9 Source health in DB + metrics + staleness alert + freshness metrics `shield_source_lag_seconds`, `shield_event_publish_seconds` (ADR 16)
+- [x] S1.9 Source health in DB + `/v1/sources` (S2.1), metrics: `shield_source_last_success_timestamp_seconds`, `shield_source_poll_interval_seconds` (both seeded at worker start, so a source failing since boot still goes stale), `shield_source_lag_seconds` (feed `Last-Modified` for USGS and GDACS, FIRMS newest file; none for EONET or Meteoalarm, which have no feed timestamp) and `shield_event_publish_seconds` (write → fan-out, in the hub). Alert rules (stale at 3× interval, NoData alerting for a dead worker, silent source > 6 h, publish p95 > 10 s) are written in `docs/alerts.md`, to be added to infra `platform_rules.py` at S3.9a. ADR 16 amended: lag alerts against an absolute bound, not 3× our interval.
 - [x] S1.10 Fixtures + stubs for every adapter: USGS, GDACS (+ geometry), EONET, FIRMS, Meteoalarm
 
 ### M2 — API
@@ -46,7 +46,7 @@
 - [ ] S3.6 Live updates via SSE (`URLSession.bytes`): changes applied in place, reconnect with `Last-Event-ID` on foreground, polling only as fallback; "updated N min ago" on every event
 - [ ] S3.7 Sources & attribution screen + safety disclaimer
 - [ ] S3.8 macOS layout: `NavigationSplitView` sidebar + map, keyboard shortcuts
-- [ ] S3.9a **Go-live of the API** (only once the TestFlight build is ready, or the day before MVP): pick the hostname, Cloudflare DNS A record, `image.yml` (ghcr push + promote PR into LuminaVaultInfra, `INFRA_TOKEN`), and in `platform/infra`: node dir `/data/pg-shield`, data app (PostGIS + backup CronJob), DB role, sealed secrets (`horus`), api/worker values, network policy, ingress + TLS
+- [ ] S3.9a **Go-live of the API** (only once the TestFlight build is ready, or the day before MVP): pick the hostname, Cloudflare DNS A record, `image.yml` (ghcr push + promote PR into LuminaVaultInfra, `INFRA_TOKEN`), and in `platform/infra`: node dir `/data/pg-shield`, data app (PostGIS + backup CronJob), DB role, sealed secrets (`horus`), api/worker values, network policy, ingress + TLS Also add the `shield` alert group from `docs/alerts.md` to infra `observability/alerts/platform_rules.py`.
 - [ ] S3.9 Fastlane (§7) + workflows; internal TestFlight (iOS + macOS) against the live API
 - [ ] S3.10 Sentry + PostHog
 

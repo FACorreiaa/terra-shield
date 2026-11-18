@@ -31,6 +31,11 @@ SELECT etag, last_modified
 FROM sources
 WHERE id = $1;
 
+-- name: GetSourceLastSuccess :one
+SELECT last_success_at
+FROM sources
+WHERE id = $1;
+
 -- name: RecordSourceSuccess :exec
 UPDATE sources
 SET last_success_at = $2,

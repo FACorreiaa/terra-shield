@@ -27,9 +27,18 @@ func TestSourceLifecycle(t *testing.T) {
 		t.Fatalf("unknown source validators %+v err %v", v, err)
 	}
 
+	for _, id := range []string{"s", "unknown"} {
+		if last, err := repo.LastSuccess(ctx, id); err != nil || last != nil {
+			t.Fatalf("%s: last success %v err %v before any poll", id, last, err)
+		}
+	}
+
 	at := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	if err := repo.RecordSuccess(ctx, "s", at, domain.Validators{ETag: `"v1"`}); err != nil {
 		t.Fatal(err)
+	}
+	if last, err := repo.LastSuccess(ctx, "s"); err != nil || last == nil || !last.Equal(at) {
+		t.Fatalf("last success %v err %v, want %s", last, err, at)
 	}
 	if err := repo.RecordError(ctx, "s", at.Add(time.Minute), "HTTP 502"); err != nil {
 		t.Fatal(err)
