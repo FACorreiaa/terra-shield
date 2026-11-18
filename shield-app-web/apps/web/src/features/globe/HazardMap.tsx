@@ -8,7 +8,10 @@ import { severityTokens } from "@/design/tokens.gen.ts";
 
 import { basemapStyle } from "./basemap.ts";
 import { cssVar, eventFeatures, eventLayer } from "./eventLayer.ts";
+import { registerBundledWorker } from "./maplibreWorker.ts";
 import { addMarkerImages } from "./markerImages.ts";
+
+registerBundledWorker();
 
 interface MapView {
   zoom: number;
@@ -134,7 +137,12 @@ function HazardMap({ events, clusters, onViewChange, onSelect }: HazardMapProps)
     };
   }, [map, clusters]);
 
-  return <div ref={container} className="absolute inset-0 [&_canvas]:cursor-grab" data-testid="hazard-map" />;
+  // MapLibre's own CSS makes its container `position: relative`, so positioning lives on a wrapper.
+  return (
+    <div className="absolute inset-0" data-testid="hazard-map">
+      <div ref={container} className="size-full" />
+    </div>
+  );
 }
 
 export type { MapView };

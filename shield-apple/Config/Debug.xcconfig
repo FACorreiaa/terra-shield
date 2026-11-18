@@ -1,0 +1,9 @@
+#include "Base.xcconfig"
+
+// Local development: the Beta identity (no extra App ID to register) against a
+// backend on this machine (`cd backend && make run`). A device on the LAN needs
+// this Mac's IP: override API_BASE_URL in Secrets.xcconfig.
+APP_BUNDLE_ID = com.fernandocorreia.shield.beta
+APP_DISPLAY_NAME = Aegis Terra Dev
+APP_ICON_NAME = AppIcon
+API_BASE_URL = http:/$()/localhost:8080

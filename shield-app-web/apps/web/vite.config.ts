@@ -14,6 +14,8 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("src", import.meta.url)) },
   },
   // Same-origin `/v1` in dev, like production behind Caddy: no CORS, no API URL in the bundle.
+  // MapLibre 6 runs its worker as an ES module (src/features/globe/maplibreWorker.ts).
+  worker: { format: "es" },
   server: { proxy: { "/v1": apiTarget } },
   preview: { proxy: { "/v1": apiTarget } },
   test: {

@@ -1,0 +1,6 @@
+# Client side of backend/api/openapi.yaml. Regenerate with scripts/generate-api-client.sh.
+generate:
+  - types
+  - client
+accessModifier: public
+namingStrategy: idiomatic

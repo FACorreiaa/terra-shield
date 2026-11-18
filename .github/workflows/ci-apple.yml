@@ -1,0 +1,122 @@
+# Aegis Terra Apple app (shield-apple, one iOS + macOS target) and its packages: shield-core
+# (domain) and shield-api (client generated from backend/api/openapi.yaml).
+# Pattern: apps/aaru/.github/workflows/ci-apple.yml and ci-brand.yml.
+# Merging to main deploys nothing; release (fastlane beta) arrives with M4.
+name: CI apple
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "shield-apple/**"
+      - "shield-core/**"
+      - "shield-api/**"
+      - "backend/api/openapi.yaml"
+      - "design/tokens.json"
+      - "scripts/generate-tokens.mjs"
+      - "scripts/generate-api-client.sh"
+      - ".github/workflows/ci-apple.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "shield-apple/**"
+      - "shield-core/**"
+      - "shield-api/**"
+      - "backend/api/openapi.yaml"
+      - "design/tokens.json"
+      - "scripts/generate-tokens.mjs"
+      - "scripts/generate-api-client.sh"
+      - ".github/workflows/ci-apple.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-apple-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tokens:
+    name: Tokens and colour guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Generated tokens match design/tokens.json (and pass contrast)
+        run: node scripts/generate-tokens.mjs --check
+      # DESIGN.md "Do not": no hex or RGB colour literals in views; colours come from the tokens.
+      - name: No colour literals in the app
+        run: |
+          set -euo pipefail
+          if grep -rnE '#[0-9A-Fa-f]{6}\b|Color\(red:|Color\(\.sRGB|UIColor\(red:|NSColor\(red:' \
+               --include='*.swift' shield-apple/Shield; then
+            echo "Use the token colours (Color.canvas, Severity.color, ...) instead of literals." >&2
+            exit 1
+          fi
+
+  core:
+    name: shield-core tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: swift test
+        run: swift test --package-path shield-core
+
+  api:
+    name: shield-api (generated client is current, tests)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Cache SwiftPM
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-swiftpm-api-${{ hashFiles('shield-api/Package.resolved', 'shield-api/Tools/Package.resolved') }}
+      # A spec change without regenerating fails here, before any client builds on stale types.
+      - name: Generated client matches backend/api/openapi.yaml
+        run: |
+          set -euo pipefail
+          scripts/generate-api-client.sh
+          if [ -n "$(git status --porcelain shield-api/Sources/ShieldAPI/Generated)" ]; then
+            git status --short shield-api/Sources/ShieldAPI/Generated
+            echo "Run scripts/generate-api-client.sh and commit the result." >&2
+            exit 1
+          fi
+      - name: swift test
+        run: swift test --package-path shield-api
+
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ["iOS Simulator", "macOS"]
+    defaults:
+      run:
+        working-directory: shield-apple
+    steps:
+      - uses: actions/checkout@v6
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Cache SwiftPM
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-swiftpm-${{ hashFiles('shield-core/Package.swift') }}
+      - name: Build
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project Shield.xcodeproj \
+            -scheme Shield \
+            -destination "generic/platform=${{ matrix.platform }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet

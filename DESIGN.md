@@ -87,7 +87,7 @@ carries it alone: every use has **colour + shape + word**.
 | Minor | `#8DA2BE` steel | ● circle | 0.8 |
 | Moderate | `#FFB54A` amber | ◆ diamond | 1.0 |
 | Severe | `#FF8540` orange | ▲ triangle | 1.15 |
-| Extreme | `#F35D62` red | ⯃ octagon | 1.3 + one slow halo pulse |
+| Extreme | `#F35D62` red | ⯃ octagon (badges: `exclamationmark.octagon.fill`, a plain octagon reads as a circle at text size) | 1.3 + one slow halo pulse |
 
 - Text on a severity fill is `canvas` navy (contrast ≥ 6:1), never white.
 - The `SeverityBadge` reads `▲ Severe` followed by the source value in `muted`: `▲ Severe · GDACS Orange`.
@@ -110,6 +110,15 @@ Kind changes the **form** of a mark. Colour stays with severity.
 
 - FIRMS detections are their **own layer**, off by default and toggled from the layer
   control. They never merge into hazard clusters (DECISIONS #10).
+- The FIRMS 48 h window holds ~155k points worldwide, so the layer draws **density, not dots**,
+  at low zoom: a `detection`-tinted heatmap, with individual dots only once zoomed to regional scale.
+  This holds from day one. NRT latency is ~3 h, so a detection reads "Detected 3 h ago · VIIRS",
+  never "Updated", and the inspector shows satellite, confidence (low · nominal · high) and FRP.
+- **Provisional severity** (`severityProvisional`, every EONET event): the `SeverityBadge` adds
+  "Provisional" in `muted` after the word, and the detail view explains it in one line. With a
+  burned area it reads "Estimated from burned area; the source publishes no severity." Without
+  a scale (volcanoes, landslides, defaulted to minor) it reads "The source publishes no scale;
+  shown as minor until an official source rates it." An empty `sourceSeverity` shows no source label.
 - **Stale** (older than 3× the source's poll interval, from `/v1/sources`): the marker drops to
   45% opacity and desaturates, a small clock badge appears, and rows show `warning` text "Stale · last update 3 h ago".
 - **Resolved** events leave the live map. In history and timelines they show `ok` "Resolved".
@@ -433,6 +442,8 @@ Values are in `tokens.json → motion`. Motion explains a change and never decor
 - Freshness is visible on every screen (capsule, rows, detail).
 - Every event links to its official source.
 - The `countries` from geometry can list more than one country ("Portugal, Spain"), so never pick one.
+  Each has `relation: within | nearby` and `distanceKm`. `nearby` means offshore within 250 km,
+  and the UI says "Off the coast of Chile, 38 km", never "in Chile".
 - Store screenshots use real data captured with permission and attribution, or are badged as
   sample.
 
