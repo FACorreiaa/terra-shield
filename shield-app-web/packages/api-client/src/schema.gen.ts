@@ -169,7 +169,7 @@ export interface paths {
         };
         /**
          * Satellite fire detections (NASA FIRMS), a separate layer from events (ADR 10).
-         * @description Detections are thermal anomalies, not confirmed wildfires. With `zoom` below 6, detections are aggregated into grid cells for a heatmap (`FireCell` features); from zoom 6, each detection is a point (`FireDetection` features). Detections arrive about 3 h after the satellite pass.
+         * @description Detections are thermal anomalies, not confirmed wildfires. Without `zoom` or below 6, detections are aggregated into grid cells for a heatmap (`FireCell` features, cell size 360/2^(zoom+5) degrees, about 8 px); from zoom 6, each detection is a point (`FireDetection` features), `bbox` is required, and at most 25,000 points are returned, newest first (`truncated` says when more matched). Detections arrive about 3 h after the satellite pass. Cached for 60 s: FIRMS updates every 15 min at most.
          */
         get: operations["listFires"];
         put?: never;
@@ -461,6 +461,8 @@ export interface components {
              */
             cellDegrees?: number;
             features: components["schemas"]["FireFeature"][];
+            /** @description More detections matched than were returned (points only). */
+            truncated: boolean;
         };
     };
     responses: {
@@ -755,6 +757,7 @@ export interface operations {
                 };
             };
             304: components["responses"]["NotModified"];
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             default: components["responses"]["Error"];
         };
@@ -766,7 +769,7 @@ export interface operations {
                 bbox?: components["parameters"]["BBox"];
                 /** @description Map zoom level; drives clustering and geometry simplification. */
                 zoom?: components["parameters"]["Zoom"];
-                /** @description Only detections acquired at or after this time; defaults to 24 h ago, at most 48 h ago. */
+                /** @description Only detections acquired at or after this time; defaults to 24 h ago. Earlier values are clamped to 48 h ago, the retention window. */
                 since?: string;
             };
             header?: never;

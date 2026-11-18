@@ -1,15 +1,25 @@
 name: CI web
 
-# Lint, typecheck, test, build and e2e are independent jobs, so they run at the
+# Lint, typecheck, test, build, e2e and the generated-code check are independent jobs, so they run at the
 # same time and the slowest one sets the wall time.
 
 on:
   push:
     branches: [main]
-    paths: ["shield-app-web/**", ".github/workflows/ci-web.yml"]
+    paths:
+      - "shield-app-web/**"
+      - "backend/api/openapi.yaml"
+      - "design/tokens.json"
+      - "scripts/generate-tokens.mjs"
+      - ".github/workflows/ci-web.yml"
   pull_request:
     branches: [main]
-    paths: ["shield-app-web/**", ".github/workflows/ci-web.yml"]
+    paths:
+      - "shield-app-web/**"
+      - "backend/api/openapi.yaml"
+      - "design/tokens.json"
+      - "scripts/generate-tokens.mjs"
+      - ".github/workflows/ci-web.yml"
 
 concurrency:
   group: ci-web-${{ github.ref }}
@@ -121,6 +131,33 @@ jobs:
           working-directory: shield-app-web
           cache: true
       - run: vp run -r build
+      # The router plugin regenerates routeTree.gen.ts during the build; a diff means a route
+      # was added or renamed without committing the regenerated tree.
+      - name: Route tree is committed
+        run: git diff --exit-code -- apps/web/src/routeTree.gen.ts
+
+  # Generated code matches its sources: the design tokens (shared with the Apple app) and the
+  # API client (backend/api/openapi.yaml). A spec change without regenerating fails here.
+  generated:
+    name: Tokens and API client are current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          working-directory: shield-app-web
+          cache: true
+      - name: Design tokens match design/tokens.json
+        working-directory: .
+        run: node scripts/generate-tokens.mjs --check
+      - name: API client matches backend/api/openapi.yaml
+        run: |
+          set -euo pipefail
+          vp run @shield/api-client#generate
+          if ! git diff --exit-code -- packages/api-client/src/schema.gen.ts; then
+            echo "Run 'bun run generate' in shield-app-web/packages/api-client and commit the result." >&2
+            exit 1
+          fi
 
   # Smoke test against the production build, API mocked per test.
   e2e:
