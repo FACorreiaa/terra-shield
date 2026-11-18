@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Shield API
-  version: 0.1.0
+  version: 1.0.0-draft
   description: >
     Global natural-hazard events, normalized from official and scientific
     sources. Every record carries its source, its source's own severity next
@@ -9,10 +9,13 @@ info:
     replace national emergency services.
 servers:
   - url: http://localhost:8080
+# Public and read-only in the MVP: no accounts (auth is Phase 3).
+security: []
 paths:
   /health/live:
     get:
       operationId: getLive
+      summary: Liveness probe.
       tags: [ops]
       responses:
         "200":
@@ -26,6 +29,7 @@ paths:
   /health/ready:
     get:
       operationId: getReady
+      summary: Readiness probe (database reachable).
       tags: [ops]
       responses:
         "200":
@@ -41,6 +45,7 @@ paths:
   /metrics:
     get:
       operationId: getMetrics
+      summary: Prometheus metrics.
       tags: [ops]
       responses:
         "200":
@@ -50,6 +55,7 @@ paths:
   /openapi.yaml:
     get:
       operationId: getOpenAPI
+      summary: This OpenAPI document.
       tags: [ops]
       responses:
         "200":
@@ -75,8 +81,217 @@ paths:
                     items: { $ref: "#/components/schemas/Source" }
         default:
           $ref: "#/components/responses/Error"
+  /v1/events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: Events in a map view, filtered; clustered at low zoom.
+      description: >
+        Returns active events by default. With `zoom` below 6, events that
+        would overlap on screen are merged into `clusters` (ADR 9); without
+        `zoom`, nothing is clustered. Results are ordered by severity
+        (extreme first), then `updatedAt` (newest first), and capped at
+        `limit`; `truncated` says when more matched. Send
+        `Accept: application/geo+json` for a GeoJSON FeatureCollection with
+        each event's geometry, simplified for `zoom`.
+      parameters:
+        - $ref: "#/components/parameters/BBox"
+        - $ref: "#/components/parameters/Zoom"
+        - { name: type, in: query, description: "Comma-separated event types.", schema: { type: string }, examples: { quakes: { value: "earthquake,tsunami" } } }
+        - { name: severity, in: query, description: "Comma-separated severities.", schema: { type: string }, examples: { serious: { value: "severe,extreme" } } }
+        - { name: kind, in: query, description: "Comma-separated kinds.", schema: { type: string } }
+        - { name: status, in: query, description: "Defaults to active.", schema: { $ref: "#/components/schemas/EventStatus" } }
+        - { name: source, in: query, description: "Comma-separated source ids.", schema: { type: string } }
+        - { name: country, in: query, description: "ISO 3166-1 alpha-2; matches events within the country or nearby offshore.", schema: { type: string, pattern: "^[A-Z]{2}$" } }
+        - { name: since, in: query, description: "Only events updated at or after this time.", schema: { type: string, format: date-time } }
+        - { name: until, in: query, description: "Only events updated before this time.", schema: { type: string, format: date-time } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 2000, default: 500 } }
+      responses:
+        "200":
+          description: Matching events.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventList" }
+            application/geo+json:
+              schema: { $ref: "#/components/schemas/EventFeatureCollection" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        default: { $ref: "#/components/responses/Error" }
+  /v1/events/{id}:
+    get:
+      operationId: getEvent
+      tags: [events]
+      summary: One event with its full geometry, source and change history.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The event.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventDetail" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+  /v1/countries:
+    get:
+      operationId: listCountries
+      tags: [countries]
+      summary: Every country with its count of active events.
+      responses:
+        "200":
+          description: Countries, ordered by name.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [countries]
+                properties:
+                  countries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Country" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        default: { $ref: "#/components/responses/Error" }
+  /v1/countries/{iso2}/summary:
+    get:
+      operationId: getCountrySummary
+      tags: [countries]
+      summary: What is happening in one country, how serious, and how well it is covered.
+      parameters:
+        - { name: iso2, in: path, required: true, schema: { type: string, pattern: "^[A-Z]{2}$" } }
+      responses:
+        "200":
+          description: The summary.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CountrySummary" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+  /v1/fires:
+    get:
+      operationId: listFires
+      tags: [fires]
+      summary: Satellite fire detections (NASA FIRMS), a separate layer from events (ADR 10).
+      description: >
+        Detections are thermal anomalies, not confirmed wildfires. Without
+        `zoom` or below 6, detections are aggregated into grid cells for a
+        heatmap (`FireCell` features, cell size 360/2^(zoom+5) degrees, about
+        8 px); from zoom 6, each detection is a point (`FireDetection`
+        features), `bbox` is required, and at most 25,000 points are
+        returned, newest first (`truncated` says when more matched).
+        Detections arrive about 3 h after the satellite pass. Cached for
+        60 s: FIRMS updates every 15 min at most.
+      parameters:
+        - $ref: "#/components/parameters/BBox"
+        - $ref: "#/components/parameters/Zoom"
+        - { name: since, in: query, description: "Only detections acquired at or after this time; defaults to 24 h ago. Earlier values are clamped to 48 h ago, the retention window.", schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: Detections or cells.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+          content:
+            application/geo+json:
+              schema: { $ref: "#/components/schemas/FireFeatureCollection" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        default: { $ref: "#/components/responses/Error" }
+  /v1/stream:
+    get:
+      operationId: streamEvents
+      tags: [events]
+      summary: Live event changes as Server-Sent Events (ADR 16).
+      description: >
+        Server-Sent Events. Each connection first sends `retry: 5000`, then,
+        when `Last-Event-ID` is given, the changes missed since that cursor;
+        if the cursor is more than 1,000 changes behind (or unknown), it sends
+        `event: reset` instead and the client reloads `/v1/events`. Then
+        `event: ready`, whose `id` is the cursor the stream continues from.
+        Live messages are `event.created`, `event.updated` and
+        `event.resolved` (`data`: one `Event`, as in `/v1/events`, without
+        geometry) and `event.removed` (`data`: `{"id": "..."}`; the source
+        retracted it). Changes are coalesced: after a reconnect, an event
+        changed twice is sent once, in its latest state, so clients treat
+        created and updated alike as an upsert. Every 20 s an `id`-only line
+        (no event is dispatched) is the heartbeat; it also moves
+        Last-Event-ID past changes the filters skipped. Filters work as in
+        `/v1/events`; `bbox` matches an event's bounding box, and removals
+        are always sent. Open the stream first, then load `/v1/events`, so
+        no change falls between the two.
+      parameters:
+        - $ref: "#/components/parameters/BBox"
+        - { name: type, in: query, description: "Comma-separated event types.", schema: { type: string } }
+        - { name: severity, in: query, description: "Comma-separated severities.", schema: { type: string } }
+        - { name: country, in: query, schema: { type: string, pattern: "^[A-Z]{2}$" } }
+        - { name: Last-Event-ID, in: header, description: "The last `id` received; EventSource sends it on reconnect.", schema: { type: string, pattern: "^[0-9]+$" } }
+        - { name: lastEventId, in: query, description: "Same as the Last-Event-ID header, for a first connection that cannot set headers.", schema: { type: string, pattern: "^[0-9]+$" } }
+      responses:
+        "200":
+          description: An endless event stream.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503":
+          description: The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds.
+          headers:
+            Retry-After: { schema: { type: integer } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        default: { $ref: "#/components/responses/Error" }
 components:
+  parameters:
+    BBox:
+      name: bbox
+      in: query
+      description: >
+        minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon
+        crosses the antimeridian.
+      schema: { type: string }
+      examples:
+        europe: { value: "-25,34,45,72" }
+    Zoom:
+      name: zoom
+      in: query
+      description: Map zoom level; drives clustering and geometry simplification.
+      schema: { type: integer, minimum: 0, maximum: 22 }
+  headers:
+    ETag:
+      description: Strong validator; send it back as If-None-Match.
+      schema: { type: string }
+    CacheControl:
+      description: "public, max-age=15 (ADR 16: below the shortest poll interval)."
+      schema: { type: string }
   responses:
+    NotModified:
+      description: Unchanged since the ETag sent in If-None-Match.
+    BadRequest:
+      description: A parameter is malformed.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No such resource.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     Error:
       description: Error envelope.
       content:
@@ -121,3 +336,266 @@ components:
         stale:
           type: boolean
           description: True when the last success is older than three poll intervals.
+    OpenEventType:
+      description: >
+        An EventType, or a type added after this client was built: treat
+        unknown values as "other". New types are added without a new API
+        version (ADR 18).
+      anyOf:
+        - $ref: "#/components/schemas/EventType"
+        - type: string
+    EventType:
+      type: string
+      enum: [earthquake, wildfire, flood, storm, tropical_cyclone, volcano, drought, heat, cold, heavy_rain, wind, snow_ice, tsunami, other]
+    EventKind:
+      type: string
+      description: What kind of statement the record is (ADR 3). A detection is never a confirmed event.
+      enum: [observed, warning, forecast, detection]
+    EventStatus:
+      type: string
+      enum: [active, resolved]
+    Severity:
+      type: string
+      description: Shield's CAP-aligned severity, derived per source (ADR 2, docs/severity.md).
+      enum: [minor, moderate, severe, extreme]
+    Coordinate:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: { type: number, format: double, minimum: -90, maximum: 90 }
+        longitude: { type: number, format: double, minimum: -180, maximum: 180 }
+    EventCountry:
+      type: object
+      required: [iso2, relation]
+      properties:
+        iso2: { type: string, pattern: "^[A-Z]{2}$" }
+        relation:
+          type: string
+          enum: [within, nearby]
+          description: >
+            within: the event's geometry intersects the country. nearby: the
+            event is offshore, within 250 km; never say "in" for it (ADR 4).
+        distanceKm:
+          type: number
+          format: double
+          description: Present for nearby; distance from the event to the coast.
+    Event:
+      type: object
+      required: [id, source, type, kind, status, severity, title, centroid, countries, observedAt, updatedAt, fetchedAt, attrs]
+      properties:
+        id: { type: string, format: uuid }
+        source: { type: string, description: "Source id, as in /v1/sources.", examples: [usgs] }
+        type: { $ref: "#/components/schemas/OpenEventType" }
+        kind: { $ref: "#/components/schemas/EventKind" }
+        status: { $ref: "#/components/schemas/EventStatus" }
+        severity: { $ref: "#/components/schemas/Severity" }
+        sourceSeverity:
+          type: string
+          description: The source's own severity, verbatim ("M 6.1 mww, PAGER yellow", "Orange warning", "2,379 acres burned").
+        severityProvisional:
+          type: boolean
+          description: >
+            True when severity is derived from a weak signal (every EONET
+            event: burned area, or no scale at all). Omitted means false.
+        title: { type: string }
+        summary: { type: string }
+        centroid: { $ref: "#/components/schemas/Coordinate" }
+        countries:
+          type: array
+          items: { $ref: "#/components/schemas/EventCountry" }
+        startedAt: { type: string, format: date-time }
+        observedAt: { type: string, format: date-time, description: "When the source last observed or issued it." }
+        updatedAt: { type: string, format: date-time, description: "When the source last changed it." }
+        endedAt: { type: string, format: date-time }
+        fetchedAt: { type: string, format: date-time, description: "When Shield last fetched it." }
+        url: { type: string, format: uri, description: "The official source page." }
+        attrs:
+          type: object
+          additionalProperties: true
+          description: Type- and source-specific attributes, documented in docs/attrs.md.
+    Cluster:
+      type: object
+      required: [centroid, count, maxSeverity, types, severities, bbox]
+      properties:
+        centroid: { $ref: "#/components/schemas/Coordinate" }
+        count: { type: integer, minimum: 2 }
+        maxSeverity: { $ref: "#/components/schemas/Severity" }
+        types:
+          type: object
+          description: Count per event type; types with no members are omitted.
+          additionalProperties: { type: integer }
+        severities:
+          type: object
+          description: >
+            Count per severity (minor, moderate, severe, extreme); severities
+            with no members are omitted. The counts add up to `count`.
+          additionalProperties: { type: integer }
+        bbox:
+          type: array
+          description: minLon, minLat, maxLon, maxLat; zoom here to split the cluster.
+          items: { type: number, format: double }
+          minItems: 4
+          maxItems: 4
+    EventList:
+      type: object
+      required: [events, clusters, truncated, generatedAt]
+      properties:
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/Event" }
+        clusters:
+          type: array
+          items: { $ref: "#/components/schemas/Cluster" }
+        truncated: { type: boolean, description: "More events matched than limit." }
+        generatedAt: { type: string, format: date-time }
+    Geometry:
+      type: object
+      description: A GeoJSON geometry (RFC 7946), WGS 84, longitude first.
+      required: [type, coordinates]
+      properties:
+        type: { type: string, enum: [Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon] }
+        coordinates: {}
+    EventFeature:
+      type: object
+      required: [type, id, geometry, properties]
+      properties:
+        type: { type: string, enum: [Feature] }
+        id: { type: string, format: uuid }
+        geometry: { $ref: "#/components/schemas/Geometry" }
+        properties: { $ref: "#/components/schemas/Event" }
+    EventFeatureCollection:
+      type: object
+      required: [type, features]
+      properties:
+        type: { type: string, enum: [FeatureCollection] }
+        features:
+          type: array
+          items: { $ref: "#/components/schemas/EventFeature" }
+        truncated: { type: boolean }
+    Revision:
+      type: object
+      required: [at, changes]
+      properties:
+        at: { type: string, format: date-time }
+        changes:
+          type: object
+          description: 'Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined.'
+          additionalProperties: true
+    EventDetail:
+      allOf:
+        - $ref: "#/components/schemas/Event"
+        - type: object
+          required: [geometry, sourceInfo, revisions]
+          properties:
+            geometry: { $ref: "#/components/schemas/Geometry" }
+            sourceInfo: { $ref: "#/components/schemas/Source" }
+            revisions:
+              type: array
+              description: Newest first, at most 50.
+              items: { $ref: "#/components/schemas/Revision" }
+    Country:
+      type: object
+      required: [iso2, iso3, name, activeEvents, bbox]
+      properties:
+        iso2: { type: string, pattern: "^[A-Z]{2}$" }
+        iso3: { type: string, pattern: "^[A-Z]{3}$" }
+        name: { type: string }
+        activeEvents: { type: integer, minimum: 0 }
+        maxSeverity:
+          $ref: "#/components/schemas/Severity"
+          description: Highest severity among active events; absent when there are none.
+        bbox:
+          type: array
+          items: { type: number, format: double }
+          minItems: 4
+          maxItems: 4
+    SeverityCount:
+      type: object
+      required: [type, severity, count]
+      properties:
+        type: { $ref: "#/components/schemas/OpenEventType" }
+        severity: { $ref: "#/components/schemas/Severity" }
+        count: { type: integer, minimum: 1 }
+    Coverage:
+      type: object
+      required: [officialWarnings, sources]
+      properties:
+        officialWarnings:
+          type: boolean
+          description: >
+            False when no official national warning feed covers the country.
+            The UI then says coverage is limited: absence of data is not
+            safety (ADR 7).
+        sources:
+          type: array
+          description: Ids of the sources that cover the country.
+          items: { type: string }
+    CountrySummary:
+      type: object
+      required: [country, counts, coverage, events, recentChanges, generatedAt]
+      properties:
+        country: { $ref: "#/components/schemas/Country" }
+        counts:
+          type: array
+          description: Active events by type and severity; zero cells are omitted.
+          items: { $ref: "#/components/schemas/SeverityCount" }
+        coverage: { $ref: "#/components/schemas/Coverage" }
+        events:
+          type: array
+          description: Active events, most severe first, at most 100.
+          items: { $ref: "#/components/schemas/Event" }
+        recentChanges:
+          type: array
+          description: Revisions of this country's events in the last 24 h, newest first, at most 50.
+          items:
+            type: object
+            required: [eventId, title, at, changes]
+            properties:
+              eventId: { type: string, format: uuid }
+              title: { type: string }
+              at: { type: string, format: date-time }
+              changes: { type: object, additionalProperties: true }
+        generatedAt: { type: string, format: date-time }
+    FireDetection:
+      type: object
+      description: One VIIRS detection (zoom 6 and above).
+      required: [satellite, acquiredAt]
+      properties:
+        satellite: { type: string, examples: [NOAA-20] }
+        acquiredAt: { type: string, format: date-time }
+        frp: { type: number, format: float, description: "Fire radiative power, MW." }
+        confidence: { type: string, enum: [low, nominal, high] }
+        iso2: { type: string, pattern: "^[A-Z]{2}$" }
+    FireCell:
+      type: object
+      description: Detections aggregated into one grid cell (zoom below 6).
+      required: [count, latestAt]
+      properties:
+        count: { type: integer, minimum: 1 }
+        maxFrp: { type: number, format: float }
+        latestAt: { type: string, format: date-time }
+    FireFeature:
+      type: object
+      required: [type, geometry, properties]
+      properties:
+        type: { type: string, enum: [Feature] }
+        geometry: { $ref: "#/components/schemas/Geometry" }
+        properties:
+          description: A FireDetection, or a FireCell when the collection's aggregation is "grid".
+          anyOf:
+            - $ref: "#/components/schemas/FireDetection"
+            - $ref: "#/components/schemas/FireCell"
+    FireFeatureCollection:
+      type: object
+      required: [type, aggregation, features, truncated]
+      properties:
+        type: { type: string, enum: [FeatureCollection] }
+        aggregation:
+          type: string
+          enum: [none, grid]
+          description: grid when features are FireCells.
+        cellDegrees: { type: number, format: double, description: "Grid cell size, when aggregation is grid." }
+        features:
+          type: array
+          items: { $ref: "#/components/schemas/FireFeature" }
+        truncated: { type: boolean, description: "More detections matched than were returned (points only)." }

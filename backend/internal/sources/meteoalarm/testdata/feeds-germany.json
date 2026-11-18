@@ -1,0 +1,4881 @@
+{
+ "warnings": [
+  {
+   "alert": {
+    "code": [
+     "id:2.49.0.0.276.0.DWD.PVW.1794822360000.7e5094c7-94c1-4657-8c66-181b28b1884c",
+     "MCP:v2.0"
+    ],
+    "identifier": "2.49.0.0.276.0.DWD.PVW.1794822360000.7e5094c7-94c1-4657-8c66-181b28b1884c.MUL",
+    "incidents": "Alert",
+    "info": [
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rastatt",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE146",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108216000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Schwarzwald-Baar-Kreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE408",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108326000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Emmendingen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE227",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108316000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Enzkreis und Stadt Pforzheim",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE050",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "908236999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lörrach",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE312",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108336000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Calw",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE152",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108235000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Baden-Baden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE347",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108211000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Freudenstadt",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE404",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108237000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Breisgau-Hochschwarzwald und Stadt Freiburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE035",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "908315999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Ortenaukreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE329",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108317000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rottweil",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE285",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108325000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Waldshut",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE281",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108337000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "Es tritt ergiebiger Dauerregen mit Unterbrechungen auf. Dabei werden Niederschlagsmengen zwischen 90 l/m² und 120 l/m² erwartet.",
+      "event": "ERGIEBIGER DAUERREGEN",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "64",
+        "valueName": "II"
+       },
+       {
+        "value": "RAIN",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "229 57 53",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-20T00:00:00+01:00",
+      "headline": "Amtliche UNWETTERWARNUNG vor ERGIEBIGEM DAUERREGEN",
+      "instruction": "Große Gefahr durch: Überflutungen von Straßen/Unterführungen sowie gewässernahen Gebäuden; mögliche Erdrutsche. \nHandlungsempfehlungen: \nüberflutete und gefährdete Abschnitte meiden; Verhalten im Straßenverkehr anpassen, Behinderungen auf Verkehrswegen einplanen; ggf. vorbeugend Hochwasser-Schutzmaßnahmen treffen; bei drohender/bereits bestehender Überflutung Keller sofort verlassen; über Hochwasserlage unter www.hochwasserzentralen.de informieren",
+      "language": "de-DE",
+      "onset": "2026-11-17T03:00:00+01:00",
+      "parameter": [
+       {
+        "value": "90-120 [l/m²]",
+        "valueName": "precipitation"
+       },
+       {
+        "value": "Überflutungen von Straßen/Unterführungen sowie gewässernahen Gebäuden",
+        "valueName": "impacts"
+       },
+       {
+        "value": "mögliche Erdrutsche",
+        "valueName": "impacts"
+       },
+       {
+        "value": "4; red; Extreme",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "10; Rain",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Severe",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     },
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rastatt",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE146",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108216000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Schwarzwald-Baar-Kreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE408",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108326000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Emmendingen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE227",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108316000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Enzkreis und Stadt Pforzheim",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE050",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "908236999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lörrach",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE312",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108336000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Calw",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE152",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108235000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Baden-Baden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE347",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108211000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Freudenstadt",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE404",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108237000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Breisgau-Hochschwarzwald und Stadt Freiburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE035",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "908315999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Ortenaukreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE329",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108317000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rottweil",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE285",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108325000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Waldshut",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE281",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "108337000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "There is a risk of heavy persistent rain (level 3 of 4).\nPrecipitation amounts: 90-120 l/m²",
+      "event": "heavy persistent rain",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "64",
+        "valueName": "II"
+       },
+       {
+        "value": "RAIN",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "229 57 53",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-20T00:00:00+01:00",
+      "headline": "Official SEVERE WEATHER WARNING of HEAVY PERSISTENT RAIN",
+      "instruction": "Great danger due to: flooding of roads, subways and buildings near water bodies; possible mudslides. \nRecommendations for what to do: \nAvoid flooded areas and areas at risk. Adapt your behaviour in road traffic - be prepared for disruptions to transport routes. If appropriate, take precautions against flooding. If flooding is expected or has already set in, leave the basement immediately. Keep up to date on the flood situation at www.hochwasserzentralen.de",
+      "language": "en",
+      "onset": "2026-11-17T03:00:00+01:00",
+      "parameter": [
+       {
+        "value": "90-120 [l/m²]",
+        "valueName": "precipitation"
+       },
+       {
+        "value": "flooding of roads, subways and buildings near water bodies",
+        "valueName": "impacts"
+       },
+       {
+        "value": "possible mudslides",
+        "valueName": "impacts"
+       },
+       {
+        "value": "4; red; Extreme",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "10; Rain",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Severe",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     }
+    ],
+    "msgType": "Alert",
+    "scope": "Public",
+    "sender": "opendata@dwd.de",
+    "sent": "2026-11-16T10:46:00+01:00",
+    "source": "PVW",
+    "status": "Actual"
+   },
+   "uuid": "824fad4c-a649-46a8-b24d-9430f08c67ec"
+  },
+  {
+   "alert": {
+    "code": [
+     "id:2.49.0.0.276.0.DWD.PVW.1794488100000.a1274e45-a792-4bab-9742-5e5c671d493f",
+     "MCP:v2.0"
+    ],
+    "identifier": "2.49.0.0.276.0.DWD.PVW.1794488100000.a1274e45-a792-4bab-9742-5e5c671d493f.MUL",
+    "incidents": "Update",
+    "info": [
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE031",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Kiel",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE418",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101002000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE067",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE037",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ostholstein - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE061",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901055002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "Die amtliche Wetterwarnung vor starkem Gewitter, ausgegeben vom Deutschen Wetterdienst am Donnerstag, 12.11.2026 13:28 Uhr,\ngültig von Donnerstag, 12.11.2026 13:28 Uhr \nbis Donnerstag, 12.11.2026 14:30 Uhr, \nwird am Donnerstag, 12.11.2026 13:55 Uhr, aufgehoben.\n\nBitte prüfen Sie, ob weitere Warnungen aktiv sind!",
+      "event": "STARKES GEWITTER",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "33",
+        "valueName": "II"
+       },
+       {
+        "value": "THUNDERSTORM",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "WIND",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "251 140 0",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T13:55:00+01:00",
+      "headline": "AUFHEBUNG der WARNUNG vor STARKEM GEWITTER",
+      "language": "de-DE",
+      "onset": "2026-11-12T13:28:00+01:00",
+      "parameter": [
+       {
+        "value": "<85 [km/h]",
+        "valueName": "gusts"
+       },
+       {
+        "value": "west",
+        "valueName": "direction of approach"
+       },
+       {
+        "value": "Blitzschlag (Lebensgefahr!)",
+        "valueName": "impacts"
+       },
+       {
+        "value": "einzelne herabstürzende Äste",
+        "valueName": "impacts"
+       },
+       {
+        "value": "umherfliegende Gegenstände",
+        "valueName": "impacts"
+       },
+       {
+        "value": "3; orange; Severe",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "3; Thunderstorm",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "AllClear"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Moderate",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     },
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE031",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Kiel",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE418",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101002000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE067",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE037",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ostholstein - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE061",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901055002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "This event no longer poses a threat.",
+      "event": "heavy thunderstorms with gale- or storm-force gusts",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "33",
+        "valueName": "II"
+       },
+       {
+        "value": "THUNDERSTORM",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "WIND",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "251 140 0",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T13:55:00+01:00",
+      "headline": "Cancellation of Official WARNING of HEAVY THUNDERSTORMS",
+      "language": "en",
+      "onset": "2026-11-12T13:28:00+01:00",
+      "parameter": [
+       {
+        "value": "<85 [km/h]",
+        "valueName": "gusts"
+       },
+       {
+        "value": "west",
+        "valueName": "direction of approach"
+       },
+       {
+        "value": "lightning (danger to life!)",
+        "valueName": "impacts"
+       },
+       {
+        "value": "single branches falling",
+        "valueName": "impacts"
+       },
+       {
+        "value": "objects flying through the air",
+        "valueName": "impacts"
+       },
+       {
+        "value": "3; orange; Severe",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "3; Thunderstorm",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "AllClear"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Moderate",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     }
+    ],
+    "msgType": "Update",
+    "references": "opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1794486480000.1dceaaee-c459-4db4-a5d4-8c52175406be.MUL,2026-11-12T13:28:00+01:00",
+    "scope": "Public",
+    "sender": "opendata@dwd.de",
+    "sent": "2026-11-12T13:55:00+01:00",
+    "source": "PVW",
+    "status": "Actual"
+   },
+   "uuid": "1e696e57-a44f-4158-abe2-a6d68bc1973a"
+  },
+  {
+   "alert": {
+    "code": [
+     "id:2.49.0.0.276.0.DWD.PVW.1794490740000.cae34cb3-50b4-4e95-87b1-0d89e9a8a38c",
+     "MCP:v2.0"
+    ],
+    "identifier": "2.49.0.0.276.0.DWD.PVW.1794490740000.cae34cb3-50b4-4e95-87b1-0d89e9a8a38c.MUL",
+    "incidents": "Update",
+    "info": [
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE031",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Pinneberg (ohne Helgoland)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE058",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901056001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Neumünster",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE192",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101004000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Segeberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE181",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101060000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE088",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Steinburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE158",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101061000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "Von Westen ziehen Gewitter auf. Dabei gibt es Sturmböen mit Geschwindigkeiten bis 85 km/h (24 m/s, 47 kn, Bft 9).",
+      "event": "STARKES GEWITTER",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "33",
+        "valueName": "II"
+       },
+       {
+        "value": "THUNDERSTORM",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "WIND",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "251 140 0",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T15:00:00+01:00",
+      "headline": "Amtliche WARNUNG vor STARKEM GEWITTER",
+      "instruction": "Gefahr durch: Blitzschlag (Lebensgefahr!); einzelne herabstürzende Äste; umherfliegende Gegenstände. \nHandlungsempfehlungen: \nAufenthalt im Freien vermeiden oder Schutz suchen (z.B. in Gebäuden); Gewässer meiden; frei stehende Objekte sichern (z.B. Leinwände und Möbel); z.B. Zelte und Abdeckungen befestigen; im Freien auf herabfallende Gegenstände (z.B. Äste) achten",
+      "language": "de-DE",
+      "onset": "2026-11-12T14:03:00+01:00",
+      "parameter": [
+       {
+        "value": "<85 [km/h]",
+        "valueName": "gusts"
+       },
+       {
+        "value": "west",
+        "valueName": "direction of approach"
+       },
+       {
+        "value": "Blitzschlag (Lebensgefahr!)",
+        "valueName": "impacts"
+       },
+       {
+        "value": "einzelne herabstürzende Äste",
+        "valueName": "impacts"
+       },
+       {
+        "value": "umherfliegende Gegenstände",
+        "valueName": "impacts"
+       },
+       {
+        "value": "3; orange; Severe",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "3; Thunderstorm",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Moderate",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     },
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE031",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Pinneberg (ohne Helgoland)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE058",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901056001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Neumünster",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE192",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101004000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Segeberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE181",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101060000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE088",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Steinburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE158",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101061000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "There is a risk of heavy thunderstorms with gale- or storm-force gusts (level 2 of 4).\nApproaching from: west; Max. gusts: < 85 km/h",
+      "event": "heavy thunderstorms with gale- or storm-force gusts",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "33",
+        "valueName": "II"
+       },
+       {
+        "value": "THUNDERSTORM",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "WIND",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "251 140 0",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T15:00:00+01:00",
+      "headline": "Official WARNING of HEAVY THUNDERSTORMS",
+      "instruction": "Hazard(s) caused by: lightning (danger to life!); single branches falling; objects flying through the air. \nRecommendations for what to do: \nAvoid staying outdoors and seek shelter (e.g. in buildings). Avoid being near lakes and rivers Secure free-standing objects (e.g. screens and furniture). For example, fasten tents and coverings. Watch out for falling objects outdoors (e.g. branches).",
+      "language": "en",
+      "onset": "2026-11-12T14:03:00+01:00",
+      "parameter": [
+       {
+        "value": "<85 [km/h]",
+        "valueName": "gusts"
+       },
+       {
+        "value": "west",
+        "valueName": "direction of approach"
+       },
+       {
+        "value": "lightning (danger to life!)",
+        "valueName": "impacts"
+       },
+       {
+        "value": "single branches falling",
+        "valueName": "impacts"
+       },
+       {
+        "value": "objects flying through the air",
+        "valueName": "impacts"
+       },
+       {
+        "value": "3; orange; Severe",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "3; Thunderstorm",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Moderate",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     }
+    ],
+    "msgType": "Update",
+    "references": "opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1794490080000.7b4e6b1c-95f2-48d2-b01f-4f4bbd30512d.MUL,2026-11-12T14:28:00+01:00",
+    "scope": "Public",
+    "sender": "opendata@dwd.de",
+    "sent": "2026-11-12T14:39:00+01:00",
+    "source": "PVW",
+    "status": "Actual"
+   },
+   "uuid": "807c06e3-6f99-4ea7-9d63-38ec4818a87a"
+  },
+  {
+   "alert": {
+    "code": [
+     "id:2.49.0.0.276.0.DWD.PVW.1794366300000.87a3b155-afeb-43b3-8215-00152e9898bf",
+     "MCP:v2.0"
+    ],
+    "identifier": "2.49.0.0.276.0.DWD.PVW.1794366300000.87a3b155-afeb-43b3-8215-00152e9898bf.MUL",
+    "incidents": "Update",
+    "info": [
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Saale-Orla-Kreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE318",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "116075000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Vogtlandkreis - Bergland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE023",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "914523002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Vogtlandkreis - Tiefland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE108",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "914523001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "Es besteht Glättegefahr.",
+      "event": "GLÄTTE",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "84",
+        "valueName": "II"
+       },
+       {
+        "value": "SLIPPERINESS",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-11T04:30:00+01:00",
+      "headline": "Amtliche WARNUNG vor GLÄTTE",
+      "instruction": "Hinweis auf: Rutschgefahr. \nHandlungsempfehlungen: \nVerhalten im Straßenverkehr anpassen",
+      "language": "de-DE",
+      "onset": "2026-11-11T03:00:00+01:00",
+      "parameter": [
+       {
+        "value": "Rutschgefahr",
+        "valueName": "impacts"
+       },
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "2; snow-ice",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     },
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Saale-Orla-Kreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE318",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "116075000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Vogtlandkreis - Bergland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE023",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "914523002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Vogtlandkreis - Tiefland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE108",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "914523001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "There is a risk of icy surfaces (level 1 of 4).",
+      "event": "icy surfaces",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "84",
+        "valueName": "II"
+       },
+       {
+        "value": "SLIPPERINESS",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-11T04:30:00+01:00",
+      "headline": "Official WARNING of ICY SURFACES",
+      "instruction": "Hazard(s) to expect: slippery ground. \nRecommendations for what to do: \nAdapt your behaviour in road traffic.",
+      "language": "en",
+      "onset": "2026-11-11T03:00:00+01:00",
+      "parameter": [
+       {
+        "value": "slippery ground",
+        "valueName": "impacts"
+       },
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "2; snow-ice",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     }
+    ],
+    "msgType": "Update",
+    "references": "opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1794360360000.1b22e16b-ea2f-4be7-9adc-7ca58f16a977.MUL,2026-11-11T02:26:00+01:00",
+    "scope": "Public",
+    "sender": "opendata@dwd.de",
+    "sent": "2026-11-11T04:05:00+01:00",
+    "source": "PVW",
+    "status": "Actual"
+   },
+   "uuid": "2f367ceb-dc40-410c-adc7-8b26b017058f"
+  },
+  {
+   "alert": {
+    "code": [
+     "id:2.49.0.0.276.0.DWD.PVW.1794372780000.6c7b3010-f67a-4d52-94e4-7ae8fdcc4a1c",
+     "MCP:v2.0"
+    ],
+    "identifier": "2.49.0.0.276.0.DWD.PVW.1794372780000.6c7b3010-f67a-4d52-94e4-7ae8fdcc4a1c.MUL",
+    "incidents": "Update",
+    "info": [
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Friesland - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE065",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903455001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Harburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE170",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103353000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Verden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE393",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103361000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Friesland - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE104",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903455002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Osterholz",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE209",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103356000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Bremen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE369",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "104011000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Schleswig-Flensburg - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE062",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901059001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Dithmarschen - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE081",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901051001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Herzogtum Lauenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE236",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101053000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Dithmarschen - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE091",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901051002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Steinburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE158",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101061000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wesermarsch - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE064",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903461001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lüneburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE383",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103355000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ammerland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE221",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103451000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wesermarsch - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE101",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903461002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Bremerhaven",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE173",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "104012000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Hamburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE413",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "102000000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cuxhaven - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE030",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903352001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Heidekreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE317",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103358000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cuxhaven - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE045",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903352002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Emsland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE376",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103454000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE088",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Wilhelmshaven",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE124",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103405000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rotenburg (Wümme)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE142",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103357000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cloppenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE200",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103453000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE031",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Neumünster",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE192",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101004000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Segeberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE181",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101060000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE067",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE053",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Uelzen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE350",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103360000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE083",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis und Stadt Oldenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE079",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903458999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Leer (ohne Borkum)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE069",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903457001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Stade",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE222",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103359000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Insel Borkum",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE039",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903457002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Pinneberg (ohne Helgoland)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE058",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901056001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Stormarn",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE400",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101062000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE102",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lüchow-Dannenberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE122",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103354000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Emden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE154",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103402000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE103",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "Es tritt zeitweise Nebel mit Sichtweiten unter 150 Metern auf.",
+      "event": "NEBEL",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "59",
+        "valueName": "II"
+       },
+       {
+        "value": "FOG",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-11T08:00:00+01:00",
+      "headline": "Amtliche WARNUNG vor NEBEL",
+      "instruction": "Hinweis auf: mögliche starke Sichteinschränkungen. \nHandlungsempfehlungen: \nFahrverhalten an plötzlich auftretende Sichtbehinderungen (Nebelbänke) anpassen",
+      "language": "de-DE",
+      "onset": "2026-11-10T21:00:00+01:00",
+      "parameter": [
+       {
+        "value": "<150 [m]",
+        "valueName": "visibility"
+       },
+       {
+        "value": "mögliche starke Sichteinschränkungen",
+        "valueName": "impacts"
+       },
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "4; Fog",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     },
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Friesland - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE065",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903455001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Harburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE170",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103353000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Verden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE393",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103361000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Friesland - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE104",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903455002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Osterholz",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE209",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103356000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Bremen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE369",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "104011000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Schleswig-Flensburg - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE062",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901059001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Dithmarschen - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE081",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901051001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Herzogtum Lauenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE236",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101053000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Dithmarschen - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE091",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901051002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Steinburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE158",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101061000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wesermarsch - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE064",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903461001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lüneburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE383",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103355000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ammerland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE221",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103451000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wesermarsch - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE101",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903461002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Bremerhaven",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE173",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "104012000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Hamburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE413",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "102000000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cuxhaven - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE030",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903352001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Heidekreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE317",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103358000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cuxhaven - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE045",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903352002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Emsland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE376",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103454000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE088",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Wilhelmshaven",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE124",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103405000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rotenburg (Wümme)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE142",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103357000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cloppenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE200",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103453000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE031",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Neumünster",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE192",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101004000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Segeberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE181",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101060000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE067",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE053",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Uelzen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE350",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103360000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE083",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis und Stadt Oldenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE079",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903458999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Leer (ohne Borkum)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE069",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903457001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Stade",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE222",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103359000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Insel Borkum",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE039",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903457002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Pinneberg (ohne Helgoland)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE058",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901056001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Stormarn",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE400",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101062000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE102",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lüchow-Dannenberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE122",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103354000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Emden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE154",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103402000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE103",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "There is a risk of fog (level 1 of 1).\nVisibility: < 150 m",
+      "event": "fog",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "59",
+        "valueName": "II"
+       },
+       {
+        "value": "FOG",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-11T08:00:00+01:00",
+      "headline": "Official WARNING of FOG",
+      "instruction": "Hazard(s) to expect: severely reduced visibility possible. \nRecommendations for what to do: \nAdapt your driving behaviour to sudden reduced visibility (fog banks).",
+      "language": "en",
+      "onset": "2026-11-10T21:00:00+01:00",
+      "parameter": [
+       {
+        "value": "<150 [m]",
+        "valueName": "visibility"
+       },
+       {
+        "value": "severely reduced visibility possible",
+        "valueName": "impacts"
+       },
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "4; Fog",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     }
+    ],
+    "msgType": "Update",
+    "references": "opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1794340740000.a233ad08-3f06-405a-9a65-f0abcc5e5a7d.MUL,2026-11-10T20:59:00+01:00",
+    "scope": "Public",
+    "sender": "opendata@dwd.de",
+    "sent": "2026-11-11T05:53:00+01:00",
+    "source": "PVW",
+    "status": "Actual"
+   },
+   "uuid": "3f24204e-3c57-446e-aa9d-fbcdfbb2a984"
+  },
+  {
+   "alert": {
+    "code": [
+     "id:2.49.0.0.276.0.DWD.PVW.1794396660000.f1b85d28-647e-44b8-b70d-f1f890d1fa37",
+     "MCP:v2.0"
+    ],
+    "identifier": "2.49.0.0.276.0.DWD.PVW.1794396660000.f1b85d28-647e-44b8-b70d-f1f890d1fa37.MUL",
+    "incidents": "Alert",
+    "info": [
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Friesland - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE065",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903455001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Delmenhorst",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE337",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103401000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Harburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE170",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103353000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Verden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE393",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103361000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis und Stadt Osnabrück",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE024",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903459999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Osterholz",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE209",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103356000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Vechta",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE188",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103460000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Bremen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE369",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "104011000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Herzogtum Lauenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE236",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101053000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Dithmarschen - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE081",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901051001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Steinburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE158",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101061000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wesermarsch - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE064",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903461001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lüneburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE383",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103355000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ammerland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE221",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103451000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Bremerhaven",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE173",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "104012000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wesermarsch - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE101",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903461002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Hamburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE413",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "102000000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Kiel",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE418",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101002000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Heidekreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE317",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103358000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cuxhaven - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE030",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903352001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Emsland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE376",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103454000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE088",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Diepholz",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE310",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103251000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE037",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rotenburg (Wümme)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE142",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103357000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cloppenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE200",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103453000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE031",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Neumünster",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE192",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101004000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Segeberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE181",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101060000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Nienburg (Weser)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE298",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103256000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE053",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Uelzen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE350",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103360000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Grafschaft Bentheim",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE237",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103456000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE083",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ostholstein - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE073",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901055001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis und Stadt Oldenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE079",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903458999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ostholstein - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE061",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901055002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Leer (ohne Borkum)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE069",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903457001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Celle",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE138",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103351000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Stade",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE222",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103359000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Pinneberg (ohne Helgoland)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE058",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901056001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Stormarn",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE400",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101062000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE102",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lüchow-Dannenberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE122",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103354000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Emden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE154",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103402000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE103",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Lübeck",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE265",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101003000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "Es tritt leichter Frost um -1 °C auf.",
+      "event": "FROST",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "22",
+        "valueName": "II"
+       },
+       {
+        "value": "FROST",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T06:00:00+01:00",
+      "headline": "Amtliche WARNUNG vor FROST",
+      "instruction": "Hinweis auf: mögliche Frostschäden. \nHandlungsempfehlungen: \nggf. Frostschutzmaßnahmen ergreifen",
+      "language": "de-DE",
+      "onset": "2026-11-11T20:00:00+01:00",
+      "parameter": [
+       {
+        "value": "~-1 [°C]",
+        "valueName": "minimum temperature"
+       },
+       {
+        "value": "mögliche Frostschäden",
+        "valueName": "impacts"
+       },
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "6; low-temperature",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     },
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Friesland - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE065",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903455001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Delmenhorst",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE337",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103401000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Harburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE170",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103353000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Verden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE393",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103361000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis und Stadt Osnabrück",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE024",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903459999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Osterholz",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE209",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103356000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Vechta",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE188",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103460000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Bremen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE369",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "104011000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Herzogtum Lauenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE236",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101053000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Dithmarschen - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE081",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901051001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Steinburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE158",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101061000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wesermarsch - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE064",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903461001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lüneburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE383",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103355000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ammerland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE221",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103451000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Bremerhaven",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE173",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "104012000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wesermarsch - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE101",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903461002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Hamburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE413",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "102000000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Kiel",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE418",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101002000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Heidekreis",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE317",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103358000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cuxhaven - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE030",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903352001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Emsland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE376",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103454000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE088",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Diepholz",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE310",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103251000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Plön - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE037",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901057002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rotenburg (Wümme)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE142",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103357000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cloppenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE200",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103453000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Rendsburg-Eckernförde - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE031",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901058001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Neumünster",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE192",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101004000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Segeberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE181",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101060000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Nienburg (Weser)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE298",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103256000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE053",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Uelzen",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE350",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103360000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Grafschaft Bentheim",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE237",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103456000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE083",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ostholstein - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE073",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901055001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis und Stadt Oldenburg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE079",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903458999",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Ostholstein - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE061",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901055002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Leer (ohne Borkum)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE069",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903457001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Celle",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE138",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103351000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Stade",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE222",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103359000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Pinneberg (ohne Helgoland)",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE058",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "901056001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Stormarn",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE400",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101062000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Binnenland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE102",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452001",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Lüchow-Dannenberg",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE122",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103354000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Stadt Emden",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE154",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "103402000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE103",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Hansestadt Lübeck",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE265",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "101003000",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "There is a risk of frost (level 1 of 2).\nMinimum temperature: ~ -1 °C",
+      "event": "frost",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "22",
+        "valueName": "II"
+       },
+       {
+        "value": "FROST",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T06:00:00+01:00",
+      "headline": "Official WARNING of FROST",
+      "instruction": "Hazard(s) to expect: possible frost damage. \nRecommendations for what to do: \nIf necessary, take precautions against frost.",
+      "language": "en",
+      "onset": "2026-11-11T20:00:00+01:00",
+      "parameter": [
+       {
+        "value": "~-1 [°C]",
+        "valueName": "minimum temperature"
+       },
+       {
+        "value": "possible frost damage",
+        "valueName": "impacts"
+       },
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "6; low-temperature",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     }
+    ],
+    "msgType": "Alert",
+    "scope": "Public",
+    "sender": "opendata@dwd.de",
+    "sent": "2026-11-11T12:31:00+01:00",
+    "source": "PVW",
+    "status": "Actual"
+   },
+   "uuid": "2a180422-01c0-4cda-a57a-561fbd7f040d"
+  },
+  {
+   "alert": {
+    "code": [
+     "id:2.49.0.0.276.0.DWD.PVW.1794416340000.45b68473-7640-448c-9730-385739c32210",
+     "MCP:v2.0"
+    ],
+    "identifier": "2.49.0.0.276.0.DWD.PVW.1794416340000.45b68473-7640-448c-9730-385739c32210.MUL",
+    "incidents": "Alert",
+    "info": [
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Insel Borkum",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE039",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903457002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Friesland - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE104",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903455002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cuxhaven - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE045",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903352002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE103",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE083",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "Es treten Windböen mit Geschwindigkeiten bis 60 km/h (17 m/s, 33 kn, Bft 7) aus nordwestlicher Richtung auf.",
+      "event": "WINDBÖEN",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "51",
+        "valueName": "II"
+       },
+       {
+        "value": "WIND",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T12:00:00+01:00",
+      "headline": "Amtliche WARNUNG vor WINDBÖEN",
+      "instruction": "Hinweis auf: umherfliegende leichte Gegenstände. \nHandlungsempfehlungen: \nlose Gegenstände sichern; z.B. Zelte und Abdeckungen befestigen",
+      "language": "de-DE",
+      "onset": "2026-11-12T06:00:00+01:00",
+      "parameter": [
+       {
+        "value": "north-west",
+        "valueName": "wind direction"
+       },
+       {
+        "value": "<60 [km/h]",
+        "valueName": "gusts"
+       },
+       {
+        "value": "umherfliegende leichte Gegenstände",
+        "valueName": "impacts"
+       },
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "1; Wind",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     },
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Insel Borkum",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE039",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903457002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Friesland - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE104",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903455002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Cuxhaven - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE045",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903352002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Aurich - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE103",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903452002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Kreis Wittmund - Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE083",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "903462002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "There is a risk of wind gusts (level 1 of 4).\nMax. gusts: < 60 km/h; Wind direction: north-west",
+      "event": "wind gusts",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "51",
+        "valueName": "II"
+       },
+       {
+        "value": "WIND",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T12:00:00+01:00",
+      "headline": "Official WARNING of WIND GUSTS",
+      "instruction": "Hazard(s) to expect: light objects flying through the air. \nRecommendations for what to do: \nSecure loose objects. For example, fasten tents and coverings.",
+      "language": "en",
+      "onset": "2026-11-12T06:00:00+01:00",
+      "parameter": [
+       {
+        "value": "north-west",
+        "valueName": "wind direction"
+       },
+       {
+        "value": "<60 [km/h]",
+        "valueName": "gusts"
+       },
+       {
+        "value": "light objects flying through the air",
+        "valueName": "impacts"
+       },
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "1; Wind",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "Prepare"
+      ],
+      "senderName": "Deutscher Wetterdienst",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     }
+    ],
+    "msgType": "Alert",
+    "scope": "Public",
+    "sender": "opendata@dwd.de",
+    "sent": "2026-11-11T17:59:00+01:00",
+    "source": "PVW",
+    "status": "Actual"
+   },
+   "uuid": "7b0179c0-2410-4f74-80b9-d793bb5c39c5"
+  },
+  {
+   "alert": {
+    "code": [
+     "id:2.49.0.0.276.0.DWD.PVW.1794493920000.d2c251e8-9cb9-482f-80ba-f90db9cc0357",
+     "MCP:v2.0"
+    ],
+    "identifier": "2.49.0.0.276.0.DWD.PVW.1794493920000.d2c251e8-9cb9-482f-80ba-f90db9cc0357.MUL",
+    "incidents": "Update",
+    "info": [
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Nordfriesische Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE801",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "501000005",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Helgoland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE803",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "501000002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "AUFHEBUNG des Seewetterdienstes Hamburg.",
+      "event": "STARKWIND",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "11",
+        "valueName": "II"
+       },
+       {
+        "value": "WIND",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T15:32:00+01:00",
+      "headline": "AUFHEBUNG der WARNUNG vor STARKWIND (Küste)",
+      "language": "de-DE",
+      "onset": "2026-11-12T09:45:30+01:00",
+      "parameter": [
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "7; coastalevent",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "AllClear"
+      ],
+      "senderName": "DWD / Seewetterdienst Hamburg",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     },
+     {
+      "area": [
+       {
+        "altitude": 0.0,
+        "areaDesc": "Nordfriesische Küste",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE801",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "501000005",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       },
+       {
+        "altitude": 0.0,
+        "areaDesc": "Helgoland",
+        "ceiling": 9842.5197,
+        "geocode": [
+         {
+          "value": "DE803",
+          "valueName": "EMMA_ID"
+         },
+         {
+          "value": "501000002",
+          "valueName": "WARNCELLID"
+         }
+        ]
+       }
+      ],
+      "category": [
+       "Met"
+      ],
+      "certainty": "Likely",
+      "contact": "Deutscher Wetterdienst",
+      "description": "This event no longer poses a threat.",
+      "event": "near gale",
+      "eventCode": [
+       {
+        "value": "2.1.14",
+        "valueName": "PROFILE_VERSION"
+       },
+       {
+        "value": "© GeoBasis-DE / BKG 2021 (Daten modifiziert)",
+        "valueName": "LICENSE"
+       },
+       {
+        "value": "11",
+        "valueName": "II"
+       },
+       {
+        "value": "WIND",
+        "valueName": "GROUP"
+       },
+       {
+        "value": "255 235 59",
+        "valueName": "AREA_COLOR"
+       }
+      ],
+      "expires": "2026-11-12T15:32:00+01:00",
+      "headline": "Cancellation of Official NEAR GALE WARNING",
+      "language": "en",
+      "onset": "2026-11-12T09:45:30+01:00",
+      "parameter": [
+       {
+        "value": "2; yellow; Moderate",
+        "valueName": "awareness_level"
+       },
+       {
+        "value": "7; coastalevent",
+        "valueName": "awareness_type"
+       }
+      ],
+      "responseType": [
+       "AllClear"
+      ],
+      "senderName": "DWD / Seewetterdienst Hamburg",
+      "severity": "Minor",
+      "urgency": "Immediate",
+      "web": "https://dwd.de/warnungen"
+     }
+    ],
+    "msgType": "Update",
+    "references": "opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1794473040000.0ed92741-4012-4a4f-89f1-ec9afe78fa67.MUL,2026-11-12T09:44:00+01:00",
+    "scope": "Public",
+    "sender": "opendata@dwd.de",
+    "sent": "2026-11-12T15:32:00+01:00",
+    "source": "PVW",
+    "status": "Actual"
+   },
+   "uuid": "8795ad53-f395-47a8-98b2-6290b705c984"
+  }
+ ]
+}

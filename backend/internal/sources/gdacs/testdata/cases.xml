@@ -1,0 +1,73 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#" xmlns:gdacs="http://www.gdacs.org">
+  <channel>
+    <title>Hand-written edge cases</title>
+    <item>
+      <title>Red alert for volcano Example</title>
+      <description>Red volcanic eruption.</description>
+      <link>http://www.gdacs.org/report.aspx?eventtype=VO&amp;eventid=9001</link>
+      <guid isPermaLink="false">VO9001</guid>
+      <geo:Point><geo:lat>-7.5</geo:lat><geo:long>110.4</geo:long></geo:Point>
+      <gdacs:bbox>108.4 112.4 -9.5 -5.5</gdacs:bbox>
+      <gdacs:iscurrent>true</gdacs:iscurrent>
+      <gdacs:fromdate>Sun, 15 Nov 2026 06:00:00 GMT</gdacs:fromdate>
+      <gdacs:todate>Mon, 16 Nov 2026 06:00:00 GMT</gdacs:todate>
+      <gdacs:datemodified>Mon, 16 Nov 2026 08:00:00 GMT</gdacs:datemodified>
+      <gdacs:eventtype>VO</gdacs:eventtype>
+      <gdacs:alertlevel>Red</gdacs:alertlevel>
+      <gdacs:alertscore>3</gdacs:alertscore>
+      <gdacs:eventname>Merapi</gdacs:eventname>
+      <gdacs:eventid>9001</gdacs:eventid>
+      <gdacs:episodeid>2</gdacs:episodeid>
+      <gdacs:severity unit="" value="0" />
+      <gdacs:population unit="" value="0" />
+      <gdacs:vulnerability value="0" />
+      <gdacs:country>Indonesia</gdacs:country>
+    </item>
+    <item>
+      <title>Wildfire, four countries, no name</title>
+      <description>Green forest fire.</description>
+      <link>http://www.gdacs.org/report.aspx?eventtype=WF&amp;eventid=9002</link>
+      <guid isPermaLink="false">WF9002</guid>
+      <geo:Point><geo:lat>-15</geo:lat><geo:long>-60</geo:long></geo:Point>
+      <gdacs:iscurrent>true</gdacs:iscurrent>
+      <gdacs:fromdate>Sun, 15 Nov 2026 00:00:00 GMT</gdacs:fromdate>
+      <gdacs:todate>garbage</gdacs:todate>
+      <gdacs:datemodified>Mon, 16 Nov 2026 09:00:00 GMT</gdacs:datemodified>
+      <gdacs:eventtype>WF</gdacs:eventtype>
+      <gdacs:alertlevel>Green</gdacs:alertlevel>
+      <gdacs:alertscore>1</gdacs:alertscore>
+      <gdacs:eventname />
+      <gdacs:eventid>9002</gdacs:eventid>
+      <gdacs:severity unit="ha" value="1200">Green impact for forestfire in 1200 ha</gdacs:severity>
+      <gdacs:country>Brazil, Bolivia, Paraguay, , Argentina</gdacs:country>
+    </item>
+    <item>
+      <title>Earthquake: skipped, USGS covers it</title>
+      <guid isPermaLink="false">EQ9003</guid>
+      <geo:Point><geo:lat>0</geo:lat><geo:long>0</geo:long></geo:Point>
+      <gdacs:iscurrent>true</gdacs:iscurrent>
+      <gdacs:datemodified>Mon, 16 Nov 2026 09:00:00 GMT</gdacs:datemodified>
+      <gdacs:eventtype>EQ</gdacs:eventtype>
+      <gdacs:alertlevel>Orange</gdacs:alertlevel>
+      <gdacs:eventid>9003</gdacs:eventid>
+    </item>
+    <item>
+      <title>Unknown alert level: skipped</title>
+      <guid isPermaLink="false">FL9004</guid>
+      <geo:Point><geo:lat>0</geo:lat><geo:long>0</geo:long></geo:Point>
+      <gdacs:datemodified>Mon, 16 Nov 2026 09:00:00 GMT</gdacs:datemodified>
+      <gdacs:eventtype>FL</gdacs:eventtype>
+      <gdacs:alertlevel>Purple</gdacs:alertlevel>
+      <gdacs:eventid>9004</gdacs:eventid>
+    </item>
+    <item>
+      <title>No point: skipped</title>
+      <guid isPermaLink="false">FL9005</guid>
+      <gdacs:datemodified>Mon, 16 Nov 2026 09:00:00 GMT</gdacs:datemodified>
+      <gdacs:eventtype>FL</gdacs:eventtype>
+      <gdacs:alertlevel>Green</gdacs:alertlevel>
+      <gdacs:eventid>9005</gdacs:eventid>
+    </item>
+  </channel>
+</rss>

@@ -15,16 +15,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"shield/internal/domain"
 )
 
 // ErrTooLarge is returned when a body exceeds Options.MaxBody.
 var ErrTooLarge = errors.New("fetch: response body too large")
 
 // Validators are the conditional-GET values from the previous good fetch.
-type Validators struct {
-	ETag         string
-	LastModified string
-}
+type Validators = domain.Validators
 
 // Response is a completed fetch. Body is nil when NotModified.
 type Response struct {
@@ -134,6 +133,37 @@ func (c *Client) Get(ctx context.Context, url string, v Validators) (*Response, 
 		return nil, fmt.Errorf("GET %s: %w", url, ErrTooLarge)
 	}
 	return &Response{Body: body, Validators: got}, nil
+}
+
+// Head fetches only the validators of url. For feeds that ignore
+// conditional GET (FIRMS' static CSVs), a HEAD and SameVersion skip a
+// multi-megabyte download when nothing changed.
+func (c *Client) Head(ctx context.Context, url string) (Validators, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, http.NoBody)
+	if err != nil {
+		return Validators{}, err
+	}
+	req.Header.Set("User-Agent", c.userAgent)
+	release, err := c.hosts.acquire(ctx, req.URL.Host)
+	if err != nil {
+		return Validators{}, err
+	}
+	defer release()
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return Validators{}, err
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return Validators{}, &StatusError{URL: url, Status: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"), time.Now())}
+	}
+	return Validators{ETag: resp.Header.Get("ETag"), LastModified: resp.Header.Get("Last-Modified")}, nil
+}
+
+// SameVersion reports whether got carries the validator already held in
+// held. An ETag decides when both sides have one; otherwise Last-Modified.
+func SameVersion(held, got Validators) bool {
+	return sameVersion(held, got)
 }
 
 // sameVersion reports a 200 that carries the validator we already hold.

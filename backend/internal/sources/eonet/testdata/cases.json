@@ -1,0 +1,30 @@
+{
+ "title": "Hand-written edge cases",
+ "events": [
+  {"id": "EONET_V1", "title": "Etna Volcano, Italy", "description": null, "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_V1", "closed": null,
+   "categories": [{"id": "volcanoes", "title": "Volcanoes"}],
+   "sources": [{"id": "SIVolcano", "url": "https://volcano.si.edu/volcano.cfm?vn=211060"}],
+   "geometry": [{"magnitudeValue": null, "magnitudeUnit": null, "date": "2026-11-10T00:00:00Z", "type": "Point", "coordinates": [14.999, 37.748]}]},
+  {"id": "EONET_W1", "title": "Big Fire, California", "description": "Out of order observations", "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_W1", "closed": null,
+   "categories": [{"id": "wildfires", "title": "Wildfires"}],
+   "sources": [{"id": "IRWIN", "url": "https://irwin.doi.gov/observer/incidents/2026-CA-1"}],
+   "geometry": [
+    {"magnitudeValue": 150000.4, "magnitudeUnit": "acres", "date": "2026-11-14T12:00:00Z", "type": "Point", "coordinates": [-120.1, 38.1]},
+    {"magnitudeValue": 500.0, "magnitudeUnit": "acres", "date": "2026-11-10T12:00:00Z", "type": "Point", "coordinates": [-120.0, 38.0]}]},
+  {"id": "EONET_W2", "title": "Canadian Fire", "description": "", "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_W2", "closed": "2026-11-15T00:00:00Z",
+   "categories": [{"id": "wildfires", "title": "Wildfires"}],
+   "sources": [{"id": "BCWILDFIRE", "url": "https://wildfiresituation.nrs.gov.bc.ca/"}],
+   "geometry": [{"magnitudeValue": 5000, "magnitudeUnit": "hectare", "date": "2026-11-12T00:00:00Z", "type": "Polygon", "coordinates": [[[-120,50],[-119,50],[-119,51],[-120,51],[-120,50]]]}]},
+  {"id": "EONET_L1", "title": "Landslide, Nepal", "description": null, "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_L1", "closed": null,
+   "categories": [{"id": "landslides", "title": "Landslides"}], "sources": [],
+   "geometry": [{"magnitudeValue": null, "magnitudeUnit": null, "date": "2026-11-13T00:00:00Z", "type": "Point", "coordinates": [85.3, 27.7]}]},
+  {"id": "EONET_G1", "title": "Wildfire via GDACS: skipped", "description": null, "link": "x", "closed": null,
+   "categories": [{"id": "wildfires", "title": "Wildfires"}], "sources": [{"id": "GDACS", "url": "https://www.gdacs.org/"}],
+   "geometry": [{"magnitudeValue": 9999, "magnitudeUnit": "hectare", "date": "2026-11-13T00:00:00Z", "type": "Point", "coordinates": [0, 0]}]},
+  {"id": "EONET_E1", "title": "Earthquake: skipped, USGS owns", "description": null, "link": "x", "closed": null,
+   "categories": [{"id": "earthquakes", "title": "Earthquakes"}], "sources": [{"id": "USGS", "url": "x"}],
+   "geometry": [{"magnitudeValue": 6, "magnitudeUnit": "Mw", "date": "2026-11-13T00:00:00Z", "type": "Point", "coordinates": [0, 0]}]},
+  {"id": "EONET_N1", "title": "No geometry: skipped", "description": null, "link": "x", "closed": null,
+   "categories": [{"id": "volcanoes", "title": "Volcanoes"}], "sources": [], "geometry": []}
+ ]
+}

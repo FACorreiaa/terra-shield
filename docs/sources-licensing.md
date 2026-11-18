@@ -1,0 +1,24 @@
+# Sources: licensing, cadence, limits
+
+Checked 2026-11-16 against each source's live endpoint. Shown in-app on the Sources & attribution screen
+(S3.7) from `/v1/sources`, whose license and attribution come from each adapter's `Info()`.
+
+| Source | Feed used | License | Attribution | Publishes | Shield polls | Conditional GET |
+|---|---|---|---|---|---|---|
+| USGS | `earthquake.usgs.gov/.../summary/2.5_day.geojson` | Public domain (U.S. Government work) | U.S. Geological Survey | every minute | 60 s | ignored; Last-Modified compared client-side |
+| GDACS | `www.gdacs.org/xml/rss.xml` (+ `gdacsapi/api/polygons/getgeometry` for Orange/Red) | CC BY 4.0 (European Union) | GDACS (UN + European Commission) | every few minutes | 5 min | ETag → 304 |
+| NASA EONET | `eonet.gsfc.nasa.gov/api/v3/events?status=all&days=30` | Public domain (NASA) | NASA EONET | minutes to days, per upstream | 10 min | none (store skips unchanged) |
+| NASA FIRMS | `firms.modaps.eosdis.nasa.gov/data/active_fire/*-viirs-c2/csv/*_Global_24h.csv` | NASA open data, no restrictions | NASA FIRMS | per satellite pass (~3 h NRT latency) | 15 min | ignored; HEAD + ETag |
+| Meteoalarm | `feeds.meteoalarm.org/api/v1/warnings/feeds-<country>` | CC BY 4.0 | MeteoAlarm (EUMETNET) | per national service | 5 min (planned) | none sent |
+
+Notes:
+
+- **GDACS** requires credit: "reuse is allowed, provided appropriate credit to GDACS is given".
+- **EONET** re-publishes other agencies' events; each event links to its upstream (IRWIN, Smithsonian GVP, ...).
+  Upstreams Shield ingests directly are dropped (ADR 5).
+- **FIRMS** public 24 h files need no MAP_KEY. The MAP_KEY API (area queries, archives) is not used.
+  Suomi NPP's file was empty on 2026-11-16 (last modified 2026-11-12); NOAA-20 and NOAA-21 carry ~80k rows/day each.
+- **Meteoalarm** warning areas are EMMA_ID codes without geometry; S1.5 is blocked until shapes are sourced
+  (`geocodes.json`, or the EDR API with a free token). National members may add their own terms; check before
+  the external TestFlight.
+- **Excluded** (non-commercial terms): Open-Meteo, RainViewer (ADR 11).

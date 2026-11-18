@@ -48,10 +48,25 @@ var (
 		Name: "shield_source_events_upserted_total",
 		Help: "Events inserted or updated per source.",
 	}, []string{"source"})
+
+	// StreamSubscribers is the number of open /v1/stream connections.
+	StreamSubscribers = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "shield_stream_subscribers",
+		Help: "Open live-stream connections on this pod.",
+	})
+
+	// StreamDropped counts stream clients cut off for reading too slowly.
+	StreamDropped = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "shield_stream_dropped_total",
+		Help: "Live-stream clients disconnected because their buffer filled.",
+	})
 )
 
 // Handler serves the default registry.
 func Handler() http.Handler { return promhttp.Handler() }
+
+// StreamRoute is the live stream, excluded from request latency.
+const StreamRoute = "/v1/stream"
 
 // HTTPMiddleware records request counts and latency. Unmatched requests are
 // labeled "unmatched" so scanners cannot grow the series count.
@@ -66,7 +81,9 @@ func HTTPMiddleware() echo.MiddlewareFunc {
 			}
 			status := httpx.StatusOf(c, err)
 			httpRequests.WithLabelValues(route, c.Request().Method, strconv.Itoa(status/100)+"xx").Inc()
-			httpDuration.WithLabelValues(route).Observe(time.Since(start).Seconds())
+			if route != StreamRoute { // a stream lasts minutes; it would swamp the latency buckets
+				httpDuration.WithLabelValues(route).Observe(time.Since(start).Seconds())
+			}
 			return err
 		}
 	}

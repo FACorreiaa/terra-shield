@@ -14,16 +14,15 @@ import (
 	"shield/internal/httpx"
 	"shield/internal/metrics"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
 )
 
-// Deps is what every feature may use.
+// Deps is what the server itself needs. Features get their own
+// dependencies through their constructors (see internal/features).
 type Deps struct {
 	Config config.Base
 	Logger *slog.Logger
-	DB     *pgxpool.Pool // nil for the routes command and DB-less tests
 	Health *Health
 }
 
@@ -33,10 +32,11 @@ type Routes struct {
 	V1   *echo.Group
 }
 
-// Feature is one API area. It builds its own services in Register.
+// Feature is one API area. It is constructed with its dependencies
+// (repositories behind small interfaces) and only mounts routes here.
 type Feature interface {
 	Name() string
-	Register(d *Deps, r *Routes) error
+	Register(r *Routes) error
 }
 
 // Server is the assembled HTTP handler.
@@ -76,7 +76,11 @@ func New(d *Deps, features []Feature) (*Server, error) {
 		}))
 	}
 	e.Use(
-		echomw.GzipWithConfig(echomw.GzipConfig{MinLength: 1024}),
+		echomw.GzipWithConfig(echomw.GzipConfig{
+			MinLength: 1024,
+			// A compressed event stream would sit in the gzip buffer.
+			Skipper: func(c *echo.Context) bool { return c.Request().URL.Path == metrics.StreamRoute },
+		}),
 		echomw.BodyLimit(bodyLimit),
 	)
 
@@ -96,7 +100,7 @@ func New(d *Deps, features []Feature) (*Server, error) {
 	}
 
 	for _, f := range features {
-		if err := f.Register(d, routes); err != nil {
+		if err := f.Register(routes); err != nil {
 			return nil, err
 		}
 	}
@@ -168,16 +172,23 @@ func (h *Health) run(ctx context.Context) map[string]Check {
 	return out
 }
 
-// AddDatabaseCheck registers the readiness check on the pool.
-func AddDatabaseCheck(d *Deps) {
-	d.Health.Add("database", func(ctx context.Context) Check {
-		if d.DB == nil {
+// Pinger is anything that can prove a backend is reachable; *pgxpool.Pool
+// is one.
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
+
+// AddDatabaseCheck registers the database readiness check. A nil db (the
+// routes command, DB-less tests) is always unhealthy.
+func AddDatabaseCheck(h *Health, db Pinger, logger *slog.Logger) {
+	h.Add("database", func(ctx context.Context) Check {
+		if db == nil {
 			return Check{Status: "unhealthy", Message: "database not configured"}
 		}
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		if err := d.DB.Ping(ctx); err != nil {
-			d.Logger.Error("readiness: database ping failed", "error", err)
+		if err := db.Ping(ctx); err != nil {
+			logger.Error("readiness: database ping failed", "error", err)
 			return Check{Status: "unhealthy", Message: "database unreachable"}
 		}
 		return Check{Status: "healthy"}

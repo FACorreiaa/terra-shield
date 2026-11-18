@@ -1,0 +1,45 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {"generated": 1794846347000, "count": 6, "title": "Hand-written edge cases"},
+  "features": [
+    {
+      "type": "Feature", "id": "us_red",
+      "properties": {"mag": 7.4, "magType": "mww", "place": "120 km E of Somewhere, Japan", "time": 1794840000000, "updated": 1794843600000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us_red", "felt": 1200, "cdi": 7.8, "mmi": 8.1, "alert": "red",
+        "status": "reviewed", "tsunami": 1, "sig": 1650, "net": "us", "type": "earthquake", "title": "M 7.4 - 120 km E of Somewhere, Japan"},
+      "geometry": {"type": "Point", "coordinates": [143.5, 38.1, 24.5]}
+    },
+    {
+      "type": "Feature", "id": "us_yellow_small",
+      "properties": {"mag": 4.6, "magType": "mb", "place": "Somewhere dense", "time": 1794840000000, "updated": 1794840600000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us_yellow_small", "felt": null, "cdi": null, "mmi": null, "alert": "yellow",
+        "status": "automatic", "tsunami": 0, "sig": 400, "net": "us", "type": "earthquake", "title": ""},
+      "geometry": {"type": "Point", "coordinates": [-8.0, 39.5, 10]}
+    },
+    {
+      "type": "Feature", "id": "us_blast",
+      "properties": {"mag": 2.6, "magType": "ml", "place": "Quarry", "time": 1794840000000, "updated": 1794840600000,
+        "url": "", "alert": null, "status": "reviewed", "tsunami": 0, "sig": 100, "net": "us", "type": "quarry blast", "title": "M 2.6 Quarry Blast"},
+      "geometry": {"type": "Point", "coordinates": [-100.0, 40.0, 0]}
+    },
+    {
+      "type": "Feature", "id": "us_deleted",
+      "properties": {"mag": 3.0, "magType": "ml", "place": "Nowhere", "time": 1794840000000, "updated": 1794840600000,
+        "url": "", "alert": null, "status": "deleted", "tsunami": 0, "sig": 100, "net": "us", "type": "earthquake", "title": "M 3.0 - Nowhere"},
+      "geometry": {"type": "Point", "coordinates": [-100.0, 40.0, 5]}
+    },
+    {
+      "type": "Feature", "id": "us_nomag",
+      "properties": {"mag": null, "magType": null, "place": "Unknown", "time": 1794840000000, "updated": 1794840600000,
+        "url": "", "alert": null, "status": "automatic", "tsunami": 0, "sig": 0, "net": "us", "type": "earthquake", "title": "Unknown"},
+      "geometry": {"type": "Point", "coordinates": [10.0, 10.0, 5]}
+    },
+    {
+      "type": "Feature", "id": "us_plain",
+      "properties": {"mag": 5.2, "magType": "mww", "place": "Mid-Atlantic Ridge", "time": 1794840000000, "updated": 1794840600000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us_plain", "alert": null, "status": "reviewed", "tsunami": 0, "sig": 416,
+        "net": "us", "type": "earthquake", "title": "M 5.2 - Mid-Atlantic Ridge"},
+      "geometry": {"type": "Point", "coordinates": [-30.0, 30.0, 10]}
+    }
+  ]
+}

@@ -38,3 +38,13 @@ func Max(levels ...Level) Level {
 	}
 	return out
 }
+
+// Parse reads a level's name ("severe").
+func Parse(s string) (Level, bool) {
+	for l := Minor; l <= Extreme; l++ {
+		if l.String() == s {
+			return l, true
+		}
+	}
+	return 0, false
+}

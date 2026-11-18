@@ -24,7 +24,7 @@ func MagnitudeLevel(mag float64) Level {
 	return Minor
 }
 
-// PAGERLevel maps a PAGER alert colour; ok is false for none or unknown.
+// PAGERLevel maps a PAGER alert color; ok is false for none or unknown.
 func PAGERLevel(alert string) (level Level, ok bool) {
 	switch alert {
 	case "green":
