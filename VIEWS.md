@@ -99,6 +99,12 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      plus linking `shield-api` in the Xcode project.
 2. **S3.2 Map.** `HazardMarker`, `ClusterMarker`, `EventArea`, `DetectionLayer`, `MapControls`,
    `StatusCapsule`, `StatStrip`, `EventRow`, and the iOS sheet with three detents.
+   *Status 2026-11-18:* map, markers, server + local clusters, `EventArea` (selected event, by
+   kind, stale desaturated), `DetectionLayer` (density below zoom 6, dots from 6), `MapControls`,
+   `StatusCapsule` and every §10.1 state are built and checked against the local API, as is a
+   compact selected-event card. Still to do: `StatStrip`, `EventRow` list, the three-detent
+   sheet (the card stands in until then). DEBUG launch env for screenshots: `SHIELD_DETECTIONS=1`,
+   `SHIELD_REGION=lat,lon,latSpan,lonSpan`, `SHIELD_SELECT=<event id>`.
 3. **S3.3 Filters.** `FilterChips`, `FilterSheet`, persisted.
 4. **S3.4 Country.** `CountrySummaryCard`, `TypeSeverityMatrix`, `CoverageNotice`, `RecentChanges`.
 5. **S3.5 Detail.** `EventSheet`/`EventInspector`, `KeyFigures`, `RevisionTimeline`, and the

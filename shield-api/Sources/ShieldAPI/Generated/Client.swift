@@ -1099,7 +1099,7 @@ public struct Client: APIProtocol {
     }
     /// Live event changes as Server-Sent Events (ADR 16).
     ///
-    /// Each message has `id` (a cursor), `event` (`event.created`, `event.updated` or `event.resolved`) and `data` (one `Event` as JSON). A comment line is sent every 20 s as a heartbeat. On reconnect, send `Last-Event-ID` to receive what was missed; if the cursor is too old the server sends `event: reset`, and the client reloads `/v1/events`. Filters match those of `/v1/events`.
+    /// Server-Sent Events. Each connection first sends `retry: 5000`, then, when `Last-Event-ID` is given, the changes missed since that cursor; if the cursor is more than 1,000 changes behind (or unknown), it sends `event: reset` instead and the client reloads `/v1/events`. Then `event: ready`, whose `id` is the cursor the stream continues from. Live messages are `event.created`, `event.updated` and `event.resolved` (`data`: one `Event`, as in `/v1/events`, without geometry) and `event.removed` (`data`: `{"id": "..."}`; the source retracted it). Changes are coalesced: after a reconnect, an event changed twice is sent once, in its latest state, so clients treat created and updated alike as an upsert. Every 20 s an `id`-only line (no event is dispatched) is the heartbeat; it also moves Last-Event-ID past changes the filters skipped. Filters work as in `/v1/events`; `bbox` matches an event's bounding box, and removals are always sent. Open the stream first, then load `/v1/events`, so no change falls between the two.
     ///
     ///
     /// - Remark: HTTP `GET /v1/stream`.
@@ -1150,6 +1150,13 @@ public struct Client: APIProtocol {
                     in: &request.headerFields,
                     name: "Last-Event-ID",
                     value: input.headers.lastEventID
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "lastEventId",
+                    value: input.query.lastEventId
                 )
                 converter.setAcceptHeader(
                     in: &request.headerFields,
@@ -1203,6 +1210,36 @@ public struct Client: APIProtocol {
                         preconditionFailure("bestContentType chose an invalid content type.")
                     }
                     return .badRequest(.init(body: body))
+                case 503:
+                    let headers: Operations.StreamEvents.Output.ServiceUnavailable.Headers = .init(retryAfter: try converter.getOptionalHeaderFieldAsURI(
+                        in: response.headerFields,
+                        name: "Retry-After",
+                        as: Swift.Int.self
+                    ))
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.StreamEvents.Output.ServiceUnavailable.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .serviceUnavailable(.init(
+                        headers: headers,
+                        body: body
+                    ))
                 default:
                     let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
                     let body: Components.Responses._Error.Body

@@ -42,6 +42,13 @@ public protocol HazardEventProvider: Sendable {
     /// `SampleDataBadge` (DESIGN.md §15).
     var isSampleData: Bool { get }
     func events(matching query: EventQuery) async throws -> [HazardEvent]
+    /// The map's view: single events plus server clusters below zoom 6 (ADR 9). Sorted for
+    /// display (most severe, then most recently updated).
+    func snapshot(matching query: EventQuery, in viewport: MapViewport) async throws -> MapSnapshot
     func event(id: UUID) async throws -> HazardEvent?
+    /// The event with its full geometry, for drawing its area when selected.
+    func detail(id: UUID) async throws -> EventDetail?
     func sources() async throws -> [Source]
+    /// Satellite thermal detections in view: grid cells below zoom 6, points from zoom 6.
+    func detections(in viewport: MapViewport) async throws -> DetectionLayer
 }

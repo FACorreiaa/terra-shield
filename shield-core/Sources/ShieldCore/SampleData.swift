@@ -83,8 +83,22 @@ public struct SampleEventProvider: HazardEventProvider {
         return SampleData.events(now: t).filter { query.matches($0, now: t) }.sortedForDisplay()
     }
 
+    /// Sample data never clusters: there are only a handful of events.
+    public func snapshot(matching query: EventQuery, in viewport: MapViewport) async throws -> MapSnapshot {
+        let t = now()
+        let events = SampleData.events(now: t)
+            .filter { query.matches($0, now: t) && viewport.box.contains($0.centroid) }
+            .sortedForDisplay()
+        return MapSnapshot(events: events, clusters: [], truncated: false, generatedAt: t)
+    }
+
     public func event(id: UUID) async throws -> HazardEvent? {
         SampleData.events(now: now()).first { $0.id == id }
+    }
+
+    /// No sample detections: a fake heat map would read as real fires.
+    public func detections(in viewport: MapViewport) async throws -> DetectionLayer {
+        .empty
     }
 
     public func sources() async throws -> [Source] {

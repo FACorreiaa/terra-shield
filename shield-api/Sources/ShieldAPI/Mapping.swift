@@ -90,3 +90,113 @@ extension JSONValue {
         return try JSONDecoder().decode([String: JSONValue].self, from: data)
     }
 }
+
+extension EventCluster {
+    /// `nil` for a malformed bbox, which the spec rules out (four numbers).
+    init?(_ c: Components.Schemas.Cluster) {
+        guard c.bbox.count == 4 else { return nil }
+        var types: [HazardType: Int] = [:]
+        for (raw, n) in c.types.additionalProperties {
+            types[HazardType(rawValue: raw) ?? .other, default: 0] += n
+        }
+        var severities: [Severity: Int] = [:]
+        for (raw, n) in c.severities.additionalProperties {
+            // A level this build doesn't know can't be drawn in its colour; leave it out of the
+            // split rather than misfile it. The ring still shows maxSeverity.
+            if let s = Severity(rawValue: raw) { severities[s, default: 0] += n }
+        }
+        self.init(
+            centroid: Coordinate(latitude: c.centroid.latitude, longitude: c.centroid.longitude),
+            count: c.count,
+            maxSeverity: Severity(c.maxSeverity),
+            types: types,
+            severities: severities,
+            box: GeoBox(minLongitude: c.bbox[0], minLatitude: c.bbox[1], maxLongitude: c.bbox[2], maxLatitude: c.bbox[3])
+        )
+    }
+}
+
+extension DetectionLayer {
+    init(_ fc: Components.Schemas.FireFeatureCollection) {
+        switch fc.aggregation {
+        case .grid:
+            let cells = fc.features.compactMap { f -> DetectionCell? in
+                guard let cell = f.properties.value2, let center = f.geometry.point else { return nil }
+                return DetectionCell(center: center, count: cell.count, maxFrp: cell.maxFrp.map(Double.init),
+                                     latestAt: cell.latestAt)
+            }
+            self = .grid(cells, cellDegrees: fc.cellDegrees ?? 0)
+        case .none:
+            let points = fc.features.compactMap { f -> Detection? in
+                guard let d = f.properties.value1, let at = f.geometry.point else { return nil }
+                return Detection(coordinate: at, satellite: d.satellite, acquiredAt: d.acquiredAt,
+                                 frp: d.frp.map(Double.init),
+                                 confidence: d.confidence.flatMap { Detection.Confidence(rawValue: $0.rawValue) })
+            }
+            self = .points(points, truncated: fc.truncated)
+        }
+    }
+}
+
+extension Components.Schemas.Geometry {
+    /// The coordinate of a GeoJSON Point (`[lon, lat]`); `nil` for any other geometry.
+    var point: Coordinate? {
+        guard _type == .point, let pair = coordinates.value as? [(any Sendable)?], pair.count >= 2,
+              let lon = pair[0].flatMap(Self.number), let lat = pair[1].flatMap(Self.number) else { return nil }
+        return Coordinate(latitude: lat, longitude: lon)
+    }
+
+    /// The whole geometry. `nil` when the coordinates don't have the shape the type promises.
+    var eventGeometry: EventGeometry? {
+        let raw = coordinates.value
+        switch _type {
+        case .point:
+            return point.map(EventGeometry.point)
+        case .multiPoint:
+            // A point set has no area; the marker at the centroid stands for it.
+            return nil
+        case .lineString:
+            return Self.line(raw).map { .lines([$0]) }
+        case .multiLineString:
+            return Self.list(raw, Self.line).map(EventGeometry.lines)
+        case .polygon:
+            return Self.list(raw, Self.line).map { .polygons([$0]) }
+        case .multiPolygon:
+            return Self.list(raw) { Self.list($0, Self.line) }.map(EventGeometry.polygons)
+        }
+    }
+
+    /// `[lon, lat]` → coordinate.
+    private static func position(_ v: (any Sendable)?) -> Coordinate? {
+        guard let pair = v as? [(any Sendable)?], pair.count >= 2,
+              let lon = pair[0].flatMap(number), let lat = pair[1].flatMap(number) else { return nil }
+        return Coordinate(latitude: lat, longitude: lon)
+    }
+
+    /// A ring or line string: at least two positions.
+    private static func line(_ v: (any Sendable)?) -> [Coordinate]? {
+        guard let points = list(v, position), points.count >= 2 else { return nil }
+        return points
+    }
+
+    /// Every element must map, or the whole list is rejected (no half-drawn shapes).
+    private static func list<T>(_ v: (any Sendable)?, _ map: ((any Sendable)?) -> T?) -> [T]? {
+        guard let items = v as? [(any Sendable)?], !items.isEmpty else { return nil }
+        var out: [T] = []
+        out.reserveCapacity(items.count)
+        for item in items {
+            guard let mapped = map(item) else { return nil }
+            out.append(mapped)
+        }
+        return out
+    }
+
+    /// JSON numbers decode as Int or Double depending on whether they have a fraction.
+    static func number(_ v: any Sendable) -> Double? {
+        switch v {
+        case let d as Double: d
+        case let i as Int: Double(i)
+        default: nil
+        }
+    }
+}

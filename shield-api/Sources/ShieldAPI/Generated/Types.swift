@@ -69,7 +69,7 @@ public protocol APIProtocol: Sendable {
     func listFires(_ input: Operations.ListFires.Input) async throws -> Operations.ListFires.Output
     /// Live event changes as Server-Sent Events (ADR 16).
     ///
-    /// Each message has `id` (a cursor), `event` (`event.created`, `event.updated` or `event.resolved`) and `data` (one `Event` as JSON). A comment line is sent every 20 s as a heartbeat. On reconnect, send `Last-Event-ID` to receive what was missed; if the cursor is too old the server sends `event: reset`, and the client reloads `/v1/events`. Filters match those of `/v1/events`.
+    /// Server-Sent Events. Each connection first sends `retry: 5000`, then, when `Last-Event-ID` is given, the changes missed since that cursor; if the cursor is more than 1,000 changes behind (or unknown), it sends `event: reset` instead and the client reloads `/v1/events`. Then `event: ready`, whose `id` is the cursor the stream continues from. Live messages are `event.created`, `event.updated` and `event.resolved` (`data`: one `Event`, as in `/v1/events`, without geometry) and `event.removed` (`data`: `{"id": "..."}`; the source retracted it). Changes are coalesced: after a reconnect, an event changed twice is sent once, in its latest state, so clients treat created and updated alike as an upsert. Every 20 s an `id`-only line (no event is dispatched) is the heartbeat; it also moves Last-Event-ID past changes the filters skipped. Filters work as in `/v1/events`; `bbox` matches an event's bounding box, and removals are always sent. Open the stream first, then load `/v1/events`, so no change falls between the two.
     ///
     ///
     /// - Remark: HTTP `GET /v1/stream`.
@@ -181,7 +181,7 @@ extension APIProtocol {
     }
     /// Live event changes as Server-Sent Events (ADR 16).
     ///
-    /// Each message has `id` (a cursor), `event` (`event.created`, `event.updated` or `event.resolved`) and `data` (one `Event` as JSON). A comment line is sent every 20 s as a heartbeat. On reconnect, send `Last-Event-ID` to receive what was missed; if the cursor is too old the server sends `event: reset`, and the client reloads `/v1/events`. Filters match those of `/v1/events`.
+    /// Server-Sent Events. Each connection first sends `retry: 5000`, then, when `Last-Event-ID` is given, the changes missed since that cursor; if the cursor is more than 1,000 changes behind (or unknown), it sends `event: reset` instead and the client reloads `/v1/events`. Then `event: ready`, whose `id` is the cursor the stream continues from. Live messages are `event.created`, `event.updated` and `event.resolved` (`data`: one `Event`, as in `/v1/events`, without geometry) and `event.removed` (`data`: `{"id": "..."}`; the source retracted it). Changes are coalesced: after a reconnect, an event changed twice is sent once, in its latest state, so clients treat created and updated alike as an upsert. Every 20 s an `id`-only line (no event is dispatched) is the heartbeat; it also moves Last-Event-ID past changes the filters skipped. Filters work as in `/v1/events`; `bbox` matches an event's bounding box, and removals are always sent. Open the stream first, then load `/v1/events`, so no change falls between the two.
     ///
     ///
     /// - Remark: HTTP `GET /v1/stream`.
@@ -733,7 +733,7 @@ public enum Components {
             public var count: Swift.Int
             /// - Remark: Generated from `#/components/schemas/Cluster/maxSeverity`.
             public var maxSeverity: Components.Schemas.Severity
-            /// Count per event type.
+            /// Count per event type; types with no members are omitted.
             ///
             /// - Remark: Generated from `#/components/schemas/Cluster/types`.
             public struct TypesPayload: Codable, Hashable, Sendable {
@@ -753,10 +753,36 @@ public enum Components {
                     try encoder.encodeAdditionalProperties(additionalProperties)
                 }
             }
-            /// Count per event type.
+            /// Count per event type; types with no members are omitted.
             ///
             /// - Remark: Generated from `#/components/schemas/Cluster/types`.
             public var types: Components.Schemas.Cluster.TypesPayload
+            /// Count per severity (minor, moderate, severe, extreme); severities with no members are omitted. The counts add up to `count`.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Cluster/severities`.
+            public struct SeveritiesPayload: Codable, Hashable, Sendable {
+                /// A container of undocumented properties.
+                public var additionalProperties: [String: Swift.Int]
+                /// Creates a new `SeveritiesPayload`.
+                ///
+                /// - Parameters:
+                ///   - additionalProperties: A container of undocumented properties.
+                public init(additionalProperties: [String: Swift.Int] = .init()) {
+                    self.additionalProperties = additionalProperties
+                }
+                public init(from decoder: any Swift.Decoder) throws {
+                    additionalProperties = try decoder.decodeAdditionalProperties(knownKeys: [])
+                }
+                public func encode(to encoder: any Swift.Encoder) throws {
+                    try encoder.encodeAdditionalProperties(additionalProperties)
+                }
+            }
+            /// Count per severity (minor, moderate, severe, extreme); severities with no members are omitted. The counts add up to `count`.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Cluster/severities`.
+            public var severities: Components.Schemas.Cluster.SeveritiesPayload
             /// minLon, minLat, maxLon, maxLat; zoom here to split the cluster.
             ///
             /// - Remark: Generated from `#/components/schemas/Cluster/bbox`.
@@ -767,19 +793,22 @@ public enum Components {
             ///   - centroid:
             ///   - count:
             ///   - maxSeverity:
-            ///   - types: Count per event type.
+            ///   - types: Count per event type; types with no members are omitted.
+            ///   - severities: Count per severity (minor, moderate, severe, extreme); severities with no members are omitted. The counts add up to `count`.
             ///   - bbox: minLon, minLat, maxLon, maxLat; zoom here to split the cluster.
             public init(
                 centroid: Components.Schemas.Coordinate,
                 count: Swift.Int,
                 maxSeverity: Components.Schemas.Severity,
                 types: Components.Schemas.Cluster.TypesPayload,
+                severities: Components.Schemas.Cluster.SeveritiesPayload,
                 bbox: [Swift.Double]
             ) {
                 self.centroid = centroid
                 self.count = count
                 self.maxSeverity = maxSeverity
                 self.types = types
+                self.severities = severities
                 self.bbox = bbox
             }
             public enum CodingKeys: String, CodingKey {
@@ -787,6 +816,7 @@ public enum Components {
                 case count
                 case maxSeverity
                 case types
+                case severities
                 case bbox
             }
         }
@@ -3556,7 +3586,7 @@ public enum Operations {
     }
     /// Live event changes as Server-Sent Events (ADR 16).
     ///
-    /// Each message has `id` (a cursor), `event` (`event.created`, `event.updated` or `event.resolved`) and `data` (one `Event` as JSON). A comment line is sent every 20 s as a heartbeat. On reconnect, send `Last-Event-ID` to receive what was missed; if the cursor is too old the server sends `event: reset`, and the client reloads `/v1/events`. Filters match those of `/v1/events`.
+    /// Server-Sent Events. Each connection first sends `retry: 5000`, then, when `Last-Event-ID` is given, the changes missed since that cursor; if the cursor is more than 1,000 changes behind (or unknown), it sends `event: reset` instead and the client reloads `/v1/events`. Then `event: ready`, whose `id` is the cursor the stream continues from. Live messages are `event.created`, `event.updated` and `event.resolved` (`data`: one `Event`, as in `/v1/events`, without geometry) and `event.removed` (`data`: `{"id": "..."}`; the source retracted it). Changes are coalesced: after a reconnect, an event changed twice is sent once, in its latest state, so clients treat created and updated alike as an upsert. Every 20 s an `id`-only line (no event is dispatched) is the heartbeat; it also moves Last-Event-ID past changes the filters skipped. Filters work as in `/v1/events`; `bbox` matches an event's bounding box, and removals are always sent. Open the stream first, then load `/v1/events`, so no change falls between the two.
     ///
     ///
     /// - Remark: HTTP `GET /v1/stream`.
@@ -3581,6 +3611,10 @@ public enum Operations {
                 public var severity: Swift.String?
                 /// - Remark: Generated from `#/paths/v1/stream/GET/query/country`.
                 public var country: Swift.String?
+                /// Same as the Last-Event-ID header, for a first connection that cannot set headers.
+                ///
+                /// - Remark: Generated from `#/paths/v1/stream/GET/query/lastEventId`.
+                public var lastEventId: Swift.String?
                 /// Creates a new `Query`.
                 ///
                 /// - Parameters:
@@ -3588,28 +3622,33 @@ public enum Operations {
                 ///   - _type: Comma-separated event types.
                 ///   - severity: Comma-separated severities.
                 ///   - country:
+                ///   - lastEventId: Same as the Last-Event-ID header, for a first connection that cannot set headers.
                 public init(
                     bbox: Components.Parameters.BBox? = nil,
                     _type: Swift.String? = nil,
                     severity: Swift.String? = nil,
-                    country: Swift.String? = nil
+                    country: Swift.String? = nil,
+                    lastEventId: Swift.String? = nil
                 ) {
                     self.bbox = bbox
                     self._type = _type
                     self.severity = severity
                     self.country = country
+                    self.lastEventId = lastEventId
                 }
             }
             public var query: Operations.StreamEvents.Input.Query
             /// - Remark: Generated from `#/paths/v1/stream/GET/header`.
             public struct Headers: Sendable, Hashable {
+                /// The last `id` received; EventSource sends it on reconnect.
+                ///
                 /// - Remark: Generated from `#/paths/v1/stream/GET/header/Last-Event-ID`.
                 public var lastEventID: Swift.String?
                 public var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.StreamEvents.AcceptableContentType>]
                 /// Creates a new `Headers`.
                 ///
                 /// - Parameters:
-                ///   - lastEventID:
+                ///   - lastEventID: The last `id` received; EventSource sends it on reconnect.
                 ///   - accept:
                 public init(
                     lastEventID: Swift.String? = nil,
@@ -3703,6 +3742,76 @@ public enum Operations {
                     default:
                         try throwUnexpectedResponseStatus(
                             expectedStatus: "badRequest",
+                            response: self
+                        )
+                    }
+                }
+            }
+            public struct ServiceUnavailable: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/v1/stream/GET/responses/503/headers`.
+                public struct Headers: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/v1/stream/GET/responses/503/headers/Retry-After`.
+                    public var retryAfter: Swift.Int?
+                    /// Creates a new `Headers`.
+                    ///
+                    /// - Parameters:
+                    ///   - retryAfter:
+                    public init(retryAfter: Swift.Int? = nil) {
+                        self.retryAfter = retryAfter
+                    }
+                }
+                /// Received HTTP response headers
+                public var headers: Operations.StreamEvents.Output.ServiceUnavailable.Headers
+                /// - Remark: Generated from `#/paths/v1/stream/GET/responses/503/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/v1/stream/GET/responses/503/content/application\/json`.
+                    case json(Components.Schemas._Error)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas._Error {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.StreamEvents.Output.ServiceUnavailable.Body
+                /// Creates a new `ServiceUnavailable`.
+                ///
+                /// - Parameters:
+                ///   - headers: Received HTTP response headers
+                ///   - body: Received HTTP response body
+                public init(
+                    headers: Operations.StreamEvents.Output.ServiceUnavailable.Headers = .init(),
+                    body: Operations.StreamEvents.Output.ServiceUnavailable.Body
+                ) {
+                    self.headers = headers
+                    self.body = body
+                }
+            }
+            /// The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/stream/get(streamEvents)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Operations.StreamEvents.Output.ServiceUnavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Operations.StreamEvents.Output.ServiceUnavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
                             response: self
                         )
                     }

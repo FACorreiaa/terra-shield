@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5A1E1D0000000000000A0014 /* ShieldCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5A1E1D0000000000000A0015 /* ShieldCore */; };
+		5A1E1D0000000000000A0017 /* ShieldAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A1E1D0000000000000A0018 /* ShieldAPI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A1E1D0000000000000A0014 /* ShieldCore in Frameworks */,
+				5A1E1D0000000000000A0017 /* ShieldAPI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -89,6 +91,7 @@
 			name = Shield;
 			packageProductDependencies = (
 				5A1E1D0000000000000A0015 /* ShieldCore */,
+				5A1E1D0000000000000A0018 /* ShieldAPI */,
 			);
 			productName = Shield;
 			productReference = 5A1E1D0000000000000A0006 /* Shield.app */;
@@ -120,6 +123,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5A1E1D0000000000000A0016 /* XCLocalSwiftPackageReference "shield-core" */,
+				5A1E1D0000000000000A0019 /* XCLocalSwiftPackageReference "shield-api" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A1E1D0000000000000A0004 /* Products */;
@@ -401,12 +405,20 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../shield-core";
 		};
+		5A1E1D0000000000000A0019 /* XCLocalSwiftPackageReference "shield-api" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../shield-api";
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		5A1E1D0000000000000A0015 /* ShieldCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ShieldCore;
+		};
+		5A1E1D0000000000000A0018 /* ShieldAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShieldAPI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

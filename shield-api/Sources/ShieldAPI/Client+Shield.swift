@@ -8,9 +8,23 @@ extension Client {
         Client(
             serverURL: baseURL,
             configuration: Configuration(dateTranscoder: RFC3339DateTranscoder()),
-            transport: transport ?? URLSessionTransport()
+            transport: transport ?? URLSessionTransport(configuration: .init(session: .shield))
         )
     }
+}
+
+extension URLSession {
+    /// The API answers with `ETag` and `Cache-Control: max-age` (ADR 16). A real `URLCache`
+    /// makes URLSession serve fresh responses locally and revalidate stale ones with
+    /// `If-None-Match`, so a 304 never reaches the generated client.
+    static let shield: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.urlCache = URLCache(memoryCapacity: 8 << 20, diskCapacity: 64 << 20)
+        config.requestCachePolicy = .useProtocolCachePolicy
+        config.waitsForConnectivity = false
+        config.timeoutIntervalForRequest = 20
+        return URLSession(configuration: config)
+    }()
 }
 
 /// Go writes RFC 3339 with fractional seconds only when they are non-zero, so a payload mixes
