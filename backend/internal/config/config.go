@@ -8,6 +8,7 @@ package config
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v11"
 )
@@ -38,6 +39,9 @@ type Base struct {
 	AllowedOrigins string `env:"ALLOWED_ORIGINS"`
 	// RateLimitRPS is the per-client-IP request rate the API allows.
 	RateLimitRPS float64 `env:"RATE_LIMIT_RPS" envDefault:"20"`
+	// RequestTimeout bounds every /v1 request except the live stream, so a
+	// slow query cannot hold a connection (and a database slot) forever.
+	RequestTimeout time.Duration `env:"REQUEST_TIMEOUT" envDefault:"10s"`
 }
 
 // IsProduction reports whether this is the production environment.

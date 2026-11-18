@@ -80,7 +80,7 @@ New product (2026-11-16): a global natural-hazard monitor answering *"What's hap
 | `GET /v1/stream?bbox=&type=` | SSE `event.created \| updated \| resolved`, heartbeat, `Last-Event-ID` |
 | `/health/live`, `/health/ready`, `/metrics`, `/openapi.yaml` | Ops (paths match the `norviq-app` chart's default probes) |
 
-Event lists return `ETag` and `Cache-Control: max-age` ≤ 15 s (ADR 16: below the shortest poll interval); `/v1/sources` uses 30 s. Rate limiting is per IP.
+Event lists return `ETag` and `Cache-Control: max-age` ≤ 15 s (ADR 16: below the shortest poll interval); `/v1/sources` uses 30 s. Limits (S2.7): 20 req/s per client IP with bursts of 40 (JSON 429 + `Retry-After`), 10 s per request except the stream (503), 8 open streams per IP and 2,000 per pod. The client IP is trustworthy on the cluster because Traefik runs with `externalTrafficPolicy: Local` and replaces client-sent `X-Forwarded-For`; counters are per pod, so N replicas allow N× the rate. CORS is off unless `ALLOWED_ORIGINS` is set: no credentials, `If-None-Match` and `Last-Event-ID` allowed, `ETag`/`Retry-After`/`X-Request-ID` exposed, preflight cached 10 min. Content negotiation on `/v1/events` follows q-values, and JSON wins ties. Budget: `make budget` checks p95 ≤ 200 ms and ≤ 300 KB gzipped per map-facing request against a running server.
 
 
 ## 5. Repo layout (monorepo, like aaru / postitheka)

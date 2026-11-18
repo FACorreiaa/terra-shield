@@ -38,7 +38,7 @@ import (
 
 // Broker is the pod's change fan-out. realtime.Hub is one.
 type Broker interface {
-	Subscribe(f realtime.Filter) (*realtime.Subscription, error)
+	Subscribe(f realtime.Filter, client string) (*realtime.Subscription, error)
 	CatchUp(ctx context.Context, after, upTo int64, maxChanges int) ([]domain.StreamChange, bool, error)
 }
 
@@ -117,8 +117,12 @@ func (f *Feature) stream(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	sub, err := f.broker.Subscribe(filter)
-	if errors.Is(err, realtime.ErrFull) || errors.Is(err, realtime.ErrClosed) {
+	sub, err := f.broker.Subscribe(filter, c.RealIP())
+	switch {
+	case errors.Is(err, realtime.ErrClientLimit):
+		c.Response().Header().Set("Retry-After", "30")
+		return httpx.Abort(http.StatusTooManyRequests, "too many open streams from this address")
+	case errors.Is(err, realtime.ErrFull) || errors.Is(err, realtime.ErrClosed):
 		c.Response().Header().Set("Retry-After", "30")
 		return httpx.Abort(http.StatusServiceUnavailable, "stream busy, retry later")
 	}
