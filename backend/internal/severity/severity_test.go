@@ -32,6 +32,42 @@ func TestEarthquake(t *testing.T) {
 	}
 }
 
+func TestGDACSAlert(t *testing.T) {
+	cases := map[string]Level{"Green": Minor, "orange": Severe, "RED": Extreme}
+	for in, want := range cases {
+		if got, ok := GDACSAlert(in); !ok || got != want {
+			t.Errorf("%q = %s/%v, want %s", in, got, ok, want)
+		}
+	}
+	for _, in := range []string{"", "Yellow"} {
+		if _, ok := GDACSAlert(in); ok {
+			t.Errorf("%q accepted", in)
+		}
+	}
+}
+
+func TestWildfireAcres(t *testing.T) {
+	cases := map[float64]Level{0: Minor, 999: Minor, 1000: Moderate, 9999: Moderate, 10000: Severe, 99999: Severe, 100000: Extreme}
+	for acres, want := range cases {
+		if got := WildfireAcres(acres); got != want {
+			t.Errorf("%v acres = %s, want %s", acres, got, want)
+		}
+	}
+}
+
+func TestMeteoalarmAwareness(t *testing.T) {
+	for in, want := range map[int]Level{2: Moderate, 3: Severe, 4: Extreme} {
+		if got, ok := MeteoalarmAwareness(in); !ok || got != want {
+			t.Errorf("%d = %s/%v, want %s", in, got, ok, want)
+		}
+	}
+	for _, in := range []int{0, 1, 5} {
+		if _, ok := MeteoalarmAwareness(in); ok {
+			t.Errorf("%d accepted", in)
+		}
+	}
+}
+
 func TestLevelOrderAndNames(t *testing.T) {
 	if !(Minor < Moderate && Moderate < Severe && Severe < Extreme) {
 		t.Fatal("levels out of order")
@@ -41,6 +77,14 @@ func TestLevelOrderAndNames(t *testing.T) {
 		if l.String() != s {
 			t.Errorf("%d = %q, want %q", l, l.String(), s)
 		}
+	}
+	for l := Minor; l <= Extreme; l++ {
+		if got, ok := Parse(l.String()); !ok || got != l {
+			t.Errorf("Parse(%q) = %v, %v", l.String(), got, ok)
+		}
+	}
+	if _, ok := Parse("Severe"); ok {
+		t.Error("Parse is case-sensitive: wire values are lower case")
 	}
 	if Max() != Minor {
 		t.Error("Max() of nothing should be Minor")

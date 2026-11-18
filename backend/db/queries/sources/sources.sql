@@ -5,8 +5,8 @@ FROM sources
 ORDER BY id;
 
 -- name: UpsertSource :exec
-INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled, official_warnings)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (id) DO UPDATE SET
     name                  = EXCLUDED.name,
     url                   = EXCLUDED.url,
@@ -14,7 +14,17 @@ ON CONFLICT (id) DO UPDATE SET
     attribution           = EXCLUDED.attribution,
     poll_interval_seconds = EXCLUDED.poll_interval_seconds,
     enabled               = EXCLUDED.enabled,
+    official_warnings     = EXCLUDED.official_warnings,
     updated_at            = now();
+
+-- name: ClearSourceCoverage :exec
+DELETE FROM source_coverage WHERE source_id = @source_id;
+
+-- name: AddSourceCoverage :execrows
+-- Unknown codes (no such country loaded) are skipped, not an error.
+INSERT INTO source_coverage (source_id, iso2)
+SELECT @source_id, c.iso2 FROM countries c WHERE c.iso2 = ANY(@iso2_codes::text[])
+ON CONFLICT DO NOTHING;
 
 -- name: GetSourceValidators :one
 SELECT etag, last_modified

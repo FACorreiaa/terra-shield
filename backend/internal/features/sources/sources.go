@@ -3,20 +3,35 @@
 package sources
 
 import (
+	"context"
+	"net/http"
 	"time"
 
+	"shield/internal/domain"
 	"shield/internal/httpx"
 	"shield/internal/server"
-	"shield/internal/store/sourcesdb"
 
 	"github.com/labstack/echo/v5"
 )
 
+// Lister reads every source with its health. store.SourceRepository is one.
+type Lister interface {
+	List(ctx context.Context) ([]domain.SourceStatus, error)
+}
+
 // Feature mounts /v1/sources.
-type Feature struct{}
+type Feature struct {
+	sources Lister // nil when no database is configured (routes command)
+	now     func() time.Time
+}
+
+// New builds the feature on a Lister.
+func New(sources Lister) *Feature {
+	return &Feature{sources: sources, now: time.Now}
+}
 
 // Name implements server.Feature.
-func (Feature) Name() string { return "sources" }
+func (*Feature) Name() string { return "sources" }
 
 // Source is the wire shape of one source.
 type Source struct {
@@ -25,7 +40,7 @@ type Source struct {
 	URL                 string     `json:"url"`
 	License             string     `json:"license"`
 	Attribution         string     `json:"attribution"`
-	PollIntervalSeconds int32      `json:"pollIntervalSeconds"`
+	PollIntervalSeconds int        `json:"pollIntervalSeconds"`
 	Enabled             bool       `json:"enabled"`
 	LastSuccessAt       *time.Time `json:"lastSuccessAt,omitempty"`
 	LastErrorAt         *time.Time `json:"lastErrorAt,omitempty"`
@@ -36,42 +51,45 @@ type listResponse struct {
 	Sources []Source `json:"sources"`
 }
 
-// staleAfter is how many missed intervals make a source stale; it matches
-// the staleness alert.
-const staleAfter = 3
-
 // Register implements server.Feature.
-func (Feature) Register(d *server.Deps, r *server.Routes) error {
-	r.V1.GET("/sources", func(c *echo.Context) error {
-		if d.DB == nil {
-			return httpx.Abort(503, "database not configured")
-		}
-		rows, err := sourcesdb.New(d.DB).ListSources(c.Request().Context())
-		if err != nil {
-			return err
-		}
-		c.Response().Header().Set("Cache-Control", "public, max-age=30")
-		return httpx.OK(c, listResponse{Sources: toWire(rows, time.Now())})
-	})
+func (f *Feature) Register(r *server.Routes) error {
+	r.V1.GET("/sources", f.list)
 	return nil
 }
 
-func toWire(rows []sourcesdb.ListSourcesRow, now time.Time) []Source {
+func (f *Feature) list(c *echo.Context) error {
+	if f.sources == nil {
+		return httpx.Abort(http.StatusServiceUnavailable, "database not configured")
+	}
+	rows, err := f.sources.List(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	c.Response().Header().Set("Cache-Control", "public, max-age=30")
+	return httpx.OK(c, listResponse{Sources: toWire(rows, f.now())})
+}
+
+func toWire(rows []domain.SourceStatus, now time.Time) []Source {
 	out := make([]Source, 0, len(rows))
-	for _, r := range rows {
-		interval := time.Duration(r.PollIntervalSeconds) * time.Second
-		out = append(out, Source{
-			ID:                  r.ID,
-			Name:                r.Name,
-			URL:                 r.Url,
-			License:             r.License,
-			Attribution:         r.Attribution,
-			PollIntervalSeconds: r.PollIntervalSeconds,
-			Enabled:             r.Enabled,
-			LastSuccessAt:       r.LastSuccessAt,
-			LastErrorAt:         r.LastErrorAt,
-			Stale:               r.Enabled && (r.LastSuccessAt == nil || now.Sub(*r.LastSuccessAt) > staleAfter*interval),
-		})
+	for i := range rows {
+		out = append(out, FromStatus(&rows[i], now))
 	}
 	return out
+}
+
+// FromStatus is the wire shape of one source. Other features embed it
+// (an event's sourceInfo), so every endpoint describes a source alike.
+func FromStatus(r *domain.SourceStatus, now time.Time) Source {
+	return Source{
+		ID:                  r.ID,
+		Name:                r.Name,
+		URL:                 r.URL,
+		License:             r.License,
+		Attribution:         r.Attribution,
+		PollIntervalSeconds: int(r.PollInterval / time.Second),
+		Enabled:             r.Enabled,
+		LastSuccessAt:       r.LastSuccessAt,
+		LastErrorAt:         r.LastErrorAt,
+		Stale:               r.Stale(now),
+	}
 }

@@ -5,14 +5,17 @@
 INSERT INTO events (
     source_id, source_event_id, type, kind, status, severity, source_severity,
     title, summary, geom, centroid, started_at, observed_at, updated_at, ended_at,
-    fetched_at, url, attrs
+    fetched_at, url, attrs, change_op
 ) VALUES (
     @source_id, @source_event_id, @type, @kind, @status, @severity, @source_severity,
     @title, @summary,
-    ST_Force2D(ST_GeomFromGeoJSON(@geom::text))::geography,
-    ST_PointOnSurface(ST_Force2D(ST_GeomFromGeoJSON(@geom::text)))::geography,
+    -- Feeds send the odd self-intersecting polygon; repair it here so
+    -- country assignment and the map never trip over it.
+    ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON(@geom::text)))::geography,
+    ST_PointOnSurface(ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON(@geom::text))))::geography,
     @started_at, @observed_at, @updated_at, @ended_at,
-    now(), @url, @attrs
+    now(), @url, @attrs,
+    CASE WHEN @status::text = 'resolved' THEN 'resolved' ELSE 'created' END
 )
 ON CONFLICT (source_id, source_event_id) DO UPDATE SET
     type            = EXCLUDED.type,
@@ -30,7 +33,11 @@ ON CONFLICT (source_id, source_event_id) DO UPDATE SET
     ended_at        = EXCLUDED.ended_at,
     fetched_at      = now(),
     url             = EXCLUDED.url,
-    attrs           = EXCLUDED.attrs
+    attrs           = EXCLUDED.attrs,
+    -- Stream cursor (migration 00005): only a real change moves it.
+    change_seq      = nextval('event_change_seq'),
+    change_op       = CASE WHEN EXCLUDED.status = 'resolved' AND events.status <> 'resolved'
+                           THEN 'resolved' ELSE 'updated' END
 WHERE (events.type, events.kind, events.status, events.severity, events.source_severity,
        events.title, events.summary, events.started_at, events.observed_at,
        events.updated_at, events.ended_at, events.url, events.attrs)
@@ -66,7 +73,49 @@ SELECT @event_id::uuid AS event_id, iso2, 'within' AS relation, 0::real AS dista
 UNION ALL
 SELECT @event_id::uuid AS event_id, iso2, 'nearby' AS relation, round((meters / 1000)::numeric, 1)::real AS distance_km FROM nearby;
 
--- name: DeleteEvents :execrows
+-- name: DeleteEvents :many
 DELETE FROM events
 WHERE source_id = @source_id
-  AND source_event_id = ANY(@source_event_ids::text[]);
+  AND source_event_id = ANY(@source_event_ids::text[])
+RETURNING id;
+
+-- name: InsertEventTombstones :exec
+-- One tombstone per removed event, on the change sequence, so stream
+-- clients learn about the removal.
+INSERT INTO event_tombstones (event_id)
+SELECT unnest(@event_ids::uuid[]);
+
+-- name: LockEventChanges :exec
+-- Serializes event writers until commit, so change_seq order is commit
+-- order (migration 00005). The key is arbitrary but fixed.
+SELECT pg_advisory_xact_lock(7268329100);
+
+-- name: NotifyEventChanges :exec
+-- Delivered at commit to every API pod LISTENing; the payload is empty
+-- because listeners read the changes by cursor.
+SELECT pg_notify('shield_events', '');
+
+-- name: LatestEventChange :one
+-- The highest committed change cursor; 0 when nothing has changed yet.
+SELECT GREATEST(
+    COALESCE((SELECT max(change_seq) FROM events), 0),
+    COALESCE((SELECT max(seq) FROM event_tombstones), 0)
+)::bigint;
+
+-- name: EventSnapshot :one
+-- The fields a revision tracks (ADR 6), locked for the rest of the upsert
+-- transaction. The geometry is compared by hash, not stored.
+SELECT id, severity, status, source_severity, title, ended_at,
+       md5(ST_AsBinary(geom)) AS geom_hash
+FROM events
+WHERE source_id = @source_id AND source_event_id = @source_event_id
+FOR UPDATE;
+
+-- name: InsertEventRevision :exec
+INSERT INTO event_revisions (event_id, changes) VALUES (@event_id, @changes);
+
+-- name: ListEventRevisions :many
+SELECT at, changes FROM event_revisions
+WHERE event_id = @event_id
+ORDER BY at DESC, id DESC
+LIMIT @max_rows;

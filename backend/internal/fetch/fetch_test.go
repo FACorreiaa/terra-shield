@@ -114,6 +114,27 @@ func TestHostGapSerializes(t *testing.T) {
 	}
 }
 
+func TestHead(t *testing.T) {
+	var gets int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			gets++
+		}
+		w.Header().Set("ETag", `"big"`)
+		_, _ = w.Write([]byte("a big file"))
+	}))
+	defer srv.Close()
+	c := New(Options{HostGap: time.Millisecond})
+
+	v, err := c.Head(t.Context(), srv.URL)
+	if err != nil || v.ETag != `"big"` || gets != 0 {
+		t.Fatalf("head %+v err %v gets %d", v, err, gets)
+	}
+	if !SameVersion(Validators{ETag: `"big"`}, v) || SameVersion(Validators{ETag: `"old"`}, v) || SameVersion(Validators{}, v) {
+		t.Fatal("SameVersion")
+	}
+}
+
 func TestParseRetryAfter(t *testing.T) {
 	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	cases := map[string]time.Duration{

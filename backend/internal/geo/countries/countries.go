@@ -1,5 +1,6 @@
-// Package countries loads Natural Earth admin-0 boundaries into the
-// countries table (ADR 4: an event's countries come from its geometry).
+// Package countries reads the pinned Natural Earth admin-0 dataset into
+// domain.Country values; store.CountryRepository loads them (ADR 4: an
+// event's countries come from its geometry).
 //
 // Codes follow ISO 3166-1. Natural Earth's ISO_A2_EH/ISO_A3_EH fields
 // already fix France, Norway, Taiwan and Kosovo; the few features with no
@@ -19,8 +20,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"shield/internal/domain"
 )
 
 // Pinned dataset: Natural Earth 1:50m admin-0 countries, v5.1.2, public
@@ -49,12 +49,6 @@ var (
 	iso3Re = regexp.MustCompile(`^[A-Z]{3}$`)
 )
 
-// Feature is one boundary ready to load.
-type Feature struct {
-	ISO2, ISO3, Name string
-	Geometry         json.RawMessage // GeoJSON geometry, WGS84
-}
-
 type geojson struct {
 	Features []struct {
 		Properties struct {
@@ -69,7 +63,7 @@ type geojson struct {
 
 // Parse reads a Natural Earth admin-0 GeoJSON FeatureCollection. skipped
 // lists the ADMIN names left out on purpose.
-func Parse(r io.Reader) (features []Feature, skipped []string, err error) {
+func Parse(r io.Reader) (features []domain.Country, skipped []string, err error) {
 	var fc geojson
 	if err := json.NewDecoder(r).Decode(&fc); err != nil {
 		return nil, nil, fmt.Errorf("decode geojson: %w", err)
@@ -94,65 +88,12 @@ func Parse(r io.Reader) (features []Feature, skipped []string, err error) {
 		if name == "" {
 			name = p.Admin
 		}
-		features = append(features, Feature{ISO2: iso2, ISO3: iso3, Name: name, Geometry: f.Geometry})
+		features = append(features, domain.Country{ISO2: iso2, ISO3: iso3, Name: name, Geometry: f.Geometry})
 	}
 	if len(features) == 0 {
 		return nil, nil, errors.New("no features")
 	}
 	return features, skipped, nil
-}
-
-// Load upserts features into countries in one transaction and returns the
-// number of countries written. Geometries are repaired with ST_MakeValid;
-// features sharing an ISO2 are unioned, and the largest one names the row.
-func Load(ctx context.Context, pool *pgxpool.Pool, features []Feature) (int, error) {
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	if _, err := tx.Exec(ctx, `CREATE TEMP TABLE countries_stage (
-		iso2 text NOT NULL, iso3 text NOT NULL, name text NOT NULL, geom geometry NOT NULL
-	) ON COMMIT DROP`); err != nil {
-		return 0, err
-	}
-	batch := &pgx.Batch{}
-	for _, f := range features {
-		batch.Queue(`INSERT INTO countries_stage (iso2, iso3, name, geom)
-			VALUES ($1, $2, $3, ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON($4), 4326)))`,
-			f.ISO2, f.ISO3, f.Name, string(f.Geometry))
-	}
-	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
-		return 0, fmt.Errorf("stage features: %w", err)
-	}
-
-	tag, err := tx.Exec(ctx, `
-		INSERT INTO countries (iso2, iso3, name, geom)
-		SELECT iso2,
-		       (array_agg(iso3 ORDER BY ST_Area(geom) DESC))[1],
-		       (array_agg(name ORDER BY ST_Area(geom) DESC))[1],
-		       ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_Union(geom)), 3))::geography
-		FROM countries_stage
-		GROUP BY iso2
-		ON CONFLICT (iso2) DO UPDATE SET
-		    iso3 = EXCLUDED.iso3,
-		    name = EXCLUDED.name,
-		    geom = EXCLUDED.geom`)
-	if err != nil {
-		return 0, fmt.Errorf("upsert countries: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return 0, err
-	}
-	return int(tag.RowsAffected()), nil
-}
-
-// Count returns how many countries are loaded.
-func Count(ctx context.Context, pool *pgxpool.Pool) (int, error) {
-	var n int
-	err := pool.QueryRow(ctx, `SELECT count(*) FROM countries`).Scan(&n)
-	return n, err
 }
 
 // Fetch downloads url and verifies its SHA-256, so a moved or altered file

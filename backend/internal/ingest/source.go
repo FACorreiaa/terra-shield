@@ -1,45 +1,61 @@
 // Package ingest runs the feed adapters on River schedules and records each
 // source's health.
 //
-// Each adapter (internal/sources/<name>, from M1) implements Source. The
-// worker registers one River periodic job per enabled source; a poll job
-// loads the source's HTTP validators, calls Poll, and records success or
-// failure on the sources row and in metrics.
+// Each adapter (internal/sources/<name>) implements Source. The worker
+// registers one River periodic job per enabled source; a poll job loads the
+// source's HTTP validators, calls Poll, and records success or failure in
+// the source state store and in metrics. Sources that keep rolling data
+// may also implement Housekeeper for an hourly cleanup job.
+//
+// Everything this package needs from storage is declared here as an
+// interface (SourceStates, EventStore, FireStore); internal/app wires in
+// the repositories from internal/store.
 package ingest
 
 import (
 	"context"
 	"time"
 
-	"shield/internal/fetch"
+	"shield/internal/domain"
 )
-
-// Info is a source's static metadata, written to the sources table on worker
-// start so /v1/sources and the attribution screen always match the code.
-type Info struct {
-	ID           string // stable key: "usgs", "gdacs", ...
-	Name         string
-	URL          string // human-facing homepage of the feed
-	License      string
-	Attribution  string
-	PollInterval time.Duration
-	Enabled      bool
-}
-
-// Validators are the HTTP cache validators from the last successful poll,
-// sent back as If-None-Match / If-Modified-Since.
-type Validators = fetch.Validators
 
 // Result is what one poll did.
 type Result struct {
-	Validators  Validators // to keep for the next poll
-	NotModified bool       // the feed answered 304
-	Upserted    int        // events inserted or updated
+	Validators  domain.Validators // to keep for the next poll
+	NotModified bool              // the feed had nothing new
+	Upserted    int               // records inserted, updated or deleted
 }
 
 // Source is one feed adapter. Poll fetches the feed once, normalizes and
 // stores what changed, and must not retry on its own: River retries the job.
 type Source interface {
-	Info() Info
-	Poll(ctx context.Context, v Validators) (Result, error)
+	Info() domain.SourceInfo
+	Poll(ctx context.Context, v domain.Validators) (Result, error)
+}
+
+// Housekeeper is a Source with periodic cleanup, such as purging a rolling
+// window. Housekeep runs every HousekeepInterval.
+type Housekeeper interface {
+	Housekeep(ctx context.Context) error
+	HousekeepInterval() time.Duration
+}
+
+// SourceStates persists each source's metadata and polling state.
+type SourceStates interface {
+	Register(ctx context.Context, info domain.SourceInfo) error
+	Validators(ctx context.Context, id string) (domain.Validators, error)
+	RecordSuccess(ctx context.Context, id string, at time.Time, v domain.Validators) error
+	RecordError(ctx context.Context, id string, at time.Time, msg string) error
+}
+
+// EventStore is where event adapters write.
+type EventStore interface {
+	Upsert(ctx context.Context, sourceID string, events []domain.Event) (int, error)
+	Delete(ctx context.Context, sourceID string, sourceEventIDs []string) (int, error)
+}
+
+// FireStore is where the FIRMS adapter writes.
+type FireStore interface {
+	Insert(ctx context.Context, fires []domain.FireDetection) (int, error)
+	PurgeBefore(ctx context.Context, t time.Time) (int, error)
 }

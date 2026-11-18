@@ -17,6 +17,18 @@ type Country struct {
 	Geom interface{}
 }
 
+type CountryStat struct {
+	Iso2         string
+	Iso3         string
+	Name         string
+	ActiveEvents int32
+	MaxSeverity  string
+	MinLon       float64
+	MinLat       float64
+	MaxLon       float64
+	MaxLat       float64
+}
+
 type Event struct {
 	ID             uuid.UUID
 	SourceID       string
@@ -37,6 +49,8 @@ type Event struct {
 	FetchedAt      time.Time
 	Url            *string
 	Attrs          []byte
+	ChangeSeq      int64
+	ChangeOp       string
 }
 
 type EventCountry struct {
@@ -51,6 +65,12 @@ type EventRevision struct {
 	EventID uuid.UUID
 	At      time.Time
 	Changes []byte
+}
+
+type EventTombstone struct {
+	Seq       int64
+	EventID   uuid.UUID
+	RemovedAt time.Time
 }
 
 type FireDetection struct {
@@ -80,6 +100,7 @@ type Source struct {
 	LastErrorAt         *time.Time
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	OfficialWarnings    bool
 }
 
 type SourceCoverage struct {

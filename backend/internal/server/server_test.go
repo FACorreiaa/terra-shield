@@ -19,7 +19,7 @@ func newServer(t *testing.T) http.Handler {
 		Logger: slog.New(slog.DiscardHandler),
 		Health: server.NewHealth(),
 	}
-	server.AddDatabaseCheck(d) // DB is nil: readiness must fail
+	server.AddDatabaseCheck(d.Health, nil, d.Logger) // no database: readiness must fail
 	srv, err := server.New(d, nil)
 	if err != nil {
 		t.Fatal(err)

@@ -10,6 +10,35 @@ import (
 	"time"
 )
 
+const addSourceCoverage = `-- name: AddSourceCoverage :execrows
+INSERT INTO source_coverage (source_id, iso2)
+SELECT $1, c.iso2 FROM countries c WHERE c.iso2 = ANY($2::text[])
+ON CONFLICT DO NOTHING
+`
+
+type AddSourceCoverageParams struct {
+	SourceID  string
+	Iso2Codes []string
+}
+
+// Unknown codes (no such country loaded) are skipped, not an error.
+func (q *Queries) AddSourceCoverage(ctx context.Context, arg AddSourceCoverageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, addSourceCoverage, arg.SourceID, arg.Iso2Codes)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearSourceCoverage = `-- name: ClearSourceCoverage :exec
+DELETE FROM source_coverage WHERE source_id = $1
+`
+
+func (q *Queries) ClearSourceCoverage(ctx context.Context, sourceID string) error {
+	_, err := q.db.Exec(ctx, clearSourceCoverage, sourceID)
+	return err
+}
+
 const getSourceValidators = `-- name: GetSourceValidators :one
 SELECT etag, last_modified
 FROM sources
@@ -125,8 +154,8 @@ func (q *Queries) RecordSourceSuccess(ctx context.Context, arg RecordSourceSucce
 }
 
 const upsertSource = `-- name: UpsertSource :exec
-INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled, official_warnings)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (id) DO UPDATE SET
     name                  = EXCLUDED.name,
     url                   = EXCLUDED.url,
@@ -134,6 +163,7 @@ ON CONFLICT (id) DO UPDATE SET
     attribution           = EXCLUDED.attribution,
     poll_interval_seconds = EXCLUDED.poll_interval_seconds,
     enabled               = EXCLUDED.enabled,
+    official_warnings     = EXCLUDED.official_warnings,
     updated_at            = now()
 `
 
@@ -145,6 +175,7 @@ type UpsertSourceParams struct {
 	Attribution         string
 	PollIntervalSeconds int32
 	Enabled             bool
+	OfficialWarnings    bool
 }
 
 func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) error {
@@ -156,6 +187,7 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) erro
 		arg.Attribution,
 		arg.PollIntervalSeconds,
 		arg.Enabled,
+		arg.OfficialWarnings,
 	)
 	return err
 }

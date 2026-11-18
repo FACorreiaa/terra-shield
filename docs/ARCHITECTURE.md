@@ -30,7 +30,7 @@ New product (2026-11-16): a global natural-hazard monitor answering *"What's hap
 
 - **One Go binary, subcommands** (norviq-backend-v2 pattern, `norviq/norviq-backend-v2/cmd/api/main.go`): `shield serve | worker | migrate [status] | routes | seed-countries`.
 - **Two Helm releases from the same image** (Khepri pattern): `shield-api` and `shield-worker` (replicas 1, `strategy: Recreate`).
-- **Live updates:** the worker commits and runs `NOTIFY shield_events, '<json>'`. Each API pod holds a `LISTEN` connection and fans out to SSE clients. This works across replicas and processes. Norviq's `internal/platform/realtime/bus.go` is single-replica only, so it is not reused as-is; only its handler shape is (`internal/features/groups/realtime.go`).
+- **Live updates (ADR 20):** event writers bump a change cursor (`events.change_seq`, tombstones for deletions) under an advisory lock and `pg_notify('shield_events')` at commit. Each API pod's `realtime.Hub` holds one `LISTEN` connection, reads the change log by cursor once per wake, and fans out to SSE clients. The cursor lives in Postgres, so any number of pods works and `Last-Event-ID` resumes on any pod.
 
 ### Backend stack (fixed by user)
 | Concern | Choice | House reference |
@@ -50,9 +50,9 @@ New product (2026-11-16): a global natural-hazard monitor answering *"What's hap
 |---|---|
 | iOS + macOS | **Aaru pattern**: hand-kept `.xcodeproj`, **one target** (`SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx"`, `SDKROOT = auto`), `Config/{Base,Debug,Beta,Release}.xcconfig` + `Secrets.example.xcconfig`. iOS 18 / macOS 15, Swift 6, `@Observable` MV (no TCA). **MapKit**: `MKMapView` + `MKClusterAnnotation` in a representable for clustering, since SwiftUI `Map` has none (refs: `lumina/.../Places/PlacesMapView.swift`, `skyvisor/.../FlightMapView.swift`). |
 | Apple API client | `shield-api/` SPM package, swift-openapi-generator (types+client, public, idiomatic), **generated code committed**. Copy `aaru/aaru-api/{Package.swift,openapi-generator-config.yaml}`, `ConnectionRetryMiddleware.swift`, `aaru/scripts/generate-api-client.sh`. Domain package `shield-core/` (like `aaru-core`). |
-| Design tokens | `design/tokens.json` → `Tokens.gen.swift` via `scripts/generate-tokens.mjs` + CI check (copy Aaru `ci-brand.yml`). |
+| Design tokens | `design/tokens.json` (source of truth; rationale in `DESIGN.md`) → `Tokens.gen.swift` via `scripts/generate-tokens.mjs --check` in `ci-apple.yml`. |
 | Crash / analytics | Sentry (`sentry-cocoa`, like `aaru-ios/Aaru/CrashReporting.swift`) + PostHog (`posthog-ios`), anonymous. |
-| Web (Phase 2) | SvelteKit 5 + TS + Tailwind v4 + **MapLibre GL JS** (ref `skyvisor/skyvisor-insight-client/app/assets/map.js`), `openapi-typescript` + `openapi-fetch` + `@tanstack/svelte-query` (like `north-web-app` `api:types`). **Hosting recommendation:** `adapter-static` embedded in the Go binary (Postitheka pattern, `postitheka/web/embed.go` + multi-stage Dockerfile), which keeps it on Hetzner. The alternative is the house Cloudflare Workers deploy (aaru `web-deploy.yml`). Decide at Phase 2. |
+| Web (Phase 2) | **React + TypeScript on Vite+** in `shield-app-web/` (ADR 19): TanStack Router + Query, Tailwind v4 with the generated tokens, shadcn/ui, **MapLibre GL JS 6** with a bundled Natural Earth basemap (no third-party tiles). Client: `openapi-typescript` + `openapi-fetch` in `shield-app-web/packages/api-client`. Tests: Vitest + Playwright; lint: oxlint (all stable categories); types: TS-Go via `vp check`. **Hosting open:** static build behind Caddy, or embedded in the Go binary (Postitheka pattern). |
 | Android (Phase 4) | Kotlin + Jetpack Compose + MapLibre Native Android, Kotlin client from the same OpenAPI spec. |
 
 
@@ -75,7 +75,7 @@ New product (2026-11-16): a global natural-hazard monitor answering *"What's hap
 | `GET /v1/events?bbox=&zoom=&type=&severity=&kind=&status=&country=&since=&until=` | JSON list or `application/geo+json`; clustered at low zoom |
 | `GET /v1/events/{id}` | Detail + revisions + countries + source |
 | `GET /v1/countries` / `GET /v1/countries/{iso2}/summary` | Active counts; type × severity matrix, coverage notes, recent changes |
-| `GET /v1/fires?bbox=&since=` | FIRMS layer (GeoJSON) |
+| `GET /v1/fires?bbox=&zoom=&since=` | FIRMS layer (GeoJSON): grid cells below zoom 6, points from zoom 6 |
 | `GET /v1/sources` | Health, freshness, license, attribution |
 | `GET /v1/stream?bbox=&type=` | SSE `event.created \| updated \| resolved`, heartbeat, `Last-Event-ID` |
 | `/health/live`, `/health/ready`, `/metrics`, `/openapi.yaml` | Ops (paths match the `norviq-app` chart's default probes) |
@@ -88,13 +88,18 @@ Event lists return `ETag` and `Cache-Control: max-age` ≤ 15 s (ADR 16: below t
 ```
 shield-app/
 ├── backend/
-│   ├── cmd/shield/main.go          # serve | worker | migrate | routes | seed-countries
+│   ├── cmd/shield/main.go          # signal context + app.Run; nothing else
 │   ├── internal/
-│   │   ├── config/ server/ middleware/ httpx/ apijson/ testutil/
-│   │   ├── features/{events,countries,fires,sources,stream,ops}/
-│   │   ├── ingest/                 # River workers, normalize, upsert, revisions, NOTIFY
-│   │   ├── sources/{gdacs,usgs,eonet,firms,meteoalarm}/   # Fetch → []Normalized, + testdata/
-│   │   ├── severity/  geo/  fetch/ # fetch = adapted from feeds (cond. GET, backoff, hostlimit)
+│   │   ├── app/                    # composition root: commands, infra, wiring (ADR 17)
+│   │   ├── domain/                 # Event, SourceInfo, FireDetection, Country: no imports
+│   │   ├── store/                  # repositories (+ sqlc *db packages)
+│   │   ├── ingest/                 # River runner + workers; declares SourceStates/EventStore/FireStore
+│   │   ├── sources/{usgs,gdacs,eonet,firms,meteoalarm}/   # adapters + recorded testdata/
+│   │   ├── features/{events,countries,fires,sources,stream,ops}/   # HTTP features; each declares the interface it needs
+│   │   ├── realtime/              # per-pod change fan-out for /v1/stream (LISTEN → cursor read → subscribers)
+│   │   ├── features/params/       # shared bbox / zoom / time parsing
+│   │   ├── config/ server/ httpx/ metrics/ migrate/ testutil/
+│   │   ├── severity/  geo/  fetch/ # fetch = adapted from feeds (cond. GET, HEAD probe, hostlimit)
 │   ├── db/{migrations,queries,embed.go}, sqlc.yaml
 │   ├── api/openapi.yaml
 │   ├── Dockerfile (golang:1.27-alpine → distroless/static:nonroot), Makefile (norviq targets)
