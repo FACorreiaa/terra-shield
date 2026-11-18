@@ -98,7 +98,7 @@ export interface paths {
         };
         /**
          * Events in a map view, filtered; clustered at low zoom.
-         * @description Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`.
+         * @description Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*\/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
          */
         get: operations["listEvents"];
         put?: never;
@@ -504,6 +504,26 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds. */
+        TooManyRequests: {
+            headers: {
+                /** @description Seconds to wait. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The request took longer than 10 s, or the database is unreachable (code `unavailable`). */
+        Unavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
         /** @description minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian. */
@@ -633,6 +653,8 @@ export interface operations {
                     };
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
             default: components["responses"]["Error"];
         };
     };
@@ -681,6 +703,8 @@ export interface operations {
             };
             304: components["responses"]["NotModified"];
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
             default: components["responses"]["Error"];
         };
     };
@@ -709,6 +733,8 @@ export interface operations {
             304: components["responses"]["NotModified"];
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
             default: components["responses"]["Error"];
         };
     };
@@ -735,6 +761,8 @@ export interface operations {
                 };
             };
             304: components["responses"]["NotModified"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
             default: components["responses"]["Error"];
         };
     };
@@ -763,6 +791,8 @@ export interface operations {
             304: components["responses"]["NotModified"];
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
             default: components["responses"]["Error"];
         };
     };
@@ -795,6 +825,8 @@ export interface operations {
             };
             304: components["responses"]["NotModified"];
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
             default: components["responses"]["Error"];
         };
     };
@@ -830,7 +862,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
-            /** @description The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds. */
+            429: components["responses"]["TooManyRequests"];
+            /** @description The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds. Too many streams from one IP is a 429. */
             503: {
                 headers: {
                     "Retry-After"?: number;

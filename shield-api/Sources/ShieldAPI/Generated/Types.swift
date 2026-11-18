@@ -38,7 +38,7 @@ public protocol APIProtocol: Sendable {
     func listSources(_ input: Operations.ListSources.Input) async throws -> Operations.ListSources.Output
     /// Events in a map view, filtered; clustered at low zoom.
     ///
-    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`.
+    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
     ///
     ///
     /// - Remark: HTTP `GET /v1/events`.
@@ -116,7 +116,7 @@ extension APIProtocol {
     }
     /// Events in a map view, filtered; clustered at low zoom.
     ///
-    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`.
+    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
     ///
     ///
     /// - Remark: HTTP `GET /v1/events`.
@@ -1609,6 +1609,83 @@ public enum Components {
                 self.body = body
             }
         }
+        public struct TooManyRequests: Sendable, Hashable {
+            /// - Remark: Generated from `#/components/responses/TooManyRequests/headers`.
+            public struct Headers: Sendable, Hashable {
+                /// Seconds to wait.
+                ///
+                /// - Remark: Generated from `#/components/responses/TooManyRequests/headers/Retry-After`.
+                public var retryAfter: Swift.Int?
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - retryAfter: Seconds to wait.
+                public init(retryAfter: Swift.Int? = nil) {
+                    self.retryAfter = retryAfter
+                }
+            }
+            /// Received HTTP response headers
+            public var headers: Components.Responses.TooManyRequests.Headers
+            /// - Remark: Generated from `#/components/responses/TooManyRequests/content`.
+            @frozen public enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/components/responses/TooManyRequests/content/application\/json`.
+                case json(Components.Schemas._Error)
+                /// The associated value of the enum case if `self` is `.json`.
+                ///
+                /// - Throws: An error if `self` is not `.json`.
+                /// - SeeAlso: `.json`.
+                public var json: Components.Schemas._Error {
+                    get throws {
+                        switch self {
+                        case let .json(body):
+                            return body
+                        }
+                    }
+                }
+            }
+            /// Received HTTP response body
+            public var body: Components.Responses.TooManyRequests.Body
+            /// Creates a new `TooManyRequests`.
+            ///
+            /// - Parameters:
+            ///   - headers: Received HTTP response headers
+            ///   - body: Received HTTP response body
+            public init(
+                headers: Components.Responses.TooManyRequests.Headers = .init(),
+                body: Components.Responses.TooManyRequests.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        public struct Unavailable: Sendable, Hashable {
+            /// - Remark: Generated from `#/components/responses/Unavailable/content`.
+            @frozen public enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/components/responses/Unavailable/content/application\/json`.
+                case json(Components.Schemas._Error)
+                /// The associated value of the enum case if `self` is `.json`.
+                ///
+                /// - Throws: An error if `self` is not `.json`.
+                /// - SeeAlso: `.json`.
+                public var json: Components.Schemas._Error {
+                    get throws {
+                        switch self {
+                        case let .json(body):
+                            return body
+                        }
+                    }
+                }
+            }
+            /// Received HTTP response body
+            public var body: Components.Responses.Unavailable.Body
+            /// Creates a new `Unavailable`.
+            ///
+            /// - Parameters:
+            ///   - body: Received HTTP response body
+            public init(body: Components.Responses.Unavailable.Body) {
+                self.body = body
+            }
+        }
     }
     /// Types generated from the `#/components/headers` section of the OpenAPI document.
     public enum Headers {
@@ -2225,6 +2302,52 @@ public enum Operations {
                     }
                 }
             }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/sources/get(listSources)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/sources/get(listSources)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
             /// Error envelope.
             ///
             /// - Remark: Generated from `#/paths//v1/sources/get(listSources)/responses/default`.
@@ -2277,7 +2400,7 @@ public enum Operations {
     }
     /// Events in a map view, filtered; clustered at low zoom.
     ///
-    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`.
+    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
     ///
     ///
     /// - Remark: HTTP `GET /v1/events`.
@@ -2556,6 +2679,52 @@ public enum Operations {
                     }
                 }
             }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/events/get(listEvents)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/events/get(listEvents)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
             /// Error envelope.
             ///
             /// - Remark: Generated from `#/paths//v1/events/get(listEvents)/responses/default`.
@@ -2816,6 +2985,52 @@ public enum Operations {
                     }
                 }
             }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/events/{id}/get(getEvent)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/events/{id}/get(getEvent)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
             /// Error envelope.
             ///
             /// - Remark: Generated from `#/paths//v1/events/{id}/get(getEvent)/responses/default`.
@@ -3016,6 +3231,52 @@ public enum Operations {
                     default:
                         try throwUnexpectedResponseStatus(
                             expectedStatus: "notModified",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/countries/get(listCountries)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/countries/get(listCountries)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
                             response: self
                         )
                     }
@@ -3275,6 +3536,52 @@ public enum Operations {
                     }
                 }
             }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
             /// Error envelope.
             ///
             /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)/responses/default`.
@@ -3523,6 +3830,52 @@ public enum Operations {
                     default:
                         try throwUnexpectedResponseStatus(
                             expectedStatus: "badRequest",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/fires/get(listFires)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/fires/get(listFires)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
                             response: self
                         )
                     }
@@ -3794,7 +4147,7 @@ public enum Operations {
                     self.body = body
                 }
             }
-            /// The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds.
+            /// The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds. Too many streams from one IP is a 429.
             ///
             /// - Remark: Generated from `#/paths//v1/stream/get(streamEvents)/responses/503`.
             ///
@@ -3812,6 +4165,29 @@ public enum Operations {
                     default:
                         try throwUnexpectedResponseStatus(
                             expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/stream/get(streamEvents)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
                             response: self
                         )
                     }
