@@ -111,9 +111,9 @@ func TestHubFansOutMatchingChanges(t *testing.T) {
 	src := newFakeSource(quake(1, "old", 0, 0, "minor"))
 	h, _ := start(t, src, Options{})
 
-	all, _ := h.Subscribe(Filter{})
-	iberia, _ := h.Subscribe(Filter{BBox: &domain.BBox{MinLon: -10, MinLat: 35, MaxLon: 5, MaxLat: 45}})
-	severe, _ := h.Subscribe(Filter{Severities: []string{"severe"}, Country: "PT"})
+	all, _ := h.Subscribe(Filter{}, "ip")
+	iberia, _ := h.Subscribe(Filter{BBox: &domain.BBox{MinLon: -10, MinLat: 35, MaxLon: 5, MaxLat: 45}}, "ip")
+	severe, _ := h.Subscribe(Filter{Severities: []string{"severe"}, Country: "PT"}, "ip")
 	if all.Start != 1 {
 		t.Fatalf("start %d, want the latest cursor 1", all.Start)
 	}
@@ -144,9 +144,9 @@ func TestHubDropsSlowSubscriberAndCaps(t *testing.T) {
 	src := newFakeSource()
 	h, cancel := start(t, src, Options{Buffer: 1, MaxSubscribers: 2})
 
-	slow, _ := h.Subscribe(Filter{})
-	fast, _ := h.Subscribe(Filter{})
-	if _, err := h.Subscribe(Filter{}); !errors.Is(err, ErrFull) {
+	slow, _ := h.Subscribe(Filter{}, "ip")
+	fast, _ := h.Subscribe(Filter{}, "ip")
+	if _, err := h.Subscribe(Filter{}, "ip"); !errors.Is(err, ErrFull) {
 		t.Fatalf("third subscriber: %v", err)
 	}
 	src.append(quake(1, "a", 0, 0, "minor"))
@@ -166,7 +166,7 @@ func TestHubDropsSlowSubscriberAndCaps(t *testing.T) {
 	if _, ok := <-fast.C; ok {
 		t.Fatal("shutdown left a subscription open")
 	}
-	if _, err := h.Subscribe(Filter{}); !errors.Is(err, ErrClosed) {
+	if _, err := h.Subscribe(Filter{}, "ip"); !errors.Is(err, ErrClosed) {
 		t.Fatalf("after shutdown: %v", err)
 	}
 }
@@ -187,7 +187,7 @@ func TestHubCatchUpAndRetry(t *testing.T) {
 	}
 
 	// A failed read keeps the cursor; the next wake publishes everything.
-	sub, _ := h.Subscribe(Filter{})
+	sub, _ := h.Subscribe(Filter{}, "ip")
 	src.mu.Lock()
 	src.failing = true
 	src.mu.Unlock()
@@ -201,5 +201,27 @@ func TestHubCatchUpAndRetry(t *testing.T) {
 		if c := recv(t, sub); c.Seq != want {
 			t.Fatalf("got %d, want %d", c.Seq, want)
 		}
+	}
+}
+
+func TestHubCapsStreamsPerClient(t *testing.T) {
+	h, _ := start(t, newFakeSource(), Options{MaxPerClient: 2})
+	a1, _ := h.Subscribe(Filter{}, "1.2.3.4")
+	if _, err := h.Subscribe(Filter{}, "1.2.3.4"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Subscribe(Filter{}, "1.2.3.4"); !errors.Is(err, ErrClientLimit) {
+		t.Fatalf("third from one address: %v", err)
+	}
+	if _, err := h.Subscribe(Filter{}, "5.6.7.8"); err != nil {
+		t.Fatalf("another address: %v", err)
+	}
+	a1.Close()
+	a1.Close() // twice must not free two slots
+	if _, err := h.Subscribe(Filter{}, "1.2.3.4"); err != nil {
+		t.Fatalf("after close: %v", err)
+	}
+	if _, err := h.Subscribe(Filter{}, "1.2.3.4"); !errors.Is(err, ErrClientLimit) {
+		t.Fatalf("double close freed a slot: %v", err)
 	}
 }

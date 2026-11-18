@@ -70,16 +70,13 @@ func New(d *Deps, features []Feature) (*Server, error) {
 		requestLog(d.Logger),
 	)
 	if len(origins) > 0 {
-		e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
-			AllowOrigins: origins,
-			AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodOptions},
-		}))
+		e.Use(echomw.CORSWithConfig(corsConfig(origins)))
 	}
 	e.Use(
 		echomw.GzipWithConfig(echomw.GzipConfig{
 			MinLength: 1024,
 			// A compressed event stream would sit in the gzip buffer.
-			Skipper: func(c *echo.Context) bool { return c.Request().URL.Path == metrics.StreamRoute },
+			Skipper: isStream,
 		}),
 		echomw.BodyLimit(bodyLimit),
 	)
@@ -87,16 +84,18 @@ func New(d *Deps, features []Feature) (*Server, error) {
 	routes := &Routes{Root: e.Group(""), V1: e.Group("/v1")}
 	registerOps(d, routes)
 
-	// The rate limit covers /v1 only: probes and scrapes must never be
-	// throttled.
+	// The rate limit and the timeout cover /v1 only: probes and scrapes
+	// must never be throttled.
 	if d.Config.RateLimitRPS > 0 {
-		routes.V1.Use(echomw.RateLimiter(echomw.NewRateLimiterMemoryStoreWithConfig(
-			echomw.RateLimiterMemoryStoreConfig{
-				Rate:      d.Config.RateLimitRPS,
-				Burst:     int(d.Config.RateLimitRPS * 2),
-				ExpiresIn: 3 * time.Minute,
-			},
-		)))
+		routes.V1.Use(rateLimit(d.Config.RateLimitRPS))
+	}
+	if d.Config.RequestTimeout > 0 {
+		routes.V1.Use(echomw.ContextTimeoutWithConfig(echomw.ContextTimeoutConfig{
+			Timeout: d.Config.RequestTimeout,
+			// The stream is long-lived by design; its writes have their own
+			// deadline.
+			Skipper: isStream,
+		}))
 	}
 
 	for _, f := range features {
@@ -105,6 +104,39 @@ func New(d *Deps, features []Feature) (*Server, error) {
 		}
 	}
 	return &Server{Echo: e, Handler: e}, nil
+}
+
+func isStream(c *echo.Context) bool { return c.Request().URL.Path == metrics.StreamRoute }
+
+// corsConfig lets browser clients on the allowed origins read responses,
+// revalidate with ETags and resume the stream. No credentials: the API is
+// public and anonymous.
+func corsConfig(origins []string) echomw.CORSConfig {
+	return echomw.CORSConfig{
+		AllowOrigins: origins,
+		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodOptions},
+		AllowHeaders: []string{"Accept", "If-None-Match", "Last-Event-ID"},
+		// Not CORS-safelisted, so a script cannot read them unless exposed.
+		ExposeHeaders: []string{"ETag", "Retry-After", echo.HeaderXRequestID},
+		MaxAge:        int((10 * time.Minute).Seconds()),
+	}
+}
+
+// rateLimit allows rps requests per second per client IP, with bursts of
+// twice that (a map pan fires several requests at once). The client IP
+// comes from the server's IPExtractor: on the cluster Traefik preserves the
+// source address (externalTrafficPolicy: Local) and replaces any
+// X-Forwarded-For a client sends. Counters live in this pod's memory.
+func rateLimit(rps float64) echo.MiddlewareFunc {
+	return echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
+		Store: echomw.NewRateLimiterMemoryStoreWithConfig(echomw.RateLimiterMemoryStoreConfig{
+			Rate: rps, Burst: int(rps * 2), ExpiresIn: 3 * time.Minute,
+		}),
+		DenyHandler: func(c *echo.Context, _ string, _ error) error {
+			c.Response().Header().Set("Retry-After", "1")
+			return httpx.Abort(http.StatusTooManyRequests, "rate limit exceeded; retry after 1 s")
+		},
+	})
 }
 
 // requestLog logs each request at debug, and failures at info, skipping

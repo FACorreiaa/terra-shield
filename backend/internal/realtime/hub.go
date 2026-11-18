@@ -33,11 +33,14 @@ var (
 	ErrFull = errors.New("realtime: subscriber limit reached")
 	// ErrClosed means the hub is shutting down.
 	ErrClosed = errors.New("realtime: hub closed")
+	// ErrClientLimit means this client already holds MaxPerClient streams.
+	ErrClientLimit = errors.New("realtime: too many streams from this client")
 )
 
 // Options tune a Hub; zero values take the defaults.
 type Options struct {
 	MaxSubscribers int           // default 2000
+	MaxPerClient   int           // streams per client key (IP); default 8
 	Buffer         int           // per-subscriber queue; default 256
 	PageSize       int           // changes per read; default 500
 	SafetyPoll     time.Duration // re-read even without a notification; default 30 s
@@ -46,6 +49,9 @@ type Options struct {
 func (o *Options) defaults() {
 	if o.MaxSubscribers <= 0 {
 		o.MaxSubscribers = 2000
+	}
+	if o.MaxPerClient <= 0 {
+		o.MaxPerClient = 8
 	}
 	if o.Buffer <= 0 {
 		o.Buffer = 256
@@ -65,10 +71,11 @@ type Hub struct {
 	opts   Options
 	wakeCh chan struct{}
 
-	mu     sync.Mutex
-	seq    int64 // every change up to seq has been published
-	subs   map[*Subscription]struct{}
-	closed bool
+	mu      sync.Mutex
+	seq     int64 // every change up to seq has been published
+	subs    map[*Subscription]struct{}
+	clients map[string]int // open subscriptions per client key
+	closed  bool
 }
 
 // Start reads the current cursor, then runs the listener and the fan-out
@@ -81,7 +88,7 @@ func Start(ctx context.Context, src Source, logger *slog.Logger, opts Options) (
 	}
 	h := &Hub{
 		src: src, logger: logger, opts: opts, seq: seq,
-		wakeCh: make(chan struct{}, 1), subs: map[*Subscription]struct{}{},
+		wakeCh: make(chan struct{}, 1), subs: map[*Subscription]struct{}{}, clients: map[string]int{},
 	}
 	go func() {
 		if err := src.Listen(ctx, logger, h.wake); err != nil {
@@ -175,14 +182,20 @@ func (h *Hub) removeLocked(s *Subscription) {
 		return
 	}
 	delete(h.subs, s)
+	if h.clients[s.client]--; h.clients[s.client] <= 0 {
+		delete(h.clients, s.client)
+	}
 	close(s.ch)
 	metrics.StreamSubscribers.Dec()
 }
 
-// Subscribe registers a subscriber. Its Start is the cursor at
+// Subscribe registers a subscriber for client (its IP), which may hold at
+// most MaxPerClient at once: a browser tab holds one, so the cap leaves room
+// for several tabs and a household behind one address while keeping one
+// address from taking the pod's slots. Start is the cursor at
 // registration: every later matching change arrives on C; anything at or
 // before Start must be read with CatchUp.
-func (h *Hub) Subscribe(f Filter) (*Subscription, error) {
+func (h *Hub) Subscribe(f Filter, client string) (*Subscription, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.closed {
@@ -191,9 +204,13 @@ func (h *Hub) Subscribe(f Filter) (*Subscription, error) {
 	if len(h.subs) >= h.opts.MaxSubscribers {
 		return nil, ErrFull
 	}
+	if h.clients[client] >= h.opts.MaxPerClient {
+		return nil, ErrClientLimit
+	}
 	ch := make(chan domain.StreamChange, h.opts.Buffer)
-	s := &Subscription{C: ch, Start: h.seq, ch: ch, hub: h, filter: f}
+	s := &Subscription{C: ch, Start: h.seq, ch: ch, hub: h, filter: f, client: client}
 	h.subs[s] = struct{}{}
+	h.clients[client]++
 	metrics.StreamSubscribers.Inc()
 	return s, nil
 }
@@ -229,6 +246,7 @@ type Subscription struct {
 	ch     chan domain.StreamChange
 	hub    *Hub
 	filter Filter
+	client string
 }
 
 // Close unregisters the subscription; safe to call more than once.

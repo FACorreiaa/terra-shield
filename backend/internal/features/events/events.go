@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"shield/internal/domain"
@@ -160,14 +159,9 @@ func simplifyTolerance(zoom int) float64 {
 	return 360 / (256 * float64(uint64(1)<<uint(zoom))) / 2
 }
 
-// wantsGeoJSON: an explicit GeoJSON media type in Accept. Plain JSON stays
-// the default, including for */*.
+// wantsGeoJSON: GeoJSON only when Accept weighs it above plain JSON. JSON
+// is the default for */*, for no Accept, and for a tie: generated clients
+// list both types of this operation with equal weight.
 func wantsGeoJSON(accept string) bool {
-	for _, part := range strings.Split(accept, ",") {
-		mt, _, _ := strings.Cut(strings.TrimSpace(part), ";")
-		if strings.EqualFold(strings.TrimSpace(mt), mimeGeoJSON) {
-			return true
-		}
-	}
-	return false
+	return httpx.Negotiate(accept, mimeJSON, mimeGeoJSON) == mimeGeoJSON
 }

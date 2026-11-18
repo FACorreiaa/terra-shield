@@ -7,10 +7,10 @@ PG_PORT      := 55440
 export DATABASE_URL      ?= postgres://shield:shield@127.0.0.1:$(PG_PORT)/shield?sslmode=disable
 export TEST_DATABASE_URL ?= postgres://shield:shield@127.0.0.1:$(PG_PORT)/postgres?sslmode=disable
 
-.PHONY: db-up db-down run worker migrate migrate-status seed-countries routes build test lint generate sqlc-check docker
+.PHONY: db-up db-down run worker budget migrate migrate-status seed-countries routes build test lint generate sqlc-check docker
 
 db-up: ## start local PostGIS on $(PG_PORT)
-	@docker start $(PG_CONTAINER) 2>/dev/null || docker run -d --platform linux/amd64 --name $(PG_CONTAINER) \
+	@docker start $(PG_CONTAINER) 2>/dev/null || docker run -d --restart unless-stopped --platform linux/amd64 --name $(PG_CONTAINER) \
 		-e POSTGRES_USER=shield -e POSTGRES_PASSWORD=shield -e POSTGRES_DB=shield \
 		-p $(PG_PORT):5432 postgis/postgis:18-3.6
 	@until docker exec $(PG_CONTAINER) pg_isready -U shield -h 127.0.0.1 >/dev/null 2>&1; do sleep 1; done
@@ -24,6 +24,12 @@ run:
 
 worker:
 	go run ./cmd/shield worker
+
+# S2.7 budget (p95 <= 200 ms, <= 300 KB gzipped) against a running server
+# with data: start it with `RATE_LIMIT_RPS=0 make run`, or point
+# SHIELD_BUDGET_URL elsewhere.
+budget: ## check the performance budget against a running server
+	SHIELD_BUDGET_URL=$${SHIELD_BUDGET_URL:-http://localhost:8080} go test ./test/budget -count=1 -v
 
 migrate:
 	go run ./cmd/shield migrate --yes

@@ -216,6 +216,10 @@ func TestListClustersAtLowZoom(t *testing.T) {
 
 func TestListGeoJSON(t *testing.T) {
 	l := &fakeLister{recs: []domain.EventRecord{rec("a", "minor", 1, 2)}}
+	// A generated client's default Accept lists both: a tie keeps JSON.
+	if w := get(t, l, "/v1/events?zoom=2", http.Header{"Accept": {"application/json, application/geo+json"}}); w.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("tie: %s", w.Header().Get("Content-Type"))
+	}
 	w := get(t, l, "/v1/events?zoom=2", http.Header{"Accept": {"application/geo+json;q=1, application/json;q=0.5"}})
 	if w.Code != http.StatusOK || w.Header().Get("Content-Type") != "application/geo+json" {
 		t.Fatalf("%d %v", w.Code, w.Header())

@@ -7,6 +7,12 @@ info:
     sources. Every record carries its source, its source's own severity next
     to Shield's derived severity, and freshness timestamps. Shield does not
     replace national emergency services.
+
+    Limits on every /v1 operation: 20 requests per second per client IP,
+    with bursts of 40 (429 with `Retry-After` beyond that); 10 s per request,
+    except `/v1/stream` (503 when exceeded); at most 8 open streams per IP.
+    Responses over 1 KB are gzip-compressed when the client accepts it,
+    except the stream.
 servers:
   - url: http://localhost:8080
 # Public and read-only in the MVP: no accounts (auth is Phase 3).
@@ -79,6 +85,8 @@ paths:
                   sources:
                     type: array
                     items: { $ref: "#/components/schemas/Source" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
         default:
           $ref: "#/components/responses/Error"
   /v1/events:
@@ -93,7 +101,9 @@ paths:
         (extreme first), then `updatedAt` (newest first), and capped at
         `limit`; `truncated` says when more matched. Send
         `Accept: application/geo+json` for a GeoJSON FeatureCollection with
-        each event's geometry, simplified for `zoom`.
+        each event's geometry, simplified for `zoom`. Negotiation follows
+        q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a
+        client listing both types with equal weight gets JSON.
       parameters:
         - $ref: "#/components/parameters/BBox"
         - $ref: "#/components/parameters/Zoom"
@@ -119,6 +129,8 @@ paths:
               schema: { $ref: "#/components/schemas/EventFeatureCollection" }
         "304": { $ref: "#/components/responses/NotModified" }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
         default: { $ref: "#/components/responses/Error" }
   /v1/events/{id}:
     get:
@@ -139,6 +151,8 @@ paths:
         "304": { $ref: "#/components/responses/NotModified" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
         default: { $ref: "#/components/responses/Error" }
   /v1/countries:
     get:
@@ -161,6 +175,8 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Country" }
         "304": { $ref: "#/components/responses/NotModified" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
         default: { $ref: "#/components/responses/Error" }
   /v1/countries/{iso2}/summary:
     get:
@@ -181,6 +197,8 @@ paths:
         "304": { $ref: "#/components/responses/NotModified" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
         default: { $ref: "#/components/responses/Error" }
   /v1/fires:
     get:
@@ -211,6 +229,8 @@ paths:
               schema: { $ref: "#/components/schemas/FireFeatureCollection" }
         "304": { $ref: "#/components/responses/NotModified" }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
         default: { $ref: "#/components/responses/Error" }
   /v1/stream:
     get:
@@ -249,12 +269,13 @@ paths:
               schema: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
         "503":
-          description: The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds.
+          description: The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds. Too many streams from one IP is a 429.
           headers:
             Retry-After: { schema: { type: integer } }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
         default: { $ref: "#/components/responses/Error" }
 components:
   parameters:
@@ -294,6 +315,18 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
     Error:
       description: Error envelope.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManyRequests:
+      description: Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+      headers:
+        Retry-After: { description: Seconds to wait., schema: { type: integer } }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: The request took longer than 10 s, or the database is unreachable (code `unavailable`).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
