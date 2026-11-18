@@ -1,0 +1,8 @@
+#include "Base.xcconfig"
+
+// App Store.
+APP_BUNDLE_ID = com.fernandocorreia.shield
+APP_DISPLAY_NAME = Aegis Terra
+APP_ICON_NAME = AppIcon
+// Local-first until TestFlight: no API host exists yet. Empty means sample data only.
+API_BASE_URL =

@@ -1,0 +1,8 @@
+#include "Base.xcconfig"
+
+// TestFlight. A separate app (bundle id + .beta) that talks to the production API.
+APP_BUNDLE_ID = com.fernandocorreia.shield.beta
+APP_DISPLAY_NAME = Aegis Terra Beta
+APP_ICON_NAME = AppIcon
+// Local-first until TestFlight: no API host exists yet. Empty means sample data only.
+API_BASE_URL =

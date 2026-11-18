@@ -38,8 +38,8 @@ and later once in Svelte with the same name and props. Props are named after API
 | `HazardMarker` | `type, severity, kind, isStale, isSelected` | Point on map: severity shape + colour, type glyph inside, kind form (§5) | events |
 | `ClusterMarker` | `count, maxSeverity, severityShares` | Panel circle, ring in max severity, proportional arc, mono count | events (server clusters at low zoom) |
 | `EventArea` | `geometry, severity, kind` | Polygon/line with fill + stroke by kind | events GeoJSON |
-| `DetectionLayer` | `points, visible` | FIRMS dots, own layer, off by default | `GET /v1/fires` |
-| `SeverityBadge` | `severity, sourceSeverity?, size` | Shape + word + colour; source value verbatim in muted | events |
+| `DetectionLayer` | `points, visible` | FIRMS, own layer, off by default. Heatmap at low zoom, dots at regional zoom (~155k points per 48 h). "Detected N h ago" | `GET /v1/fires` |
+| `SeverityBadge` | `severity, sourceSeverity?, isProvisional, size` | Shape + word + colour; "Provisional" when derived from a weak signal; source value verbatim in muted | events |
 | `KindChip` | `kind` | Fixed word + icon; dashed border for forecast | events |
 | `SourceBadge` | `source{name, attribution, license}, url?` | Who said so | events.source, sources |
 | `FreshnessLabel` | `observedAt, updatedAt, fetchedAt, pollInterval` | "12 min ago · 14:02 UTC"; stale → warning + clock | events, sources |
@@ -61,7 +61,7 @@ and later once in Svelte with the same name and props. Props are named after API
 | `MapControls` | `layers, onLocate, onFitWorld` | Floating material buttons | local |
 | `EmptyState` | `title, message, action?, art: mascot \| radar` | Sentinel mascot or radar grid, coverage-aware copy | none |
 | `SampleDataBadge` | none | Required on every non-live number | none |
-| `SavedRegionCard` | `region, summary` | Mini-map, counts, severity edge, last change | Phase 3 |
+| `SavedRegionCard` | `region, summary` | Mini-map, counts, `SeverityBadge`, last change | Phase 3 |
 | `RegionEditor` | `geometry?, filters` | Draw / pick country, name, filters | Phase 3 |
 | `AlertRow` | `alert{severity, urgency, certainty, kind, region, source, at, read}` | CAP axes as separate labelled fields | Phase 3 |
 | `AlertPreferences` | `region, prefs` | Min severity, kinds, quiet hours | Phase 3 |
@@ -86,6 +86,17 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
 1. **S3.1 Rails.** Generate tokens from `design/tokens.json` (copy `apps/aaru/scripts/generate-tokens.mjs` +
    `ci-brand.yml`). Add the app icon from the logo crop (DESIGN §11) and `SeverityBadge`, `KindChip`,
    `SourceBadge`, `FreshnessLabel`, `SampleDataBadge` with previews.
+   *Built 2026-11-16, uncommitted:*
+   - `shield-apple/Shield.xcodeproj` is one iOS + macOS target, with Config/*.xcconfig.
+   - `shield-core` has the domain types, `HazardEventProvider` and `SampleEventProvider`, with tests.
+   - `scripts/generate-tokens.mjs` writes colour sets and `Tokens.gen.swift`, and `--check` runs in CI.
+   - `.github/workflows/ci-apple.yml` runs the token check, a colour-literal guard, the core tests and the
+     iOS/macOS builds.
+   - The app's root is `ComponentGallery` on sample data. `HazardMarker` was pulled forward from S3.2.
+   - `shield-api` is generated from `backend/api/openapi.yaml` (v1.0.0-draft) by `scripts/generate-api-client.sh`,
+     and CI fails when it is stale. `APIEventProvider` maps the generated types onto `shield-core`. The app keeps
+     `SampleEventProvider` until the backend serves `/v1/events` (S2.2); the swap is one line in `ShieldApp`,
+     plus linking `shield-api` in the Xcode project.
 2. **S3.2 Map.** `HazardMarker`, `ClusterMarker`, `EventArea`, `DetectionLayer`, `MapControls`,
    `StatusCapsule`, `StatStrip`, `EventRow`, and the iOS sheet with three detents.
 3. **S3.3 Filters.** `FilterChips`, `FilterSheet`, persisted.
