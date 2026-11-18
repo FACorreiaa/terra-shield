@@ -189,7 +189,7 @@ export interface paths {
         };
         /**
          * Live event changes as Server-Sent Events (ADR 16).
-         * @description Each message has `id` (a cursor), `event` (`event.created`, `event.updated` or `event.resolved`) and `data` (one `Event` as JSON). A comment line is sent every 20 s as a heartbeat. On reconnect, send `Last-Event-ID` to receive what was missed; if the cursor is too old the server sends `event: reset`, and the client reloads `/v1/events`. Filters match those of `/v1/events`.
+         * @description Server-Sent Events. Each connection first sends `retry: 5000`, then, when `Last-Event-ID` is given, the changes missed since that cursor; if the cursor is more than 1,000 changes behind (or unknown), it sends `event: reset` instead and the client reloads `/v1/events`. Then `event: ready`, whose `id` is the cursor the stream continues from. Live messages are `event.created`, `event.updated` and `event.resolved` (`data`: one `Event`, as in `/v1/events`, without geometry) and `event.removed` (`data`: `{"id": "..."}`; the source retracted it). Changes are coalesced: after a reconnect, an event changed twice is sent once, in its latest state, so clients treat created and updated alike as an upsert. Every 20 s an `id`-only line (no event is dispatched) is the heartbeat; it also moves Last-Event-ID past changes the filters skipped. Filters work as in `/v1/events`; `bbox` matches an event's bounding box, and removals are always sent. Open the stream first, then load `/v1/events`, so no change falls between the two.
          */
         get: operations["streamEvents"];
         put?: never;
@@ -327,8 +327,12 @@ export interface components {
             centroid: components["schemas"]["Coordinate"];
             count: number;
             maxSeverity: components["schemas"]["Severity"];
-            /** @description Count per event type. */
+            /** @description Count per event type; types with no members are omitted. */
             types: {
+                [key: string]: number;
+            };
+            /** @description Count per severity (minor, moderate, severe, extreme); severities with no members are omitted. The counts add up to `count`. */
+            severities: {
                 [key: string]: number;
             };
             /** @description minLon, minLat, maxLon, maxLat; zoom here to split the cluster. */
@@ -804,8 +808,11 @@ export interface operations {
                 /** @description Comma-separated severities. */
                 severity?: string;
                 country?: string;
+                /** @description Same as the Last-Event-ID header, for a first connection that cannot set headers. */
+                lastEventId?: string;
             };
             header?: {
+                /** @description The last `id` received; EventSource sends it on reconnect. */
                 "Last-Event-ID"?: string;
             };
             path?: never;
@@ -823,6 +830,16 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            /** @description The pod is at its connection limit, or shutting down; retry after `Retry-After` seconds. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             default: components["responses"]["Error"];
         };
     };
