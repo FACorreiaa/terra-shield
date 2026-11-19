@@ -14,15 +14,29 @@ import (
 
 const assignEventCountries = `-- name: AssignEventCountries :exec
 WITH e AS (
-    SELECT geom FROM events WHERE id = $1
-), within AS (
-    SELECT c.iso2
+    SELECT geom AS geog, geom::geometry AS g, ST_Area(geom) AS m2,
+           ST_XMax(geom::geometry) - ST_XMin(geom::geometry) > 180 AS wraps
+    FROM events WHERE id = $1
+), touching AS (
+    SELECT c.iso2, c.geom AS cgeom
     FROM countries c, e
-    WHERE ST_Intersects(c.geom, e.geom)
+    WHERE CASE WHEN e.wraps THEN ST_Intersects(c.geom, e.geog)
+               ELSE ST_Intersects(c.geom::geometry, e.g) END
+), within AS (
+    SELECT t.iso2
+    FROM touching t, e
+    WHERE $2::float8 <= 0
+       OR e.m2 = 0
+       OR e.wraps
+       OR t.iso2 = $3::text
+       OR ST_Area(ST_Intersection(t.cgeom::geometry, e.g)::geography) >= e.m2 * $2::float8
+    UNION
+    SELECT c.iso2 FROM countries c WHERE c.iso2 = $3::text
 ), nearby AS (
     SELECT c.iso2, ST_Distance(c.geom, e.geom) AS meters
-    FROM countries c, e
-    WHERE NOT EXISTS (SELECT 1 FROM within)
+    FROM countries c, events e
+    WHERE e.id = $1
+      AND NOT EXISTS (SELECT 1 FROM within)
       AND ST_DWithin(c.geom, e.geom, 250000)
     ORDER BY c.geom <-> e.geom
     LIMIT 1
@@ -33,10 +47,27 @@ UNION ALL
 SELECT $1::uuid AS event_id, iso2, 'nearby' AS relation, round((meters / 1000)::numeric, 1)::real AS distance_km FROM nearby
 `
 
+type AssignEventCountriesParams struct {
+	EventID  uuid.UUID
+	MinShare float64
+	Issuer   string
+}
+
 // ADR 4: every country the geometry intersects ('within'); when there is
 // none, the nearest country within 250 km ('nearby').
-func (q *Queries) AssignEventCountries(ctx context.Context, eventID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, assignEventCountries, eventID)
+//
+// A source whose areas a national service drew (MeteoAlarm) narrows that
+// with a rule: the issuer is always assigned, and another country only
+// when it holds at least min_share of the event's area. Their borders are
+// finer than Natural Earth's 1:50m ones, so plain intersection tagged
+// hundreds of warnings with neighbors they never covered.
+//
+// Intersection is planar (geodesic took up to 32 s on one detailed area,
+// planar ~50 ms) except for a shape wider than 180° of longitude: that is
+// one stored across the antimeridian, which planar would wrap the long
+// way round.
+func (q *Queries) AssignEventCountries(ctx context.Context, arg AssignEventCountriesParams) error {
+	_, err := q.db.Exec(ctx, assignEventCountries, arg.EventID, arg.MinShare, arg.Issuer)
 	return err
 }
 

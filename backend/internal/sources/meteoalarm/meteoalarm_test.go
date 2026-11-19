@@ -3,6 +3,7 @@ package meteoalarm
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +34,7 @@ func read(t *testing.T, name string) []byte {
 // feed (English and German blocks kept): one per awareness type, plus the
 // red and orange ones.
 func TestParseRecordedFeed(t *testing.T) {
-	warnings, err := Parse(read(t, "feeds-germany.json"), recordedAt)
+	warnings, _, err := Parse(read(t, "feeds-germany.json"), recordedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,9 +94,13 @@ const edgeCases = `{"warnings": [
 ]}`
 
 func TestParseEdgeCases(t *testing.T) {
-	warnings, err := Parse([]byte(edgeCases), recordedAt)
+	warnings, skipped, err := Parse([]byte(edgeCases), recordedAt)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// green is dropped by design and uncounted; the exercise is not a warning.
+	if len(skipped) != 1 || skipped[SkipNoArea] != 1 {
+		t.Errorf("skipped %v, want only no-areas as %s", skipped, SkipNoArea)
 	}
 	if len(warnings) != 3 {
 		t.Fatalf("kept %d, want cancel-1, pt-heat, odd-type", len(warnings))
@@ -106,11 +111,55 @@ func TestParseEdgeCases(t *testing.T) {
 	heat := warnings[1]
 	if heat.Type != domain.TypeHeat || heat.Severity != "severe" || heat.SourceSeverity != "Awareness level 3" ||
 		heat.Title != "Tempo quente" || heat.Summary != "Calor.\n\nBeba água." || heat.URL != "https://meteoalarm.org/" ||
-		strings.Join(heat.Areas, ",") != "PT011" || !heat.StartedAt.Equal(time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)) {
+		len(heat.Areas) != 2 || fmt.Sprint(heat.Attrs["emmaIds"]) != "[PT011]" || !heat.StartedAt.Equal(time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)) {
 		t.Errorf("non-English heat %+v areas %v", heat.Event, heat.Areas)
 	}
 	if odd := warnings[2]; odd.Type != domain.TypeOther || odd.Status != domain.StatusActive {
 		t.Errorf("unknown type %+v", odd.Event)
+	}
+}
+
+func TestCAPAreas(t *testing.T) {
+	emma := valuePair{"EMMA_ID", "FR026"}
+	nuts := valuePair{"NUTS3", "FR712"}
+	cases := []struct {
+		name     string
+		polygons []string
+		geocodes []valuePair
+		want     string // polygons as JSON, or codes as type:value
+		ok       bool
+	}{
+		{
+			"closed polygon wins over codes",
+			[]string{"46.5,6.3 46.6,6.3 46.6,6.4 46.5,6.3"},
+			[]valuePair{emma},
+			`{"coordinates":[[[6.3,46.5],[6.3,46.6],[6.4,46.6],[6.3,46.5]]],"type":"Polygon"}`, true,
+		},
+		{
+			"open ring closed",
+			[]string{"46.5,6.3 46.6,6.3 46.6,6.4"},
+			nil,
+			`{"coordinates":[[[6.3,46.5],[6.3,46.6],[6.4,46.6],[6.3,46.5]]],"type":"Polygon"}`, true,
+		},
+		{"EMMA kept alone", nil, []valuePair{nuts, emma}, "EMMA_ID:FR026", true},
+		{"alias when no EMMA", nil, []valuePair{nuts, {"NUTS3", " "}}, "NUTS3:FR712", true},
+		{"bad polygon falls back to codes", []string{"46.5,6.3 nonsense"}, []valuePair{emma}, "EMMA_ID:FR026", true},
+		{"out of range", []string{"95,6.3 46.6,6.3 46.6,6.4 95,6.3"}, nil, "", false},
+		{"too few points", []string{"46.5,6.3 46.6,6.3 46.5,6.3"}, nil, "", false},
+		{"nothing", nil, nil, "", false},
+	}
+	for _, c := range cases {
+		a, ok := capArea(c.polygons, c.geocodes)
+		var got []string
+		for _, p := range a.Polygons {
+			got = append(got, string(p))
+		}
+		for _, k := range a.Codes {
+			got = append(got, k.Type+":"+k.Value)
+		}
+		if ok != c.ok || strings.Join(got, " ") != c.want {
+			t.Errorf("%s: %v %q, want %v %q", c.name, ok, got, c.ok, c.want)
+		}
 	}
 }
 
@@ -124,10 +173,12 @@ func TestReferences(t *testing.T) {
 // fakeAreas knows every code except "UNKNOWN".
 type fakeAreas struct{}
 
-func (fakeAreas) Resolve(_ context.Context, ids []string) (json.RawMessage, bool, error) {
-	for _, id := range ids {
-		if id == "UNKNOWN" {
-			return nil, false, nil
+func (fakeAreas) Resolve(_ context.Context, areas []Area) (json.RawMessage, bool, error) {
+	for _, a := range areas {
+		for _, c := range a.Codes {
+			if c.Value == "UNKNOWN" {
+				return nil, false, nil
+			}
 		}
 	}
 	return json.RawMessage(`{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,0]]]}`), true, nil
@@ -135,11 +186,13 @@ func (fakeAreas) Resolve(_ context.Context, ids []string) (json.RawMessage, bool
 
 type fakeStore struct {
 	upserted []domain.Event
+	calls    int // Upsert calls: one per country that answered
 	deleted  []string
 }
 
 func (f *fakeStore) Upsert(_ context.Context, _ string, events []domain.Event) (int, error) {
-	f.upserted = events
+	f.calls++
+	f.upserted = append(f.upserted, events...)
 	return len(events), nil
 }
 
@@ -180,8 +233,11 @@ func TestPoll(t *testing.T) {
 		t.Fatalf("one failing country must not fail the poll: %v", err)
 	}
 	// 8 German + odd-type; the Portuguese heat warning has an unknown area.
-	if len(store.upserted) != 9 || res.Upserted != 9 {
-		t.Fatalf("upserted %d result %+v", len(store.upserted), res)
+	if len(store.upserted) != 9 || res.Upserted != 9 || store.calls != 2 {
+		t.Fatalf("upserted %d in %d calls, result %+v", len(store.upserted), store.calls, res)
+	}
+	if r := store.upserted[0].CountryRule; r.Issuer != "DE" || r.MinShare != NeighborShare {
+		t.Fatalf("country rule %+v", r)
 	}
 	if store.upserted[0].Attrs["country"] != "DE" || store.upserted[8].Attrs["country"] != "PT" || store.upserted[0].Geometry == nil {
 		t.Fatalf("country/geometry %+v", store.upserted[0])

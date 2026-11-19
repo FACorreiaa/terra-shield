@@ -64,6 +64,15 @@ type Event struct {
 	EndedAt        *time.Time
 	URL            string // official page for the event (ADR 12)
 	Attrs          map[string]any
+	CountryRule    CountryRule // zero: every country the geometry touches
+}
+
+// CountryRule narrows country assignment (ADR 4) for an event whose area
+// a national service drew: Issuer is always assigned, and another country
+// only when it holds at least MinShare of the event's area.
+type CountryRule struct {
+	Issuer   string  // ISO 3166-1 alpha-2
+	MinShare float64 // 0..1
 }
 
 // PointGeometry is a GeoJSON Point.

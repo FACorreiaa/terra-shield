@@ -17,7 +17,7 @@ config when the apps go live.
 |---|---|---|
 | `shield_source_last_success_timestamp_seconds{source}` | worker | Unix time of the last good poll. Seeded at worker start from `sources.last_success_at`, or with the start time if the source never succeeded |
 | `shield_source_poll_interval_seconds{source}` | worker | the configured poll interval |
-| `shield_source_lag_seconds{source}` | worker | our last fetch minus the source's own last update (`Last-Modified`; FIRMS uses its newest file). Exported for USGS, GDACS and FIRMS. EONET sends no `Last-Modified`, and Meteoalarm's adapter reports none across its 37 country feeds (revisit with MeteoGate access), so neither has a series |
+| `shield_source_lag_seconds{source}` | worker | our last fetch minus the source's own last update (`Last-Modified`; FIRMS uses its newest file). Exported for USGS, GDACS and FIRMS. EONET sends no `Last-Modified`, and MeteoAlarm's feeds send no validators, so neither has a series. MeteoAlarm drift shows as `shield_source_skipped_total{source="meteoalarm",reason="unknown_area"}` instead |
 | `shield_source_polls_total{source,result}` | worker | polls by `ok`, `not_modified` or `error` |
 | `shield_event_publish_seconds` | api | event write (its transaction start) → stream fan-out |
 | `shield_stream_subscribers`, `shield_stream_dropped_total` | api | open streams; slow clients dropped |

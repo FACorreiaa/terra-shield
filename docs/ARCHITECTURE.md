@@ -28,7 +28,7 @@ New product (2026-11-16): a global natural-hazard monitor answering *"What's hap
                  iOS / macOS (SwiftUI+MapKit)   ·   Web (phase 2)   ·   Android (phase 4)
 ```
 
-- **One Go binary, subcommands** (norviq-backend-v2 pattern, `norviq/norviq-backend-v2/cmd/api/main.go`): `shield serve | worker | migrate [status] | routes | seed-countries`.
+- **One Go binary, subcommands** (norviq-backend-v2 pattern, `norviq/norviq-backend-v2/cmd/api/main.go`): `shield serve | worker | migrate [status] | routes | seed-countries | seed-warning-areas`.
 - **Two Helm releases from the same image** (Khepri pattern): `shield-api` and `shield-worker` (replicas 1, `strategy: Recreate`).
 - **Live updates (ADR 20):** event writers bump a change cursor (`events.change_seq`, tombstones for deletions) under an advisory lock and `pg_notify('shield_events')` at commit. Each API pod's `realtime.Hub` holds one `LISTEN` connection, reads the change log by cursor once per wake, and fans out to SSE clients. The cursor lives in Postgres, so any number of pods works and `Last-Event-ID` resumes on any pod.
 

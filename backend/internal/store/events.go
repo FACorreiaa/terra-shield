@@ -110,7 +110,9 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	if err := q.ClearEventCountries(ctx, id); err != nil {
 		return false, err
 	}
-	if err := q.AssignEventCountries(ctx, id); err != nil {
+	if err := q.AssignEventCountries(ctx, eventsdb.AssignEventCountriesParams{
+		EventID: id, Issuer: e.CountryRule.Issuer, MinShare: e.CountryRule.MinShare,
+	}); err != nil {
 		return false, fmt.Errorf("assign countries %s/%s: %w", sourceID, e.SourceEventID, err)
 	}
 	return true, nil

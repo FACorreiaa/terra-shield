@@ -202,3 +202,20 @@ func TestPollReportsSourceLag(t *testing.T) {
 		t.Fatalf("%d lag series, want 2 (none for a source without a timestamp)", n)
 	}
 }
+
+type slowSource struct{ fakeSource }
+
+func (slowSource) PollTimeout() time.Duration { return 8 * time.Minute }
+
+func TestTimeoutHonorsSlowSources(t *testing.T) {
+	w := NewPollWorker(newFakeStates(), slog.New(slog.DiscardHandler), []Source{
+		&fakeSource{info: domain.SourceInfo{ID: "fast"}},
+		&slowSource{fakeSource{info: domain.SourceInfo{ID: "slow"}}},
+	})
+	if got := w.Timeout(job("fast")); got != pollTimeout {
+		t.Errorf("fast %s, want %s", got, pollTimeout)
+	}
+	if got := w.Timeout(job("slow")); got != 8*time.Minute {
+		t.Errorf("slow %s, want 8m", got)
+	}
+}
