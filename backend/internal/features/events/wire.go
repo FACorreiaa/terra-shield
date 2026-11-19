@@ -43,6 +43,8 @@ type Event struct {
 	FetchedAt           time.Time        `json:"fetchedAt"`
 	URL                 string           `json:"url,omitempty"`
 	Attrs               map[string]any   `json:"attrs"`
+	// DistanceKm is set only on a near query.
+	DistanceKm *float64 `json:"distanceKm,omitempty"`
 }
 
 // Cluster is several events merged at low zoom.
@@ -131,6 +133,7 @@ func FromRecord(r *domain.EventRecord) Event {
 		FetchedAt:           r.FetchedAt.UTC(),
 		URL:                 r.URL,
 		Attrs:               attrs,
+		DistanceKm:          r.DistanceKm,
 	}
 }
 

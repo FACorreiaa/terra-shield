@@ -38,3 +38,31 @@ func TestZoomAndTime(t *testing.T) {
 		t.Error("bad time accepted")
 	}
 }
+
+func TestNear(t *testing.T) {
+	n, err := Near(url.Values{"near": {" -9.14, 38.72"}})
+	if err != nil || n.Lon != -9.14 || n.Lat != 38.72 || n.RadiusKm != DefaultRadiusKm {
+		t.Fatalf("%+v %v", n, err)
+	}
+	if n, err := Near(url.Values{"near": {"0,0"}, "radiusKm": {"250.5"}}); err != nil || n.RadiusKm != 250.5 {
+		t.Fatalf("radius: %+v %v", n, err)
+	}
+	if n, err := Near(url.Values{}); n != nil || err != nil {
+		t.Fatalf("absent: %v %v", n, err)
+	}
+	for _, v := range []url.Values{
+		{"near": {"1"}},
+		{"near": {"1,2,3"}},
+		{"near": {"a,0"}},
+		{"near": {"181,0"}},
+		{"near": {"0,-91"}},
+		{"near": {"0,0"}, "radiusKm": {"0.5"}},
+		{"near": {"0,0"}, "radiusKm": {"1001"}},
+		{"near": {"0,0"}, "radiusKm": {"far"}},
+		{"radiusKm": {"10"}},
+	} {
+		if _, err := Near(v); err == nil {
+			t.Errorf("accepted %v", v)
+		}
+	}
+}

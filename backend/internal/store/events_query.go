@@ -42,12 +42,19 @@ func listEvents(ctx context.Context, db querier, q domain.EventQuery) ([]domain.
 		}
 		geometry = "ST_AsGeoJSON(" + g + ", 5)" // 5 decimals ≈ 1 m
 	}
+	distance, order := "NULL::float8", ""
+	if q.Near != nil {
+		d := "ST_Distance(e.geom, " + nearPoint(&b, q.Near) + ")"
+		distance = "round((" + d + " / 1000)::numeric, 1)::float8"
+		order = d + ", "
+	}
 	where := listFilters(&b, &q)
 	sql := `
 SELECT ` + recordColumns + `,
-       ` + geometry + `
+       ` + geometry + `,
+       ` + distance + `
 FROM events e` + where + `
-ORDER BY array_position(ARRAY['minor','moderate','severe','extreme'], e.severity) DESC, e.updated_at DESC, e.id
+ORDER BY ` + order + `array_position(ARRAY['minor','moderate','severe','extreme'], e.severity) DESC, e.updated_at DESC, e.id
 LIMIT ` + b.arg(q.Limit+1)
 
 	rows, err := db.Query(ctx, sql, b.args...)
@@ -58,10 +65,12 @@ LIMIT ` + b.arg(q.Limit+1)
 
 	var out []domain.EventRecord
 	for rows.Next() {
-		rec, err := scanRecord(rows)
+		var dist *float64
+		rec, err := scanRecord(rows, &dist)
 		if err != nil {
 			return nil, false, err
 		}
+		rec.DistanceKm = dist
 		out = append(out, rec)
 	}
 	if err := rows.Err(); err != nil {
@@ -162,6 +171,11 @@ func listFilters(b *sqlBuilder, q *domain.EventQuery) string {
 	if q.Country != "" {
 		where = append(where, "EXISTS (SELECT 1 FROM event_countries ec WHERE ec.event_id = e.id AND ec.iso2 = "+b.arg(q.Country)+")")
 	}
+	if q.Near != nil {
+		// On geography, so the radius is in metres on the ellipsoid and the
+		// GiST index on geom serves it.
+		where = append(where, "ST_DWithin(e.geom, "+nearPoint(b, q.Near)+", "+b.arg(q.Near.RadiusKm*1000)+")")
+	}
 	// The window is about when an event last mattered: its source's last
 	// update while active, the time it ended once resolved. A GDACS fire
 	// re-sent today that ended four days ago is not "resolved in the last
@@ -177,6 +191,11 @@ func listFilters(b *sqlBuilder, q *domain.EventQuery) string {
 		return ""
 	}
 	return "\nWHERE " + strings.Join(where, "\n  AND ")
+}
+
+// nearPoint is the query point of a near filter, as geography.
+func nearPoint(b *sqlBuilder, n *domain.Near) string {
+	return "ST_SetSRID(ST_MakePoint(" + b.arg(n.Lon) + ", " + b.arg(n.Lat) + "), 4326)::geography"
 }
 
 type rowScanner interface {

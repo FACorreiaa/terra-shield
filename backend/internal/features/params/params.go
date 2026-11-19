@@ -44,6 +44,45 @@ func BBox(v url.Values) (*domain.BBox, error) {
 	return bb, nil
 }
 
+// Radius bounds for "near": a city to a region. Wider questions use bbox
+// or country.
+const (
+	DefaultRadiusKm = 100
+	MaxRadiusKm     = 1000
+)
+
+// Near reads "near" (lon,lat in WGS 84, the same order as bbox) and
+// "radiusKm" (1–1000, default 100); nil when near is absent. radiusKm
+// without near is an error, never silently ignored.
+func Near(v url.Values) (*domain.Near, error) {
+	s, r := v.Get("near"), v.Get("radiusKm")
+	if s == "" {
+		if r != "" {
+			return nil, httpx.BadRequest("radiusKm needs near")
+		}
+		return nil, nil
+	}
+	parts := strings.Split(s, ",")
+	bad := httpx.BadRequest("near must be lon,lat in degrees")
+	if len(parts) != 2 {
+		return nil, bad
+	}
+	lon, err1 := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+	lat, err2 := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	if err1 != nil || err2 != nil || lon < -180 || lon > 180 || lat < -90 || lat > 90 {
+		return nil, bad
+	}
+	n := &domain.Near{Lon: lon, Lat: lat, RadiusKm: DefaultRadiusKm}
+	if r != "" {
+		km, err := strconv.ParseFloat(r, 64)
+		if err != nil || km < 1 || km > MaxRadiusKm {
+			return nil, httpx.BadRequest("radiusKm must be a number from 1 to 1000")
+		}
+		n.RadiusKm = km
+	}
+	return n, nil
+}
+
 // Zoom reads "zoom" (0–22); nil when absent.
 func Zoom(v url.Values) (*int, error) {
 	s := v.Get("zoom")

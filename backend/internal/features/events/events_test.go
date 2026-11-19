@@ -115,6 +115,8 @@ func TestParseListParams(t *testing.T) {
 		"since":           {"since": {"yesterday"}},
 		"since >= until":  {"since": {"2026-11-16T00:00:00Z"}, "until": {"2026-11-16T00:00:00Z"}},
 		"limit":           {"limit": {"2001"}},
+		"near clustered":  {"near": {"-9,38"}, "zoom": {"5"}},
+		"radius alone":    {"radiusKm": {"10"}},
 		"too many values": {"source": {"s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15,s16,s17,s18,s19,s20,s21"}},
 	} {
 		if _, err := parseListParams(v); err == nil {
@@ -335,5 +337,26 @@ func TestDetail(t *testing.T) {
 	}
 	if w := get(t, nil, "/v1/events/"+id.String(), nil); w.Code != http.StatusServiceUnavailable {
 		t.Errorf("no database: %d", w.Code)
+	}
+}
+
+func TestListNear(t *testing.T) {
+	near := rec("near", "minor", -9.1, 38.7)
+	d := 4.2
+	near.DistanceKm = &d
+	l := &fakeLister{recs: []domain.EventRecord{near}}
+
+	w := get(t, l, "/v1/events?near=-9.14,38.72&radiusKm=50&zoom=8", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("%d %s", w.Code, w.Body)
+	}
+	if n := l.got.Near; n == nil || n.Lon != -9.14 || n.Lat != 38.72 || n.RadiusKm != 50 {
+		t.Fatalf("query near %+v", n)
+	}
+	if !strings.Contains(w.Body.String(), `"distanceKm":4.2`) {
+		t.Fatalf("no distance in %s", w.Body)
+	}
+	if w := get(t, &fakeLister{recs: []domain.EventRecord{rec("x", "minor", 0, 0)}}, "/v1/events", nil); strings.Contains(w.Body.String(), "distanceKm") {
+		t.Fatalf("distance without near: %s", w.Body)
 	}
 }

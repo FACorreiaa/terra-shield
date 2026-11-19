@@ -433,7 +433,7 @@ public struct Client: APIProtocol {
     }
     /// Events in a map view, filtered; clustered at low zoom.
     ///
-    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
+    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. With `near`, only events within `radiusKm` of the point are returned, nearest first, each with `distanceKm`; `near` cannot be combined with `zoom` below 6. Clients should round the point to two decimals (about 1 km): it is a query parameter, so proxies may log it. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
     ///
     ///
     /// - Remark: HTTP `GET /v1/events`.
@@ -507,6 +507,20 @@ public struct Client: APIProtocol {
                     explode: true,
                     name: "country",
                     value: input.query.country
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "near",
+                    value: input.query.near
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "radiusKm",
+                    value: input.query.radiusKm
                 )
                 try converter.setQueryItemAsURI(
                     in: &request,
