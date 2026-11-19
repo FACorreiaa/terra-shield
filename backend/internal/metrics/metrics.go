@@ -59,6 +59,27 @@ var (
 		Help: "Records a source sent that could not be stored, by reason.",
 	}, []string{"source", "reason"})
 
+	// AircraftUpstream counts flights-feed requests by result: ok, error,
+	// quota (a 429).
+	AircraftUpstream = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "shield_aircraft_upstream_requests_total",
+		Help: "Live flights feed requests by result (ok, error, quota).",
+	}, []string{"result"})
+
+	// AircraftQuotaRemaining is the flights feed's remaining daily quota,
+	// as it last reported it.
+	AircraftQuotaRemaining = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "shield_aircraft_quota_remaining",
+		Help: "Remaining request quota the live flights feed last reported.",
+	})
+
+	// AircraftCells counts cache cells served by state: fresh, stale (past
+	// the TTL, kept because no request was allowed) or missing.
+	AircraftCells = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "shield_aircraft_cells_total",
+		Help: "Live flights cache cells served, by state (fresh, stale, missing).",
+	}, []string{"state"})
+
 	// SourceLag is how far our latest fetch trails the source's own last
 	// update (ADR 16): now minus the feed's Last-Modified, or what the
 	// adapter reports. Sources without a feed timestamp (EONET) have none.

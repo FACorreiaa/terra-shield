@@ -69,6 +69,14 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /v1/fires`.
     /// - Remark: Generated from `#/paths//v1/fires/get(listFires)`.
     func listFires(_ input: Operations.ListFires.Input) async throws -> Operations.ListFires.Output
+    /// Live aircraft positions in a map view (adsb.lol), a separate layer from events.
+    ///
+    /// Positions are cached in memory and never stored. The world is cut into 5° cells; `bbox` is required and may span at most 6 of them (about zoom 7 and closer), else 400. Each cell is refreshed from the feed at most once a minute, and only while its daily quota allows (no key: 500 requests a day), so under load answers can be minutes old: show `dataAt`, and poll no faster than once a minute. A cell with no data younger than 10 minutes is left out and `complete` is false. Aircraft whose operators opted out of display (FAA LADD, privacy ICAO addresses) are never returned. Military aircraft are returned as the feed reports them, with `military` set. Data ODbL 1.0: show `attribution` on the map.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/aircraft`.
+    /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)`.
+    func listAircraft(_ input: Operations.ListAircraft.Input) async throws -> Operations.ListAircraft.Output
     /// Live event changes as Server-Sent Events (ADR 16).
     ///
     /// Server-Sent Events. Each connection first sends `retry: 5000`, then, when `Last-Event-ID` is given, the changes missed since that cursor; if the cursor is more than 1,000 changes behind, older than the retained change log (7 days), or unknown, it sends `event: reset` instead and the client reloads `/v1/events`. Then `event: ready`, whose `id` is the cursor the stream continues from. Live messages are `event.created`, `event.updated` and `event.resolved` (`data`: one `Event`, as in `/v1/events`, without geometry) and `event.removed` (`data`: `{"id": "..."}`; the source retracted it, or retention deleted it 90 days after it ended). Changes are coalesced: after a reconnect, an event changed twice is sent once, in its latest state, so clients treat created and updated alike as an upsert. Every 20 s an `id`-only line (no event is dispatched) is the heartbeat; it also moves Last-Event-ID past changes the filters skipped. Filters work as in `/v1/events`; `bbox` matches an event's bounding box, and removals are always sent. Open the stream first, then load `/v1/events`, so no change falls between the two.
@@ -179,6 +187,22 @@ extension APIProtocol {
         headers: Operations.ListFires.Input.Headers = .init()
     ) async throws -> Operations.ListFires.Output {
         try await listFires(Operations.ListFires.Input(
+            query: query,
+            headers: headers
+        ))
+    }
+    /// Live aircraft positions in a map view (adsb.lol), a separate layer from events.
+    ///
+    /// Positions are cached in memory and never stored. The world is cut into 5° cells; `bbox` is required and may span at most 6 of them (about zoom 7 and closer), else 400. Each cell is refreshed from the feed at most once a minute, and only while its daily quota allows (no key: 500 requests a day), so under load answers can be minutes old: show `dataAt`, and poll no faster than once a minute. A cell with no data younger than 10 minutes is left out and `complete` is false. Aircraft whose operators opted out of display (FAA LADD, privacy ICAO addresses) are never returned. Military aircraft are returned as the feed reports them, with `military` set. Data ODbL 1.0: show `attribution` on the map.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/aircraft`.
+    /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)`.
+    public func listAircraft(
+        query: Operations.ListAircraft.Input.Query = .init(),
+        headers: Operations.ListAircraft.Input.Headers = .init()
+    ) async throws -> Operations.ListAircraft.Output {
+        try await listAircraft(Operations.ListAircraft.Input(
             query: query,
             headers: headers
         ))
@@ -1617,6 +1641,172 @@ public enum Components {
                 case _type = "type"
                 case geometry
                 case properties
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/AircraftList`.
+        public struct AircraftList: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/AircraftList/aircraft`.
+            public var aircraft: [Components.Schemas.Aircraft]
+            /// When the feed generated the oldest data in this answer. Absent when nothing was served.
+            ///
+            /// - Remark: Generated from `#/components/schemas/AircraftList/dataAt`.
+            public var dataAt: Foundation.Date?
+            /// False when part of the view had no data young enough to serve (the feed's quota is spent or it failed).
+            ///
+            /// - Remark: Generated from `#/components/schemas/AircraftList/complete`.
+            public var complete: Swift.Bool
+            /// - Remark: Generated from `#/components/schemas/AircraftList/attribution`.
+            public var attribution: Swift.String
+            /// - Remark: Generated from `#/components/schemas/AircraftList/license`.
+            public var license: Swift.String
+            /// - Remark: Generated from `#/components/schemas/AircraftList/licenseUrl`.
+            public var licenseUrl: Swift.String
+            /// Creates a new `AircraftList`.
+            ///
+            /// - Parameters:
+            ///   - aircraft:
+            ///   - dataAt: When the feed generated the oldest data in this answer. Absent when nothing was served.
+            ///   - complete: False when part of the view had no data young enough to serve (the feed's quota is spent or it failed).
+            ///   - attribution:
+            ///   - license:
+            ///   - licenseUrl:
+            public init(
+                aircraft: [Components.Schemas.Aircraft],
+                dataAt: Foundation.Date? = nil,
+                complete: Swift.Bool,
+                attribution: Swift.String,
+                license: Swift.String,
+                licenseUrl: Swift.String
+            ) {
+                self.aircraft = aircraft
+                self.dataAt = dataAt
+                self.complete = complete
+                self.attribution = attribution
+                self.license = license
+                self.licenseUrl = licenseUrl
+            }
+            public enum CodingKeys: String, CodingKey {
+                case aircraft
+                case dataAt
+                case complete
+                case attribution
+                case license
+                case licenseUrl
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/Aircraft`.
+        public struct Aircraft: Codable, Hashable, Sendable {
+            /// 24-bit ICAO address in lowercase hex; a leading "~" marks a non-ICAO address.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Aircraft/hex`.
+            public var hex: Swift.String
+            /// - Remark: Generated from `#/components/schemas/Aircraft/callsign`.
+            public var callsign: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/Aircraft/registration`.
+            public var registration: Swift.String?
+            /// ICAO aircraft type designator.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Aircraft/typeCode`.
+            public var typeCode: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/Aircraft/lon`.
+            public var lon: Swift.Double
+            /// - Remark: Generated from `#/components/schemas/Aircraft/lat`.
+            public var lat: Swift.Double
+            /// Barometric altitude in feet. Absent on the ground or when not reported.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Aircraft/altitudeFt`.
+            public var altitudeFt: Swift.Int?
+            /// - Remark: Generated from `#/components/schemas/Aircraft/onGround`.
+            public var onGround: Swift.Bool
+            /// - Remark: Generated from `#/components/schemas/Aircraft/groundSpeedKt`.
+            public var groundSpeedKt: Swift.Double?
+            /// True track over ground, 0–360.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Aircraft/trackDeg`.
+            public var trackDeg: Swift.Double?
+            /// - Remark: Generated from `#/components/schemas/Aircraft/verticalRateFpm`.
+            public var verticalRateFpm: Swift.Int?
+            /// - Remark: Generated from `#/components/schemas/Aircraft/squawk`.
+            public var squawk: Swift.String?
+            /// ADS-B emergency status (general, lifeguard, minfuel, nordo, unlawful, downed, reserved). Absent when none.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Aircraft/emergency`.
+            public var emergency: Swift.String?
+            /// The feed database's military flag.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Aircraft/military`.
+            public var military: Swift.Bool
+            /// When this position was received; at most 60 s before the feed's answer.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Aircraft/positionAt`.
+            public var positionAt: Foundation.Date
+            /// Creates a new `Aircraft`.
+            ///
+            /// - Parameters:
+            ///   - hex: 24-bit ICAO address in lowercase hex; a leading "~" marks a non-ICAO address.
+            ///   - callsign:
+            ///   - registration:
+            ///   - typeCode: ICAO aircraft type designator.
+            ///   - lon:
+            ///   - lat:
+            ///   - altitudeFt: Barometric altitude in feet. Absent on the ground or when not reported.
+            ///   - onGround:
+            ///   - groundSpeedKt:
+            ///   - trackDeg: True track over ground, 0–360.
+            ///   - verticalRateFpm:
+            ///   - squawk:
+            ///   - emergency: ADS-B emergency status (general, lifeguard, minfuel, nordo, unlawful, downed, reserved). Absent when none.
+            ///   - military: The feed database's military flag.
+            ///   - positionAt: When this position was received; at most 60 s before the feed's answer.
+            public init(
+                hex: Swift.String,
+                callsign: Swift.String? = nil,
+                registration: Swift.String? = nil,
+                typeCode: Swift.String? = nil,
+                lon: Swift.Double,
+                lat: Swift.Double,
+                altitudeFt: Swift.Int? = nil,
+                onGround: Swift.Bool,
+                groundSpeedKt: Swift.Double? = nil,
+                trackDeg: Swift.Double? = nil,
+                verticalRateFpm: Swift.Int? = nil,
+                squawk: Swift.String? = nil,
+                emergency: Swift.String? = nil,
+                military: Swift.Bool,
+                positionAt: Foundation.Date
+            ) {
+                self.hex = hex
+                self.callsign = callsign
+                self.registration = registration
+                self.typeCode = typeCode
+                self.lon = lon
+                self.lat = lat
+                self.altitudeFt = altitudeFt
+                self.onGround = onGround
+                self.groundSpeedKt = groundSpeedKt
+                self.trackDeg = trackDeg
+                self.verticalRateFpm = verticalRateFpm
+                self.squawk = squawk
+                self.emergency = emergency
+                self.military = military
+                self.positionAt = positionAt
+            }
+            public enum CodingKeys: String, CodingKey {
+                case hex
+                case callsign
+                case registration
+                case typeCode
+                case lon
+                case lat
+                case altitudeFt
+                case onGround
+                case groundSpeedKt
+                case trackDeg
+                case verticalRateFpm
+                case squawk
+                case emergency
+                case military
+                case positionAt
             }
         }
         /// - Remark: Generated from `#/components/schemas/FireFeatureCollection`.
@@ -4134,6 +4324,289 @@ public enum Operations {
             public static var allCases: [Self] {
                 [
                     .applicationGeoJson,
+                    .json
+                ]
+            }
+        }
+    }
+    /// Live aircraft positions in a map view (adsb.lol), a separate layer from events.
+    ///
+    /// Positions are cached in memory and never stored. The world is cut into 5° cells; `bbox` is required and may span at most 6 of them (about zoom 7 and closer), else 400. Each cell is refreshed from the feed at most once a minute, and only while its daily quota allows (no key: 500 requests a day), so under load answers can be minutes old: show `dataAt`, and poll no faster than once a minute. A cell with no data younger than 10 minutes is left out and `complete` is false. Aircraft whose operators opted out of display (FAA LADD, privacy ICAO addresses) are never returned. Military aircraft are returned as the feed reports them, with `military` set. Data ODbL 1.0: show `attribution` on the map.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/aircraft`.
+    /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)`.
+    public enum ListAircraft {
+        public static let id: Swift.String = "listAircraft"
+        public struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/v1/aircraft/GET/query`.
+            public struct Query: Sendable, Hashable {
+                /// minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian.
+                ///
+                ///
+                /// - Remark: Generated from `#/paths/v1/aircraft/GET/query/bbox`.
+                public var bbox: Components.Parameters.BBox?
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - bbox: minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian.
+                public init(bbox: Components.Parameters.BBox? = nil) {
+                    self.bbox = bbox
+                }
+            }
+            public var query: Operations.ListAircraft.Input.Query
+            /// - Remark: Generated from `#/paths/v1/aircraft/GET/header`.
+            public struct Headers: Sendable, Hashable {
+                public var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.ListAircraft.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                public init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.ListAircraft.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            public var headers: Operations.ListAircraft.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            public init(
+                query: Operations.ListAircraft.Input.Query = .init(),
+                headers: Operations.ListAircraft.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        @frozen public enum Output: Sendable, Hashable {
+            public struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/v1/aircraft/GET/responses/200/headers`.
+                public struct Headers: Sendable, Hashable {
+                    /// Strong validator; send it back as If-None-Match.
+                    ///
+                    /// - Remark: Generated from `#/paths/v1/aircraft/GET/responses/200/headers/ETag`.
+                    public var eTag: Components.Headers.ETag?
+                    /// public, max-age=15 (ADR 16: below the shortest poll interval).
+                    ///
+                    /// - Remark: Generated from `#/paths/v1/aircraft/GET/responses/200/headers/Cache-Control`.
+                    public var cacheControl: Components.Headers.CacheControl?
+                    /// Creates a new `Headers`.
+                    ///
+                    /// - Parameters:
+                    ///   - eTag: Strong validator; send it back as If-None-Match.
+                    ///   - cacheControl: public, max-age=15 (ADR 16: below the shortest poll interval).
+                    public init(
+                        eTag: Components.Headers.ETag? = nil,
+                        cacheControl: Components.Headers.CacheControl? = nil
+                    ) {
+                        self.eTag = eTag
+                        self.cacheControl = cacheControl
+                    }
+                }
+                /// Received HTTP response headers
+                public var headers: Operations.ListAircraft.Output.Ok.Headers
+                /// - Remark: Generated from `#/paths/v1/aircraft/GET/responses/200/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/v1/aircraft/GET/responses/200/content/application\/json`.
+                    case json(Components.Schemas.AircraftList)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas.AircraftList {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.ListAircraft.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - headers: Received HTTP response headers
+                ///   - body: Received HTTP response body
+                public init(
+                    headers: Operations.ListAircraft.Output.Ok.Headers = .init(),
+                    body: Operations.ListAircraft.Output.Ok.Body
+                ) {
+                    self.headers = headers
+                    self.body = body
+                }
+            }
+            /// Aircraft in the view.
+            ///
+            /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.ListAircraft.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            public var ok: Operations.ListAircraft.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Unchanged since the ETag sent in If-None-Match.
+            ///
+            /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)/responses/304`.
+            ///
+            /// HTTP response code: `304 notModified`.
+            case notModified(Components.Responses.NotModified)
+            /// Unchanged since the ETag sent in If-None-Match.
+            ///
+            /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)/responses/304`.
+            ///
+            /// HTTP response code: `304 notModified`.
+            public static var notModified: Self {
+                .notModified(.init())
+            }
+            /// The associated value of the enum case if `self` is `.notModified`.
+            ///
+            /// - Throws: An error if `self` is not `.notModified`.
+            /// - SeeAlso: `.notModified`.
+            public var notModified: Components.Responses.NotModified {
+                get throws {
+                    switch self {
+                    case let .notModified(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "notModified",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// A parameter is malformed.
+            ///
+            /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)/responses/400`.
+            ///
+            /// HTTP response code: `400 badRequest`.
+            case badRequest(Components.Responses.BadRequest)
+            /// The associated value of the enum case if `self` is `.badRequest`.
+            ///
+            /// - Throws: An error if `self` is not `.badRequest`.
+            /// - SeeAlso: `.badRequest`.
+            public var badRequest: Components.Responses.BadRequest {
+                get throws {
+                    switch self {
+                    case let .badRequest(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "badRequest",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Error envelope.
+            ///
+            /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)/responses/default`.
+            ///
+            /// HTTP response code: `default`.
+            case `default`(statusCode: Swift.Int, Components.Responses._Error)
+            /// The associated value of the enum case if `self` is `.`default``.
+            ///
+            /// - Throws: An error if `self` is not `.`default``.
+            /// - SeeAlso: `.`default``.
+            public var `default`: Components.Responses._Error {
+                get throws {
+                    switch self {
+                    case let .`default`(_, response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "default",
+                            response: self
+                        )
+                    }
+                }
+            }
+        }
+        @frozen public enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            public init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            public var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            public static var allCases: [Self] {
+                [
                     .json
                 ]
             }

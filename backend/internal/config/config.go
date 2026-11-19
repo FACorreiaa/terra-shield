@@ -42,6 +42,9 @@ type Base struct {
 	// RequestTimeout bounds every /v1 request except the live stream, so a
 	// slow query cannot hold a connection (and a database slot) forever.
 	RequestTimeout time.Duration `env:"REQUEST_TIMEOUT" envDefault:"10s"`
+	// AircraftFeedURL overrides the live flights feed (adsb.lol), so local
+	// client work can run against a replay instead of the daily quota.
+	AircraftFeedURL string `env:"AIRCRAFT_FEED_URL"`
 }
 
 // IsProduction reports whether this is the production environment.

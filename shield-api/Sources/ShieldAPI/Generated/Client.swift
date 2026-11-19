@@ -1433,6 +1433,184 @@ public struct Client: APIProtocol {
             }
         )
     }
+    /// Live aircraft positions in a map view (adsb.lol), a separate layer from events.
+    ///
+    /// Positions are cached in memory and never stored. The world is cut into 5° cells; `bbox` is required and may span at most 6 of them (about zoom 7 and closer), else 400. Each cell is refreshed from the feed at most once a minute, and only while its daily quota allows (no key: 500 requests a day), so under load answers can be minutes old: show `dataAt`, and poll no faster than once a minute. A cell with no data younger than 10 minutes is left out and `complete` is false. Aircraft whose operators opted out of display (FAA LADD, privacy ICAO addresses) are never returned. Military aircraft are returned as the feed reports them, with `military` set. Data ODbL 1.0: show `attribution` on the map.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/aircraft`.
+    /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)`.
+    public func listAircraft(_ input: Operations.ListAircraft.Input) async throws -> Operations.ListAircraft.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.ListAircraft.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/v1/aircraft",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "bbox",
+                    value: input.query.bbox
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let headers: Operations.ListAircraft.Output.Ok.Headers = .init(
+                        eTag: try converter.getOptionalHeaderFieldAsURI(
+                            in: response.headerFields,
+                            name: "ETag",
+                            as: Components.Headers.ETag.self
+                        ),
+                        cacheControl: try converter.getOptionalHeaderFieldAsURI(
+                            in: response.headerFields,
+                            name: "Cache-Control",
+                            as: Components.Headers.CacheControl.self
+                        )
+                    )
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.ListAircraft.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas.AircraftList.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(
+                        headers: headers,
+                        body: body
+                    ))
+                case 304:
+                    return .notModified(.init())
+                case 400:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Components.Responses.BadRequest.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .badRequest(.init(body: body))
+                case 429:
+                    let headers: Components.Responses.TooManyRequests.Headers = .init(retryAfter: try converter.getOptionalHeaderFieldAsURI(
+                        in: response.headerFields,
+                        name: "Retry-After",
+                        as: Swift.Int.self
+                    ))
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Components.Responses.TooManyRequests.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .tooManyRequests(.init(
+                        headers: headers,
+                        body: body
+                    ))
+                case 503:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Components.Responses.Unavailable.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .serviceUnavailable(.init(body: body))
+                default:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Components.Responses._Error.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .`default`(
+                        statusCode: response.status.code,
+                        .init(body: body)
+                    )
+                }
+            }
+        )
+    }
     /// Live event changes as Server-Sent Events (ADR 16).
     ///
     /// Server-Sent Events. Each connection first sends `retry: 5000`, then, when `Last-Event-ID` is given, the changes missed since that cursor; if the cursor is more than 1,000 changes behind, older than the retained change log (7 days), or unknown, it sends `event: reset` instead and the client reloads `/v1/events`. Then `event: ready`, whose `id` is the cursor the stream continues from. Live messages are `event.created`, `event.updated` and `event.resolved` (`data`: one `Event`, as in `/v1/events`, without geometry) and `event.removed` (`data`: `{"id": "..."}`; the source retracted it, or retention deleted it 90 days after it ended). Changes are coalesced: after a reconnect, an event changed twice is sent once, in its latest state, so clients treat created and updated alike as an upsert. Every 20 s an `id`-only line (no event is dispatched) is the heartbeat; it also moves Last-Event-ID past changes the filters skipped. Filters work as in `/v1/events`; `bbox` matches an event's bounding box, and removals are always sent. Open the stream first, then load `/v1/events`, so no change falls between the two.

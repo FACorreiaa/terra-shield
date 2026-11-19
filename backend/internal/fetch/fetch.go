@@ -30,6 +30,9 @@ type Response struct {
 	Body        []byte
 	Validators  Validators
 	NotModified bool
+	// Header is the response's headers, for feeds that report more than
+	// validators (adsb.lol's remaining quota).
+	Header http.Header
 }
 
 // StatusError is a non-2xx, non-304 answer.
@@ -118,11 +121,11 @@ func (c *Client) Get(ctx context.Context, url string, v Validators) (*Response, 
 	got := Validators{ETag: resp.Header.Get("ETag"), LastModified: resp.Header.Get("Last-Modified")}
 	switch {
 	case resp.StatusCode == http.StatusNotModified:
-		return &Response{Validators: v, NotModified: true}, nil
+		return &Response{Validators: v, NotModified: true, Header: resp.Header}, nil
 	case resp.StatusCode < 200 || resp.StatusCode > 299:
 		return nil, &StatusError{URL: url, Status: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"), time.Now())}
 	case sameVersion(v, got):
-		return &Response{Validators: got, NotModified: true}, nil
+		return &Response{Validators: got, NotModified: true, Header: resp.Header}, nil
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, c.maxBody+1))
@@ -132,7 +135,7 @@ func (c *Client) Get(ctx context.Context, url string, v Validators) (*Response, 
 	if int64(len(body)) > c.maxBody {
 		return nil, fmt.Errorf("GET %s: %w", url, ErrTooLarge)
 	}
-	return &Response{Body: body, Validators: got}, nil
+	return &Response{Body: body, Validators: got, Header: resp.Header}, nil
 }
 
 // Head fetches only the validators of url. For feeds that ignore

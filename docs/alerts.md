@@ -20,6 +20,7 @@ config when the apps go live.
 | `shield_source_lag_seconds{source}` | worker | our last fetch minus the source's own last update (`Last-Modified`; FIRMS uses its newest file). Exported for USGS, GDACS, FIRMS and UCDP (its newest monthly file: normally 0–31 days). EONET sends no `Last-Modified`, and MeteoAlarm's feeds send no validators, so neither has a series. MeteoAlarm drift shows as `shield_source_skipped_total{source="meteoalarm",reason="unknown_area"}` instead. The counter adds every skipped record on every poll, so a record the feed keeps sending is counted again each round: read it as a per-poll rate (`increase` over the 10 min interval), where a steady value is the same records and a step up is new drift |
 | `shield_source_polls_total{source,result}` | worker | polls by `ok`, `not_modified` or `error` |
 | `shield_event_publish_seconds` | api | event write (its transaction start) → stream fan-out |
+| `shield_aircraft_upstream_requests_total{result}`, `shield_aircraft_quota_remaining`, `shield_aircraft_cells_total{state}` | api | live flights (ADR 28): feed requests (ok, error, quota), the quota adsb.lol last reported, cache cells served fresh, stale or missing. A rising `missing` share means the quota is spent: viewers get `complete: false`. No alert while flights run without a key |
 | `shield_stream_subscribers`, `shield_stream_dropped_total`, `shield_stream_lagged_total` | api | open streams; slow clients dropped |
 
 Measured on a live poll (2026-11-18): USGS 47 s, GDACS 594 s (2x its 5 min
