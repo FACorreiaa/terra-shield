@@ -65,6 +65,8 @@ func (*Source) Info() domain.SourceInfo {
 		URL:          "https://earthquake.usgs.gov/earthquakes/feed/",
 		License:      "Public domain (U.S. Government work)",
 		Attribution:  "U.S. Geological Survey",
+		Scope:        "Earthquakes of magnitude 2.5 and above, worldwide",
+		Cadence:      "every minute",
 		PollInterval: PollInterval,
 		Enabled:      true,
 	}

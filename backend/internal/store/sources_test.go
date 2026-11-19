@@ -16,6 +16,7 @@ func TestSourceLifecycle(t *testing.T) {
 	info := domain.SourceInfo{
 		ID: "s", Name: "S", URL: "https://example.org", License: "PD",
 		Attribution: "S", PollInterval: time.Minute, Enabled: true,
+		Scope: "Quakes", TermsURL: "https://example.org/terms", Cadence: "hourly",
 	}
 	if err := repo.Register(ctx, info); err != nil {
 		t.Fatal(err)
@@ -47,8 +48,10 @@ func TestSourceLifecycle(t *testing.T) {
 		t.Fatalf("validators %+v", v)
 	}
 
-	// Re-registering refreshes metadata and keeps state.
+	// Re-registering refreshes metadata and keeps state; a description
+	// the adapter drops is cleared, not kept.
 	info.Name = "Renamed"
+	info.TermsURL = ""
 	if err := repo.Register(ctx, info); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +61,8 @@ func TestSourceLifecycle(t *testing.T) {
 	}
 	got := list[0]
 	if got.Name != "Renamed" || got.PollInterval != time.Minute || got.LastError != "HTTP 502" ||
-		got.LastSuccessAt == nil || !got.LastSuccessAt.Equal(at) {
+		got.LastSuccessAt == nil || !got.LastSuccessAt.Equal(at) ||
+		got.Scope != "Quakes" || got.Cadence != "hourly" || got.TermsURL != "" {
 		t.Fatalf("status %+v", got)
 	}
 }

@@ -42,6 +42,9 @@ func (r *SourceRepository) Register(ctx context.Context, info domain.SourceInfo)
 		Enabled:             info.Enabled,
 		OfficialWarnings:    info.OfficialWarnings,
 		Hazards:             !info.NonHazard,
+		Scope:               nonEmpty(info.Scope),
+		TermsUrl:            nonEmpty(info.TermsURL),
+		Cadence:             nonEmpty(info.Cadence),
 	})
 	if err != nil {
 		return fmt.Errorf("register source %s: %w", info.ID, err)
@@ -116,6 +119,9 @@ func (r *SourceRepository) List(ctx context.Context) ([]domain.SourceStatus, err
 				Attribution:  row.Attribution,
 				PollInterval: time.Duration(row.PollIntervalSeconds) * time.Second,
 				Enabled:      row.Enabled,
+				Scope:        deref(row.Scope),
+				TermsURL:     deref(row.TermsUrl),
+				Cadence:      deref(row.Cadence),
 			},
 			LastSuccessAt: row.LastSuccessAt,
 			LastErrorAt:   row.LastErrorAt,

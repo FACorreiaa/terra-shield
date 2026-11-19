@@ -1,7 +1,11 @@
 # Sources: licensing, cadence, limits
 
 Checked 2026-11-16 against each source's live endpoint. Shown in-app on the Sources & attribution screen
-(S3.7) from `/v1/sources`, whose license and attribution come from each adapter's `Info()`.
+(S3.7) from `/v1/sources`, whose license, attribution, coverage line, terms page (`termsUrl`) and publishing
+cadence come from each adapter's `Info()`. A terms page is listed only once verified live: GDACS
+(`termofuse.aspx`), NASA EONET and FIRMS (Earthdata's data use guidance), NOAA (`weather.gov/disclaimer`) and UCDP
+(the download page) were checked on 2026-11-19. USGS's policy page refuses scripted requests and MeteoAlarm's terms
+document has not been located, so neither has a `termsUrl` yet.
 
 | Source | Feed used | License | Attribution | Publishes | Shield polls | Conditional GET |
 |---|---|---|---|---|---|---|

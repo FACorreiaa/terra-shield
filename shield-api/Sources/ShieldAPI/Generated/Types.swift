@@ -355,6 +355,20 @@ public enum Components {
             public var pollIntervalSeconds: Swift.Int
             /// - Remark: Generated from `#/components/schemas/Source/enabled`.
             public var enabled: Swift.Bool
+            /// One line on what the source covers, for the Sources screen ("Earthquakes of magnitude 2.5 and above, worldwide"). Free text; unrelated to a country summary's coverage object.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Source/coverage`.
+            public var coverage: Swift.String?
+            /// The source's licence or terms page. Absent when not verified.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Source/termsUrl`.
+            public var termsUrl: Swift.String?
+            /// How often the source itself publishes ("monthly release"), as opposed to pollIntervalSeconds, how often Shield checks it.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Source/cadence`.
+            public var cadence: Swift.String?
             /// - Remark: Generated from `#/components/schemas/Source/lastSuccessAt`.
             public var lastSuccessAt: Foundation.Date?
             /// - Remark: Generated from `#/components/schemas/Source/lastErrorAt`.
@@ -373,6 +387,9 @@ public enum Components {
             ///   - attribution:
             ///   - pollIntervalSeconds:
             ///   - enabled:
+            ///   - coverage: One line on what the source covers, for the Sources screen ("Earthquakes of magnitude 2.5 and above, worldwide"). Free text; unrelated to a country summary's coverage object.
+            ///   - termsUrl: The source's licence or terms page. Absent when not verified.
+            ///   - cadence: How often the source itself publishes ("monthly release"), as opposed to pollIntervalSeconds, how often Shield checks it.
             ///   - lastSuccessAt:
             ///   - lastErrorAt:
             ///   - stale: True when the last success is older than three poll intervals.
@@ -384,6 +401,9 @@ public enum Components {
                 attribution: Swift.String,
                 pollIntervalSeconds: Swift.Int,
                 enabled: Swift.Bool,
+                coverage: Swift.String? = nil,
+                termsUrl: Swift.String? = nil,
+                cadence: Swift.String? = nil,
                 lastSuccessAt: Foundation.Date? = nil,
                 lastErrorAt: Foundation.Date? = nil,
                 stale: Swift.Bool? = nil
@@ -395,6 +415,9 @@ public enum Components {
                 self.attribution = attribution
                 self.pollIntervalSeconds = pollIntervalSeconds
                 self.enabled = enabled
+                self.coverage = coverage
+                self.termsUrl = termsUrl
+                self.cadence = cadence
                 self.lastSuccessAt = lastSuccessAt
                 self.lastErrorAt = lastErrorAt
                 self.stale = stale
@@ -407,6 +430,9 @@ public enum Components {
                 case attribution
                 case pollIntervalSeconds
                 case enabled
+                case coverage
+                case termsUrl
+                case cadence
                 case lastSuccessAt
                 case lastErrorAt
                 case stale

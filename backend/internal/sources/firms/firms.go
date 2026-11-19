@@ -80,6 +80,9 @@ func (*Source) Info() domain.SourceInfo {
 		URL:          "https://firms.modaps.eosdis.nasa.gov/",
 		License:      "NASA open data, no restrictions",
 		Attribution:  "NASA FIRMS (Fire Information for Resource Management System), VIIRS 375 m NRT",
+		Scope:        "Satellite fire detections worldwide (VIIRS 375 m), last 24 hours",
+		TermsURL:     "https://www.earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance",
+		Cadence:      "each satellite pass, about 3 hours behind",
 		PollInterval: PollInterval,
 		Enabled:      true,
 	}

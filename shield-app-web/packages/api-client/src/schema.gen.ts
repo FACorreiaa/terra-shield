@@ -235,6 +235,21 @@ export interface components {
             attribution: string;
             pollIntervalSeconds: number;
             enabled: boolean;
+            /**
+             * @description One line on what the source covers, for the Sources screen ("Earthquakes of magnitude 2.5 and above, worldwide"). Free text; unrelated to a country summary's coverage object.
+             * @example Official weather warnings, 38 European countries
+             */
+            coverage?: string;
+            /**
+             * Format: uri
+             * @description The source's licence or terms page. Absent when not verified.
+             */
+            termsUrl?: string;
+            /**
+             * @description How often the source itself publishes ("monthly release"), as opposed to pollIntervalSeconds, how often Shield checks it.
+             * @example monthly release
+             */
+            cadence?: string;
             /** Format: date-time */
             lastSuccessAt?: string;
             /** Format: date-time */

@@ -42,6 +42,9 @@ type Source struct {
 	Attribution         string     `json:"attribution"`
 	PollIntervalSeconds int        `json:"pollIntervalSeconds"`
 	Enabled             bool       `json:"enabled"`
+	Coverage            string     `json:"coverage,omitempty"`
+	TermsURL            string     `json:"termsUrl,omitempty"`
+	Cadence             string     `json:"cadence,omitempty"`
 	LastSuccessAt       *time.Time `json:"lastSuccessAt,omitempty"`
 	LastErrorAt         *time.Time `json:"lastErrorAt,omitempty"`
 	Stale               bool       `json:"stale"`
@@ -88,6 +91,9 @@ func FromStatus(r *domain.SourceStatus, now time.Time) Source {
 		Attribution:         r.Attribution,
 		PollIntervalSeconds: int(r.PollInterval / time.Second),
 		Enabled:             r.Enabled,
+		Coverage:            r.Scope,
+		TermsURL:            r.TermsURL,
+		Cadence:             r.Cadence,
 		LastSuccessAt:       r.LastSuccessAt,
 		LastErrorAt:         r.LastErrorAt,
 		Stale:               r.Stale(now),

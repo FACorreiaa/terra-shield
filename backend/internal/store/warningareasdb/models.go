@@ -133,6 +133,9 @@ type Source struct {
 	UpdatedAt           time.Time
 	OfficialWarnings    bool
 	Hazards             bool
+	Scope               *string
+	TermsUrl            *string
+	Cadence             *string
 }
 
 type SourceCoverage struct {

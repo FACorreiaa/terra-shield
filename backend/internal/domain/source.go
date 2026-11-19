@@ -19,6 +19,16 @@ type SourceInfo struct {
 	// OfficialWarnings marks feeds of official national warnings
 	// (MeteoAlarm), as opposed to global observation feeds.
 	OfficialWarnings bool
+	// Scope is one line on what the source covers ("Earthquakes M2.5+
+	// worldwide"). Free text for the Sources screen; unrelated to the
+	// Coverage country list.
+	Scope string
+	// TermsURL is the source's license or terms page; empty when it could
+	// not be verified.
+	TermsURL string
+	// Cadence is how often the source itself publishes ("monthly
+	// release"), as opposed to how often Shield polls it.
+	Cadence string
 	// NonHazard marks a source whose events are not hazards (UCDP's
 	// conflicts, ADR 27): it is not counted as a country's coverage.
 	NonHazard bool
