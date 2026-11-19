@@ -49,7 +49,8 @@ The highest of three signals wins.
     176 km/h)"), and the number wins.
   - **Wildfires**, burned area (ha) on the wildfire table below, shared with every fire source.
   - Floods, droughts and volcanoes have no size field and follow the alert alone.
-- `attrs.severityBasis` says what decided: `alert`, `wind` or `area`.
+- `attrs.severityBasis` says what decided: `alert`, `wind` or `area`. An `area` level is also
+  `severityProvisional` (owner, 2026-11-19), like every EONET fire: area says nothing about the people nearby.
 - Footprints (S1.3b) are still fetched only for Orange and Red alerts, not for events lifted by a floor.
 - The placeholder "Magnitude 0" that GDACS sends for floods is dropped from `sourceSeverity` ("Green alert").
 - GDACS earthquakes are not ingested; USGS (above) owns earthquakes.

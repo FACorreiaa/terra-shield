@@ -162,11 +162,16 @@ func listFilters(b *sqlBuilder, q *domain.EventQuery) string {
 	if q.Country != "" {
 		where = append(where, "EXISTS (SELECT 1 FROM event_countries ec WHERE ec.event_id = e.id AND ec.iso2 = "+b.arg(q.Country)+")")
 	}
+	// The window is about when an event last mattered: its source's last
+	// update while active, the time it ended once resolved. A GDACS fire
+	// re-sent today that ended four days ago is not "resolved in the last
+	// 24 h".
+	const windowAt = "(CASE WHEN e.status = 'resolved' THEN coalesce(e.ended_at, e.updated_at) ELSE e.updated_at END)"
 	if q.Since != nil {
-		where = append(where, "e.updated_at >= "+b.arg(*q.Since))
+		where = append(where, windowAt+" >= "+b.arg(*q.Since))
 	}
 	if q.Until != nil {
-		where = append(where, "e.updated_at < "+b.arg(*q.Until))
+		where = append(where, windowAt+" < "+b.arg(*q.Until))
 	}
 	if len(where) == 0 {
 		return ""

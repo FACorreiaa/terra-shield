@@ -179,8 +179,10 @@ func TestListJSON(t *testing.T) {
 }
 
 func TestListClustersAtLowZoom(t *testing.T) {
+	ended := rec("a", "extreme", 10.0, 45.0)
+	ended.Status = domain.StatusResolved
 	l := &fakeLister{recs: []domain.EventRecord{
-		rec("a", "extreme", 10.0, 45.0),
+		ended,
 		rec("far", "severe", -70, -30),
 		rec("b", "minor", 10.1, 45.1),
 		rec("c", "moderate", 10.2, 44.9),
@@ -206,6 +208,12 @@ func TestListClustersAtLowZoom(t *testing.T) {
 		c.Severities["extreme"] != 1 || c.Severities["moderate"] != 1 ||
 		c.BBox != [4]float64{10.0, 44.9, 10.2, 45.1} || c.Centroid.Longitude < 10.09 || c.Centroid.Longitude > 10.11 {
 		t.Fatalf("cluster %+v", c)
+	}
+	// The extreme member has ended: it counts in severities, not in the
+	// active ones.
+	if c.Statuses["active"] != 2 || c.Statuses["resolved"] != 1 || len(c.ActiveSeverities) != 2 ||
+		c.ActiveSeverities["extreme"] != 0 || c.ActiveSeverities["minor"] != 1 || c.ActiveSeverities["moderate"] != 1 {
+		t.Fatalf("status split %+v / %+v", c.Statuses, c.ActiveSeverities)
 	}
 
 	// From zoom 6 nothing clusters, and limit applies to the query.

@@ -285,6 +285,33 @@ func (q *Queries) NotifyEventChanges(ctx context.Context) error {
 	return err
 }
 
+const resolveEvent = `-- name: ResolveEvent :execrows
+UPDATE events SET
+    status     = 'resolved',
+    ended_at   = coalesce(ended_at, $1),
+    fetched_at = now(),
+    change_seq = nextval('event_change_seq'),
+    change_op  = 'resolved'
+WHERE source_id = $2 AND source_event_id = $3 AND status = 'active'
+`
+
+type ResolveEventParams struct {
+	EndedAt       *time.Time
+	SourceID      string
+	SourceEventID string
+}
+
+// Ends one active event its source no longer lists (owner, 2026-11-19).
+// updated_at stays the source's own (ADR 8); ended_at records when Shield
+// saw it go. Moves the stream cursor like any other change.
+func (q *Queries) ResolveEvent(ctx context.Context, arg ResolveEventParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resolveEvent, arg.EndedAt, arg.SourceID, arg.SourceEventID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const upsertEvent = `-- name: UpsertEvent :one
 INSERT INTO events (
     source_id, source_event_id, type, kind, status, severity, source_severity,

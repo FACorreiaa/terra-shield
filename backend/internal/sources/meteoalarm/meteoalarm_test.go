@@ -205,6 +205,12 @@ type fakeStore struct {
 	deleted  []string
 	order    []string            // "upsert" and "delete", in call order
 	active   map[string][]string // country → active ids, for ActiveIDsWithAttr
+	resolved []string
+}
+
+func (f *fakeStore) Resolve(_ context.Context, _ string, ids []string, _ time.Time) (int, error) {
+	f.resolved = append(f.resolved, ids...)
+	return len(ids), nil
 }
 
 func (f *fakeStore) ActiveIDsWithAttr(_ context.Context, _, key, value string) ([]string, error) {
@@ -372,7 +378,12 @@ func TestPollReconcilesSnapshot(t *testing.T) {
 	if len(store.upserted) != 1 || store.upserted[0].SourceEventID != "new-orange" {
 		t.Fatalf("upserted %v, want only new-orange", store.upserted)
 	}
-	if got := fmt.Sprint(store.deleted); got != "[old-yellow vanished]" {
-		t.Fatalf("deleted %s, want the replaced and the vanished PT warnings, nothing from the empty ES feed", got)
+	// Replaced: deleted, the new version carries it on. Vanished: resolved,
+	// kept in history. The empty ES feed touches nothing.
+	if got := fmt.Sprint(store.deleted); got != "[old-yellow]" {
+		t.Fatalf("deleted %s, want only the replaced PT warning", got)
+	}
+	if got := fmt.Sprint(store.resolved); got != "[vanished]" {
+		t.Fatalf("resolved %s, want only the vanished PT warning", got)
 	}
 }

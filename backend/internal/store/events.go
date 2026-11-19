@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"shield/internal/domain"
 	"shield/internal/store/eventsdb"
@@ -124,6 +125,56 @@ func (r *EventRepository) ActiveIDsWithAttr(ctx context.Context, sourceID, key, 
 	return eventsdb.New(r.pool).ActiveEventIDsWithAttr(ctx, eventsdb.ActiveEventIDsWithAttrParams{
 		SourceID: sourceID, AttrKey: key, AttrValue: value,
 	})
+}
+
+// Resolve ends active events their source no longer lists, at the time
+// given. Each gets a revision and moves the stream cursor, as an update
+// would; events already resolved or unknown are skipped. It returns how
+// many changed.
+func (r *EventRepository) Resolve(ctx context.Context, sourceID string, sourceEventIDs []string, at time.Time) (int, error) {
+	if len(sourceEventIDs) == 0 {
+		return 0, nil
+	}
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := eventsdb.New(tx)
+	if err := q.LockEventChanges(ctx); err != nil {
+		return 0, fmt.Errorf("lock event changes: %w", err)
+	}
+	changed := 0
+	for _, id := range sourceEventIDs {
+		key := eventsdb.EventSnapshotParams{SourceID: sourceID, SourceEventID: id}
+		before, err := q.EventSnapshot(ctx, key)
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return 0, fmt.Errorf("snapshot event %s/%s: %w", sourceID, id, err)
+		}
+		n, err := q.ResolveEvent(ctx, eventsdb.ResolveEventParams{SourceID: sourceID, SourceEventID: id, EndedAt: &at})
+		if err != nil {
+			return 0, fmt.Errorf("resolve event %s/%s: %w", sourceID, id, err)
+		}
+		if n == 0 {
+			continue
+		}
+		if err := recordRevision(ctx, q, key, &before); err != nil {
+			return 0, fmt.Errorf("revision %s/%s: %w", sourceID, id, err)
+		}
+		changed++
+	}
+	if changed > 0 {
+		if err := q.NotifyEventChanges(ctx); err != nil {
+			return 0, fmt.Errorf("notify event changes: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return changed, nil
 }
 
 // Delete removes events a source has retracted (a USGS "deleted" event is a
