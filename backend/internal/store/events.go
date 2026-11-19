@@ -132,6 +132,11 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	return true, nil
 }
 
+// ActiveIDs lists the source event ids of a source's active events.
+func (r *EventRepository) ActiveIDs(ctx context.Context, sourceID string) ([]string, error) {
+	return eventsdb.New(r.pool).ActiveEventIDs(ctx, sourceID)
+}
+
 // ActiveIDsWithAttr lists the source event ids of a source's active events
 // whose attrs[key] equals value.
 func (r *EventRepository) ActiveIDsWithAttr(ctx context.Context, sourceID, key, value string) ([]string, error) {

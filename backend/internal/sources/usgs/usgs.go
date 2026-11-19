@@ -4,9 +4,11 @@
 // (https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php). Polling
 // it every 60 s matches the source's own cadence (ADR 16). The day window
 // means every revision USGS makes within 24 h (magnitude, location, review
-// status, PAGER alert) reaches us. The feed ignores conditional GET; the
-// fetch client compares Last-Modified itself, so an unchanged minute costs
-// one ~4 KB gzip download and nothing else.
+// status, PAGER alert) reaches us. A quake the window no longer lists is
+// resolved: it shows as active for its first day (owner, 2026-11-19), then
+// counts toward the 90-day retention (ADR 26). The feed ignores
+// conditional GET; the fetch client compares Last-Modified itself, so an
+// unchanged minute costs one ~4 KB gzip download and nothing else.
 //
 // Public domain (U.S. Government work); attribution requested.
 package usgs
@@ -15,6 +17,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,16 +36,25 @@ const (
 	PollInterval = time.Minute
 )
 
+// Store is what the adapter writes: events, plus the active set it
+// compares the day window with.
+type Store interface {
+	ingest.EventStore
+	ActiveIDs(ctx context.Context, sourceID string) ([]string, error)
+	Resolve(ctx context.Context, sourceID string, sourceEventIDs []string, at time.Time) (int, error)
+}
+
 // Source is the USGS adapter.
 type Source struct {
 	url    string
 	client *fetch.Client
-	store  ingest.EventStore
+	store  Store
+	now    func() time.Time
 }
 
 // New builds the adapter on the production feed.
-func New(client *fetch.Client, store ingest.EventStore) *Source {
-	return &Source{url: FeedURL, client: client, store: store}
+func New(client *fetch.Client, store Store) *Source {
+	return &Source{url: FeedURL, client: client, store: store, now: time.Now}
 }
 
 // Info implements ingest.Source.
@@ -67,19 +79,45 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 	if resp.NotModified {
 		return ingest.Result{Validators: resp.Validators, NotModified: true}, nil
 	}
-	events, deleted, err := Parse(resp.Body)
+	f, err := Parse(resp.Body)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	n, err := s.store.Upsert(ctx, ID, events)
+	n, err := s.store.Upsert(ctx, ID, f.Events)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	d, err := s.store.Delete(ctx, ID, deleted)
+	d, err := s.store.Delete(ctx, ID, f.Deleted)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	return ingest.Result{Validators: resp.Validators, Upserted: n + d}, nil
+	r, err := s.resolveUnlisted(ctx, f.Listed)
+	if err != nil {
+		return ingest.Result{}, err
+	}
+	return ingest.Result{Validators: resp.Validators, Upserted: n + d + r}, nil
+}
+
+// resolveUnlisted ends the active quakes the day window no longer lists.
+// A window listing nothing resolves nothing: the world has dozens of M2.5+
+// quakes a day, so an empty feed is a fault, not a quiet day.
+func (s *Source) resolveUnlisted(ctx context.Context, listed []string) (int, error) {
+	if len(listed) == 0 {
+		return 0, nil
+	}
+	active, err := s.store.ActiveIDs(ctx, ID)
+	if err != nil {
+		return 0, err
+	}
+	listed = slices.Clone(listed)
+	slices.Sort(listed)
+	var gone []string
+	for _, id := range active {
+		if _, found := slices.BinarySearch(listed, id); !found {
+			gone = append(gone, id)
+		}
+	}
+	return s.store.Resolve(ctx, ID, gone, s.now().UTC())
 }
 
 type feed struct {
@@ -109,16 +147,29 @@ type feed struct {
 	} `json:"features"`
 }
 
-// Parse normalizes a USGS GeoJSON summary feed. deleted lists events USGS
-// has retracted (false detections), which the store removes.
+// Feed is one parsed day window.
+type Feed struct {
+	// Events are the quakes to store.
+	Events []domain.Event
+	// Deleted are quakes USGS retracted (false detections), which the
+	// store removes.
+	Deleted []string
+	// Listed is every earthquake id the window still carries, stored or
+	// not (one without a magnitude yet is listed but not stored), so only
+	// a quake that left the window is resolved.
+	Listed []string
+}
+
+// Parse normalizes a USGS GeoJSON summary feed.
 //
 // Only type "earthquake" is kept: quarry blasts, explosions and other
 // non-natural events are not hazards. Events without a magnitude cannot be
 // classified and are skipped until USGS assigns one.
-func Parse(body []byte) (events []domain.Event, deleted []string, err error) {
+func Parse(body []byte) (Feed, error) {
 	var f feed
+	var out Feed
 	if err := json.Unmarshal(body, &f); err != nil {
-		return nil, nil, fmt.Errorf("usgs: decode: %w", err)
+		return out, fmt.Errorf("usgs: decode: %w", err)
 	}
 	for i := range f.Features {
 		ft := &f.Features[i]
@@ -127,9 +178,10 @@ func Parse(body []byte) (events []domain.Event, deleted []string, err error) {
 			continue
 		}
 		if p.Status == "deleted" {
-			deleted = append(deleted, ft.ID)
+			out.Deleted = append(out.Deleted, ft.ID)
 			continue
 		}
+		out.Listed = append(out.Listed, ft.ID)
 		if p.Mag == nil || len(ft.Geometry.Coordinates) < 2 {
 			continue
 		}
@@ -171,7 +223,7 @@ func Parse(body []byte) (events []domain.Event, deleted []string, err error) {
 		if title == "" {
 			title = fmt.Sprintf("M %.1f - %s", *p.Mag, p.Place)
 		}
-		events = append(events, domain.Event{
+		out.Events = append(out.Events, domain.Event{
 			SourceEventID:  ft.ID,
 			Type:           domain.TypeEarthquake,
 			Kind:           domain.KindObserved,
@@ -188,7 +240,7 @@ func Parse(body []byte) (events []domain.Event, deleted []string, err error) {
 			Attrs:          attrs,
 		})
 	}
-	return events, deleted, nil
+	return out, nil
 }
 
 // sourceSeverity is USGS's own description, shown next to Shield's level.

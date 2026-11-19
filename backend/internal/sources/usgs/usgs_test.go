@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,7 +14,6 @@ import (
 
 	"shield/internal/domain"
 	"shield/internal/fetch"
-	"shield/internal/ingest"
 )
 
 func read(t *testing.T, name string) []byte {
@@ -36,9 +36,13 @@ func byID(events []domain.Event) map[string]domain.Event {
 // TestParseRecordedFeed runs the parser over a real feed recorded on
 // 2026-11-16, so a USGS format change shows up as a fixture refresh diff.
 func TestParseRecordedFeed(t *testing.T) {
-	events, deleted, err := Parse(read(t, "2.5_day.geojson"))
+	f, err := Parse(read(t, "2.5_day.geojson"))
 	if err != nil {
 		t.Fatal(err)
+	}
+	events, deleted := f.Events, f.Deleted
+	if len(f.Listed) != len(events) {
+		t.Errorf("listed %d, stored %d: every recorded quake has a magnitude", len(f.Listed), len(events))
 	}
 	if len(events) != 35 || len(deleted) != 0 {
 		t.Fatalf("%d events, %d deleted; want 35, 0", len(events), len(deleted))
@@ -67,9 +71,15 @@ func TestParseRecordedFeed(t *testing.T) {
 }
 
 func TestParseEdgeCases(t *testing.T) {
-	events, deleted, err := Parse(read(t, "cases.geojson"))
+	f, err := Parse(read(t, "cases.geojson"))
 	if err != nil {
 		t.Fatal(err)
+	}
+	events, deleted := f.Events, f.Deleted
+	// The magnitude-less quake is listed though not stored; the blast and
+	// the retraction are neither.
+	if got := strings.Join(f.Listed, ","); got != "us_red,us_yellow_small,us_nomag,us_plain" {
+		t.Errorf("listed %s", got)
 	}
 	m := byID(events)
 	if len(events) != 3 {
@@ -113,8 +123,18 @@ func TestParseEdgeCases(t *testing.T) {
 }
 
 type fakeStore struct {
-	upserted []domain.Event
-	deleted  []string
+	upserted   []domain.Event
+	deleted    []string
+	active     []string
+	resolved   []string
+	resolvedAt time.Time
+}
+
+func (f *fakeStore) ActiveIDs(context.Context, string) ([]string, error) { return f.active, nil }
+
+func (f *fakeStore) Resolve(_ context.Context, _ string, ids []string, at time.Time) (int, error) {
+	f.resolved, f.resolvedAt = ids, at
+	return len(ids), nil
 }
 
 func (f *fakeStore) Upsert(_ context.Context, sourceID string, events []domain.Event) (int, error) {
@@ -141,18 +161,24 @@ func TestPoll(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	store := &fakeStore{}
-	s := &Source{url: srv.URL, client: fetch.New(fetch.Options{HostGap: time.Millisecond}), store: store}
+	// us_old left the day window; us_nomag is listed without a magnitude
+	// and stays; us_red is in the feed.
+	store := &fakeStore{active: []string{"us_red", "us_old", "us_nomag"}}
+	now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+	s := &Source{url: srv.URL, client: fetch.New(fetch.Options{HostGap: time.Millisecond}), store: store, now: func() time.Time { return now }}
 
 	res, err := s.Poll(t.Context(), domain.Validators{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.NotModified || res.Upserted != 4 || res.Validators.LastModified != lm {
+	if res.NotModified || res.Upserted != 5 || res.Validators.LastModified != lm {
 		t.Fatalf("first poll %+v", res)
 	}
 	if len(store.upserted) != 3 || len(store.deleted) != 1 {
 		t.Fatalf("store got %d upserts, %d deletes", len(store.upserted), len(store.deleted))
+	}
+	if !slices.Equal(store.resolved, []string{"us_old"}) || !store.resolvedAt.Equal(now) {
+		t.Fatalf("resolved %v at %v", store.resolved, store.resolvedAt)
 	}
 
 	// Same Last-Modified next minute: no parse, no store call.
@@ -166,7 +192,23 @@ func TestPoll(t *testing.T) {
 	}
 }
 
-var _ ingest.EventStore = (*fakeStore)(nil)
+// A window listing nothing is a fault: it resolves nothing.
+func TestPollEmptyFeedResolvesNothing(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"type":"FeatureCollection","features":[]}`))
+	}))
+	defer srv.Close()
+	store := &fakeStore{active: []string{"us_a", "us_b"}}
+	s := &Source{url: srv.URL, client: fetch.New(fetch.Options{HostGap: time.Millisecond}), store: store, now: time.Now}
+	if _, err := s.Poll(t.Context(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if store.resolved != nil {
+		t.Fatalf("empty feed resolved %v", store.resolved)
+	}
+}
+
+var _ Store = (*fakeStore)(nil)
 
 func TestInfo(t *testing.T) {
 	info := (&Source{}).Info()

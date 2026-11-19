@@ -12,6 +12,33 @@ import (
 	"github.com/google/uuid"
 )
 
+const activeEventIDs = `-- name: ActiveEventIDs :many
+SELECT source_event_id FROM events
+WHERE source_id = $1 AND status = 'active'
+`
+
+// A source's active events, for a source whose feed is a full window
+// (USGS's past day): what the window no longer lists has ended.
+func (q *Queries) ActiveEventIDs(ctx context.Context, sourceID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, activeEventIDs, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var source_event_id string
+		if err := rows.Scan(&source_event_id); err != nil {
+			return nil, err
+		}
+		items = append(items, source_event_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const activeEventIDsWithAttr = `-- name: ActiveEventIDsWithAttr :many
 SELECT source_event_id FROM events
 WHERE source_id = $1 AND status = 'active' AND attrs ->> $2::text = $3::text
