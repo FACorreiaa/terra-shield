@@ -188,6 +188,10 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      labels ("Rated by wind speed · 241 km/h", "Rated by burned area · 48,484 ha", "Prescribed
      burn") and one line on why, kind + status + times, the source's summary, key figures,
      Show on map, the source block, the timeline, the disclaimer and Share.
+   - Tsunamis (#25): a PTWC forecast says "Guidance for national authorities, not a warning.",
+     that its marker is the epicentre, and leads with its highest wave band, then each band's
+     places; a US warning lists its coasts and the zones the map can't draw. DEBUG:
+     `SHIELD_GALLERY=tsunami`.
    - `LiveMapModel.selectedDetail` drives it, so an event stays open when it leaves the
      snapshot (panned away, joined a server cluster); a merge into a local MapKit cluster is unchecked. DEBUG: `SHIELD_SELECT=<id>`, `SHIELD_GALLERY=detail`.
    - **Not built:** the map snippet (Show on map frames the main map instead), the §12 header

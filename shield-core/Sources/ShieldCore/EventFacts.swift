@@ -46,6 +46,12 @@ extension HazardEvent {
     /// One line on why the severity reads as it does, or nil when the badge says it all.
     public var severityNote: String? {
         if isPrescribed { return "A planned, controlled fire, shown as minor whatever its size." }
+        if attrs["guidance"]?.boolValue == true {
+            // PTWC threat forecasts (#25): advice to governments, never a warning to the public.
+            let guidance = "Guidance for national authorities, not a warning."
+            guard severityProvisional, tsunamiBands.first?.band == "hazardous waves possible" else { return guidance }
+            return "\(guidance) Rated \(severity.label.lowercased()) until wave heights are forecast."
+        }
         switch severityBasis {
         case .wind, .area:
             guard let alert = attrs["alertLevel"]?.stringValue, !alert.isEmpty else { return nil }
@@ -97,6 +103,9 @@ extension HazardEvent {
         }
         func string(_ key: String) -> String? { attrs[key]?.stringValue }
 
+        if type == .tsunami, attrs["center"] != nil {
+            return tsunamiFigures
+        }
         if let quake = earthquake {
             add("Magnitude", quake.magnitude.map { m in
                 [String(format: "%.1f", m), quake.magnitudeType].compactMap { $0 }.joined(separator: " ")
@@ -168,7 +177,9 @@ extension HazardEvent {
         if let endedAt {
             out.append(DetailTime(label: "Ended", date: endedAt))
         } else if let raw = attrs["expiresAt"]?.stringValue, let expires = try? Date(raw, strategy: .iso8601) {
-            out.append(DetailTime(label: "Expires", date: expires))
+            // A PTWC forecast carries no expiry; its expiresAt is Shield's 12 h net (#25).
+            let isNet = type == .tsunami && kind == .forecast
+            out.append(DetailTime(label: isNet ? "Shown until" : "Expires", date: expires))
         }
         return out
     }
@@ -191,5 +202,80 @@ enum Figures {
     /// Whole numbers with grouping, in the app's one language: 48484 → "48,484".
     static func number(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0)).locale(Locale(identifier: "en_US")))
+    }
+}
+
+// MARK: - Tsunami (NOAA warning centres, #25)
+
+extension HazardEvent {
+    /// One band of a PTWC threat forecast, most severe first.
+    struct TsunamiBand {
+        var band: String
+        var places: [String]
+    }
+
+    var tsunamiBands: [TsunamiBand] {
+        guard case .array(let items)? = attrs["forecast"] else { return [] }
+        return items.compactMap { item in
+            guard case .object(let o) = item, let band = o["band"]?.stringValue else { return nil }
+            var places: [String] = []
+            if case .array(let p)? = o["places"] { places = p.compactMap(\.stringValue) }
+            return TsunamiBand(band: band, places: places)
+        }
+    }
+
+    /// Where the marker is not: a forecast sits on the earthquake, and its countries come from
+    /// the forecast's list (`attrs.geometry == "epicenter"`). Nil when the map draws the coasts.
+    public var locationNote: String? {
+        guard type == .tsunami, attrs["geometry"]?.stringValue == "epicenter" else { return nil }
+        return "Shown at the earthquake’s epicentre. The waves reach the places listed below."
+    }
+
+    /// NWS marine forecast areas (UGC prefixes): coastal waters, the Great Lakes, St Lawrence.
+    static let marineUGCPrefixes: Set<String> = [
+        "AM", "AN", "GM", "LC", "LE", "LH", "LM", "LO", "LS", "PH", "PK", "PM", "PS", "PZ", "SL",
+    ]
+
+    fileprivate var tsunamiFigures: [KeyFigure] {
+        var out: [KeyFigure] = []
+        func strings(_ key: String) -> [String] {
+            guard case .array(let a)? = attrs[key] else { return [] }
+            return a.compactMap(\.stringValue)
+        }
+        let bands = tsunamiBands
+        if let top = bands.first {
+            out.append(KeyFigure(label: "Highest waves", value: top.band, isLead: true))
+        }
+        for band in bands where !band.places.isEmpty {
+            out.append(KeyFigure(label: band.band, value: band.places.joined(separator: ", ")))
+        }
+        let unmatched = strings("unmatchedPlaces")
+        if !unmatched.isEmpty { out.append(KeyFigure(label: "Also listed", value: unmatched.joined(separator: ", "))) }
+
+        // US segments ("Chignik Bay, Alaska to Samalga Pass, Alaska") carry commas of their own.
+        let areas = strings("areas")
+        if !areas.isEmpty { out.append(KeyFigure(label: "Coasts", value: areas.joined(separator: "; "))) }
+        // Marine zones (PZZ…, AMZ…) are never drawn, so only land zones count as missing.
+        let unresolved = strings("zonesUnresolved").filter { !Self.marineUGCPrefixes.contains(String($0.prefix(2))) }
+        if !unresolved.isEmpty {
+            let noun = unresolved.count == 1 ? "zone" : "zones"
+            out.append(KeyFigure(label: "Not on the map",
+                                 value: "\(unresolved.count) \(noun) without a shape (\(unresolved.joined(separator: ", ")))"))
+        }
+
+        if let m = attrs["magnitude"]?.doubleValue {
+            let type = attrs["magnitudeType"]?.stringValue.map { " \($0)" } ?? ""
+            out.append(KeyFigure(label: "Earthquake", value: "M\(String(format: "%.1f", m))\(type)"))
+        }
+        switch attrs["center"]?.stringValue {
+        case "PTWC": out.append(KeyFigure(label: "Issued by", value: "Pacific Tsunami Warning Center"))
+        case "NTWC": out.append(KeyFigure(label: "Issued by", value: "National Tsunami Warning Center"))
+        case let other?: out.append(KeyFigure(label: "Issued by", value: other))
+        case nil: break
+        }
+        if let n = attrs["bulletin"]?.doubleValue {
+            out.append(KeyFigure(label: "Bulletin", value: "No. \(Int(n))"))
+        }
+        return out
     }
 }

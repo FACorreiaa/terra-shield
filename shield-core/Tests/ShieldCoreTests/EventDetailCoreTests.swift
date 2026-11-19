@@ -346,3 +346,84 @@ extension JSONValue: ExpressibleByStringLiteral, ExpressibleByFloatLiteral,
         #expect(box.minLongitude == 166 && box.maxLongitude == -166)
     }
 }
+
+// MARK: - Tsunami (S1.11, #25)
+
+@Suite struct TsunamiDetailTests {
+    private func forecast(band: String = "1–3 m", provisional: Bool = false) -> HazardEvent {
+        event(source: "tsunami", type: .tsunami, kind: .forecast, severity: .severe, provisional: provisional, attrs: [
+            "center": "PTWC", "product": "WEPA40", "bulletin": 3, "incident": "x",
+            "epicenter": [160.0, 52.5], "geometry": "epicenter", "magnitude": 8.8, "magnitudeType": "Mww",
+            "guidance": true,
+            "forecast": .array([
+                .object(["band": .string(band), "severity": "severe",
+                         "places": ["Japan", "Russia"], "countries": ["JP", "RU"]]),
+                .object(["band": "0.3–1 m", "severity": "moderate", "places": ["Hawaii"], "countries": ["US"]]),
+            ]),
+            "unmatchedPlaces": ["Wake Island"],
+        ])
+    }
+
+    private var warning: HazardEvent {
+        event(source: "tsunami", type: .tsunami, kind: .warning, severity: .extreme, attrs: [
+            "center": "NTWC", "product": "WEAK51", "bulletin": 2, "incident": "y",
+            "epicenter": [160.0, 52.5], "geometry": "zones", "magnitude": 8.8,
+            "zones": ["AKZ185", "AKZ187"],
+            "areas": ["Chignik Bay, Alaska to Samalga Pass, Alaska", "Samalga Pass, Alaska to Attu, Alaska"],
+            "zonesUnresolved": ["PZZ530", "BCZ921"],
+        ])
+    }
+
+    @Test func aForecastIsGuidanceNotAWarning() {
+        #expect(forecast().severityNote == "Guidance for national authorities, not a warning.")
+        #expect(warning.severityNote == nil)
+    }
+
+    @Test func hazardousWavesBeforeHeightsSayTheLevelIsProvisional() {
+        let early = forecast(band: "hazardous waves possible", provisional: true)
+        #expect(early.severityNote == "Guidance for national authorities, not a warning. Rated severe until wave heights are forecast.")
+    }
+
+    @Test func aForecastLeadsWithItsHighestBandThenEachBandsPlaces() {
+        let f = forecast().keyFigures
+        #expect(f.map(\.label) == ["Highest waves", "1–3 m", "0.3–1 m", "Also listed", "Earthquake", "Issued by", "Bulletin"])
+        #expect(f[0] == KeyFigure(label: "Highest waves", value: "1–3 m", isLead: true))
+        #expect(f[1].value == "Japan, Russia")
+        #expect(f[3].value == "Wake Island")
+        #expect(f[4].value == "M8.8 Mww")
+        #expect(f[5].value == "Pacific Tsunami Warning Center")
+        #expect(f[6].value == "No. 3")
+    }
+
+    @Test func aUSWarningListsItsCoastsAndWhatTheMapCannotDraw() {
+        let f = warning.keyFigures
+        #expect(f.map(\.label) == ["Coasts", "Not on the map", "Earthquake", "Issued by", "Bulletin"])
+        // Segment descriptions hold commas of their own, so they are set apart by semicolons.
+        #expect(f[0].value == "Chignik Bay, Alaska to Samalga Pass, Alaska; Samalga Pass, Alaska to Attu, Alaska")
+        // Marine zones (PZZ…) are never drawn, so they aren't counted as missing.
+        #expect(f[1].value == "1 zone without a shape (BCZ921)")
+        #expect(f[2].value == "M8.8")
+        #expect(f[3].value == "National Tsunami Warning Center")
+    }
+
+    @Test func onlyMarineZonesLeaveNothingToSay() {
+        var w = warning
+        w.attrs["zonesUnresolved"] = ["PZZ530", "AMZ650", "GMZ032"]
+        #expect(!w.keyFigures.map(\.label).contains("Not on the map"))
+    }
+
+    @Test func aForecastsExpiryIsOurSafetyNetNotTheCentres() {
+        // #25: a forecast's expiresAt is Shield's 12 h net; PTWC gives none.
+        var f = forecast()
+        f.attrs["expiresAt"] = "2026-11-16T18:00:00Z"
+        #expect(f.detailTimes(now: at).last?.label == "Shown until")
+        var w = warning
+        w.attrs["expiresAt"] = "2026-11-16T18:00:00Z"
+        #expect(w.detailTimes(now: at).last?.label == "Expires")
+    }
+
+    @Test func anEpicentreMarkerSaysWhereTheWavesAreNot() {
+        #expect(forecast().locationNote == "Shown at the earthquake’s epicentre. The waves reach the places listed below.")
+        #expect(warning.locationNote == nil)
+    }
+}
