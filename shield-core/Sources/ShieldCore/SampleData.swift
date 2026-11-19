@@ -59,6 +59,11 @@ public enum SampleData {
                         sourceSeverity: "", severityProvisional: true, title: "Volcanic activity, Reykjanes",
                         centroid: .init(latitude: 63.9, longitude: -22.4), countries: [.init(iso2: "IS", relation: .within)],
                         observedAt: ago(180), updatedAt: ago(180), fetchedAt: ago(180)),
+            // Resolved: off the map unless the filter includes resolved events.
+            HazardEvent(id: id(7), source: "meteoalarm", type: .wind, kind: .warning, status: .resolved, severity: .moderate,
+                        sourceSeverity: "Level 2 · Yellow", title: "Wind warning, Liguria",
+                        centroid: .init(latitude: 44.3, longitude: 8.9), countries: [.init(iso2: "IT", relation: .within)],
+                        startedAt: ago(9 * 60), observedAt: ago(50), updatedAt: ago(50), endedAt: ago(50), fetchedAt: ago(2)),
         ]
     }
 
@@ -69,7 +74,7 @@ public enum SampleData {
 
     /// The sample countries, with rough bounds, counted from `events(now:)`.
     public static func countries(now: Date = .now) -> [Country] {
-        let events = events(now: now)
+        let events = events(now: now).filter { !$0.isResolved }
         let shapes: [(iso2: String, iso3: String, box: GeoBox)] = [
             ("CL", "CHL", GeoBox(minLongitude: -75.6, minLatitude: -55.9, maxLongitude: -66.4, maxLatitude: -17.5)),
             ("GP", "GLP", GeoBox(minLongitude: -61.8, minLatitude: 15.8, maxLongitude: -61.0, maxLatitude: 16.5)),
@@ -89,7 +94,7 @@ public enum SampleData {
     /// others only the worldwide sources, so both coverage states can be seen.
     public static func countrySummary(iso2: String, now: Date = .now) -> CountrySummary? {
         guard let country = countries(now: now).first(where: { $0.iso2 == iso2 }) else { return nil }
-        let events = events(now: now).filter { $0.countries.contains { $0.iso2 == iso2 } }.sortedForDisplay()
+        let events = events(now: now).filter { !$0.isResolved && $0.countries.contains { $0.iso2 == iso2 } }.sortedForDisplay()
         var counts: [SeverityCount] = []
         for e in events {
             if let i = counts.firstIndex(where: { $0.type == e.type && $0.severity == e.severity }) {

@@ -94,6 +94,15 @@ private let now = Date(timeIntervalSince1970: 1_794_838_800) // 2026-11-16T14:20
         #expect(q["country"] == "PT")
         #expect(q["type"] == nil) // every type: no filter sent
         #expect(q["since"] == "2026-11-15T14:20:00Z")
+        #expect(q["status"] == nil) // active only is the server's default
+    }
+
+    @Test func includeResolvedAsksForBothStatuses() async throws {
+        let (p, t) = provider(["/v1/events": (.ok, #"{"events":[],"clusters":[],"truncated":false,"generatedAt":"2026-11-16T13:35:02Z"}"#)])
+        _ = try await p.events(matching: EventQuery(includeResolved: true))
+        let path = try #require(t.requests.first?.path)
+        let q = URLComponents(string: path)?.queryItems ?? []
+        #expect(q.first { $0.name == "status" }?.value == "active,resolved")
     }
 
     @Test func missingEventIsNil() async throws {

@@ -120,7 +120,7 @@ struct MapScreen: View {
                     CountryView(overview: country, model: model, close: closeCountry,
                                 selectEvent: { model.select($0) })
                 } else if !search.isActive {
-                    StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot),
+                    StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot, includesResolved: model.query.includeResolved),
                               query: model.query, tap: { model.query = model.query.toggling($0) })
                         .padding(.horizontal, ShieldSpace.s4)
                         .padding(.vertical, ShieldSpace.s3)
@@ -687,11 +687,13 @@ struct SelectedEventSummary: View {
                 KindChip(kind: event.kind)
                 if let source { SourceBadge(source: source, url: event.url) }
             }
-            if let source {
+            if event.isResolved {
+                ResolvedLabel(event: event)
+            } else if let source {
                 FreshnessLabel(updatedAt: event.updatedAt, fetchedAt: event.fetchedAt,
                                pollInterval: source.pollInterval, observedAt: event.observedAt)
             }
-            if isStale, source == nil {
+            if isStale, source == nil, !event.isResolved {
                 // FreshnessLabel says it when the source is known; say it here otherwise.
                 Text("Stale · this source hasn’t updated recently")
                     .font(ShieldFont.meta)

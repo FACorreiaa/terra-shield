@@ -3,12 +3,15 @@ import SwiftUI
 
 /// A hazard on the map (VIEWS.md catalog; DESIGN.md §4–5). Severity sets colour, shape and
 /// size; kind sets the form (filled, ringed, outline); the type glyph sits inside. Satellite
-/// heat detections are small dots with no glyph. Stale markers fade, desaturate and get a clock.
+/// heat detections are small dots with no glyph. Stale markers fade, desaturate and get a clock;
+/// resolved ones (shown only when the filter includes them) do the same with a checkmark.
 struct HazardMarker: View {
     var type: HazardType
     var severity: Severity
     var kind: EventKind
     var isStale: Bool = false
+    /// Resolved wins over stale: a finished event isn't waiting on its source.
+    var isResolved: Bool = false
     var isSelected: Bool = false
     /// Point size of a `moderate` marker; other severities scale from it.
     var baseSize: CGFloat = 28
@@ -27,23 +30,26 @@ struct HazardMarker: View {
                 marker
             }
         }
-        .opacity(isStale ? ShieldAlpha.stale : 1)
-        .saturation(isStale ? 0 : 1)
+        .opacity(isFaded ? ShieldAlpha.stale : 1)
+        .saturation(isFaded ? 0 : 1)
         .overlay(alignment: .topTrailing) {
             // A 6 pt detection dot would vanish under the badge; it only fades.
-            if isStale && kind != .detection { staleBadge }
+            if kind != .detection {
+                if isResolved { badge("checkmark") } else if isStale { badge("clock.fill") }
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
+    private var isFaded: Bool { isStale || isResolved }
     private var size: CGFloat { baseSize * severity.markerScale }
     private var shape: MarkerShape { MarkerShape(kind: severity.markerShape) }
 
     private var marker: some View {
         ZStack {
-            if pulses && severity.pulses && !reduceMotion && !isStale {
+            if pulses && severity.pulses && !reduceMotion && !isFaded {
                 PulseHalo(shape: shape, color: severity.color)
             }
             body(for: kind)
@@ -84,8 +90,9 @@ struct HazardMarker: View {
         }
     }
 
-    private var staleBadge: some View {
-        Image(systemName: "clock.fill")
+    /// `muted`, never `ok`: green stays off the map (DESIGN.md §3).
+    private func badge(_ symbol: String) -> some View {
+        Image(systemName: symbol)
             .font(.system(size: 9, weight: .bold))
             .foregroundStyle(Color.canvas)
             .padding(2)
@@ -98,7 +105,7 @@ struct HazardMarker: View {
             return "Satellite heat detection" + (isStale ? ", stale" : "")
         }
         var parts = ["\(severity.label) \(type.label.lowercased())", kind.label.lowercased()]
-        if isStale { parts.append("stale") }
+        if isResolved { parts.append("resolved") } else if isStale { parts.append("stale") }
         return parts.joined(separator: ", ")
     }
 }

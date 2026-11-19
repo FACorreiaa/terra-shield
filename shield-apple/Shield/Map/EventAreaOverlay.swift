@@ -40,9 +40,10 @@ enum EventArea {
 
     /// Styled by kind: observed is filled, an official warning has a stronger edge, a forecast
     /// is a dashed outline with no fill. Colour is the app severity.
-    /// A stale event's area is desaturated like its marker (DECISIONS #8).
+    /// A stale or resolved event's area is desaturated like its marker (DECISIONS #8).
     static func renderer(for overlay: any MKOverlay, event: HazardEvent, isStale: Bool) -> MKOverlayRenderer {
-        let color = isStale ? (PlatformColor(named: "Muted") ?? .gray) : PlatformColor(event.severity.color)
+        let faded = isStale || event.isResolved
+        let color = faded ? (PlatformColor(named: "Muted") ?? .gray) : PlatformColor(event.severity.color)
         let style: (fill: CGFloat, width: CGFloat, dashed: Bool) = switch event.kind {
         case .observed: (0.18, 1.5, false)
         case .warning: (0.10, 2, false)

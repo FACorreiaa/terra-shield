@@ -14,6 +14,36 @@ import Testing
         #expect(sorted.first?.severity == .extreme)
         let severe = sorted.filter { $0.severity == .severe }
         #expect(severe.map(\.title) == ["M6.1 earthquake off Coquimbo", "Flood warning, Emilia-Romagna"])
+        #expect(sorted.last?.isResolved == true)
+    }
+
+    @Test func resolvedFollowsEveryActiveEventWhateverItsSeverity() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        var resolvedExtreme = SampleData.events(now: now)[0]
+        resolvedExtreme.status = .resolved
+        let minor = SampleData.events(now: now)[5]
+        #expect([resolvedExtreme, minor].sortedForDisplay().map(\.id) == [minor.id, resolvedExtreme.id])
+    }
+
+    @Test func resolvedWordsPreferAPassedEndTime() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let resolved = SampleData.events(now: now).last!
+        #expect(resolved.resolvedWords(now: now) == "Resolved · ended 50 min ago")
+        var noEnd = resolved
+        noEnd.endedAt = nil
+        #expect(noEnd.resolvedWords(now: now) == "Resolved · updated 50 min ago")
+        var futureEnd = resolved
+        futureEnd.endedAt = now.addingTimeInterval(3600)
+        #expect(futureEnd.resolvedWords(now: now) == "Resolved · updated 50 min ago")
+        #expect(SampleData.events(now: now)[0].resolvedWords(now: now) == nil)
+    }
+
+    @Test func includeResolvedShowsTheResolvedSample() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let p = SampleEventProvider(now: { now })
+        let events = try await p.events(matching: EventQuery(includeResolved: true))
+        #expect(events.count == SampleData.events(now: now).count)
+        #expect(events.last?.isResolved == true)
     }
 }
 
@@ -133,7 +163,8 @@ import Testing
     @Test func defaultQueryHidesDetectionsAndStaysInWindow() async throws {
         let p = SampleEventProvider(now: { [now] in now })
         let events = try await p.events(matching: EventQuery())
-        #expect(events.count == SampleData.events(now: now).count)
+        #expect(events.count == SampleData.events(now: now).filter { !$0.isResolved }.count)
+        #expect(!events.contains { $0.isResolved })
         #expect(p.isSampleData)
     }
 

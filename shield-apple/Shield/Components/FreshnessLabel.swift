@@ -36,6 +36,23 @@ struct FreshnessLabel: View {
     }
 }
 
+/// A resolved event's status line, in place of its freshness: "Resolved · ended 3 h ago", in `ok`
+/// with a checkmark (DESIGN.md §5). Lists and cards only; `ok` never goes on the map.
+struct ResolvedLabel: View {
+    let event: HazardEvent
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            Label(event.resolvedWords(now: context.date) ?? "", systemImage: "checkmark.circle")
+                .labelStyle(.titleAndIcon)
+                .font(ShieldFont.meta)
+                .foregroundStyle(Color.ok)
+                .monospacedDigit()
+                .lineLimit(1)
+        }
+    }
+}
+
 #Preview("Freshness", traits: .sizeThatFitsLayout) {
     VStack(alignment: .leading, spacing: ShieldSpace.s2) {
         FreshnessLabel(updatedAt: .now.addingTimeInterval(-720), fetchedAt: .now.addingTimeInterval(-60), pollInterval: 60)

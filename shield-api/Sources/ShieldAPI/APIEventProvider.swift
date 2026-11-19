@@ -30,8 +30,8 @@ public struct APIEventProvider: HazardEventProvider {
         switch try await unwrapping { try await client.listEvents(input) } {
         case .ok(let ok):
             let events = try ok.body.json.events.map(HazardEvent.init)
-            // The server filters by status (active only); resolved events need a second request,
-            // which no screen makes yet. Matching locally also keeps the window exact.
+            // The server filters by status (`includeResolved` asks for both); matching locally
+            // also keeps the window exact.
             return events.filter { query.matches($0, now: now()) }
         case .notModified:
             throw APIError.unexpectedNotModified
@@ -56,6 +56,7 @@ public struct APIEventProvider: HazardEventProvider {
             let events = try list.events.map(HazardEvent.init)
             return MapSnapshot(
                 // Matching locally keeps the time window exact; the server filters by status.
+                // Clusters carry no status, so with resolved included their counts hold both.
                 events: events.filter { query.matches($0, now: now()) },
                 clusters: list.clusters.compactMap(EventCluster.init),
                 truncated: list.truncated,
@@ -246,6 +247,8 @@ extension Operations.ListEvents.Input.Query {
             _type: csv(q.types, all: HazardType.allCases.count),
             severity: csv(severities, all: Severity.allCases.count),
             kind: csv(q.kinds, all: EventKind.allCases.count),
+            // Omitted for active only, the server's default.
+            status: q.includeResolved ? "active,resolved" : nil,
             country: q.country,
             since: q.window.map { now.addingTimeInterval(-$0) }
         )

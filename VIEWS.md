@@ -128,7 +128,8 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
 
    DEBUG launch env for screenshots: `SHIELD_DETECTIONS=1`, `SHIELD_REGION=lat,lon,latSpan,lonSpan`,
    `SHIELD_SELECT=<event id>`, `SHIELD_SHEET=peek|medium|large`.
-3. **S3.3 Filters.** `FilterChips`, `FilterSheet`, persisted. **Built** (2026-11-19), except status:
+3. **S3.3 Filters.** `FilterChips`, `FilterSheet`, persisted. **Built** (2026-11-19); status added
+   the same day:
    - `EventQuery` filters live in shield-core with the chip words (`activeFilters`, `label(for:)`,
      `removing(_:)`) and the strip's quick filters (`toggling(_:)`), all tested.
    - `FilterStore` saves to `UserDefaults` what is *excluded*, so a type or kind added later shows
@@ -137,7 +138,16 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
    - An empty view with filters on says so ("No events in this view match your filters") and
      offers Reset filters, since the filters, not the sources, may be what hides events (§15).
    - iPhone presents the filter sheet from inside the map sheet; the Mac as a window sheet.
-   - DEBUG: `SHIELD_RESET_FILTERS=1`, `SHIELD_FILTER_DEMO=1`, `SHIELD_SHOW_FILTERS=1`.
+   - Status: "Include resolved" sends `status=active,resolved`, shows a "With resolved" chip, and is
+     saved (an optional key, so filters saved before it still load). Resolved events are faded with
+     a `muted` checkmark on the map (no pulse, below active ones), sort last in lists, and read
+     "Resolved · ended 50 min ago" in `ok` where a row or card would show freshness. The time
+     window applies to their last update.
+   - The strip never counts resolved events. Server clusters don't say how many of theirs are
+     resolved, so while resolved events are included, "Observed events" and "High severity"
+     show "–" wherever clusters are on screen (Open: a cluster status split).
+   - DEBUG: `SHIELD_RESET_FILTERS=1`, `SHIELD_FILTER_DEMO=1`, `SHIELD_SHOW_FILTERS=1`,
+     `SHIELD_RESOLVED=1`.
    - Open for the owner: "Observed events" still counts every kind once a kind filter is on.
 4. **S3.4 Country.** `CountrySummaryCard`, `TypeSeverityMatrix`, `CoverageNotice`, `RecentChanges`.
    **Built** (2026-11-19), from search only:
@@ -187,6 +197,9 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
 - **Navy basemap.** MapKit can't be recoloured (DESIGN §9). The options are to keep MapKit muted dark
   (the current call), move Apple to MapLibre Native with the same style as the web, or add a
   licensed dark tile overlay. This needs an owner verdict after seeing S3.2 on device.
+- **Cluster status split.** With resolved events included, `/v1/events` clusters count active and
+  resolved together, so the strip shows "–" at low zoom. A per-cluster resolved count would let it
+  show real numbers (asked of the backend, 2026-11-19).
 - **App icon crop.** Owner sign-off on the shield crop on `canvas` (DESIGN §11).
 - **Trademark / licence** for "Aegis Terra" and the AI-generated art, before M4 store submission.
 - **Pointers for the backend session** (not edited from the design session):

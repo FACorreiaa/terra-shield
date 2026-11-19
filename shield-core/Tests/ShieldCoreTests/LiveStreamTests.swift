@@ -211,6 +211,25 @@ private final class TestClock: @unchecked Sendable {
         #expect(p.requests == before) // no reloads needed
     }
 
+    @Test func anEventThatResolvesWhileWatchedLeavesOrFadesAsTheFilterSays() async throws {
+        let p = StreamingProvider()
+        let m = await loadedModel(p)
+        let shown = try #require(m.snapshot?.events.first)
+        var resolved = moved(shown, to: shown.centroid, now: now)
+        resolved.status = .resolved
+
+        // Active only (the default): it leaves the map.
+        m.apply(.upsert(resolved))
+        #expect(m.snapshot?.events.contains { $0.id == shown.id } == false)
+
+        // With resolved included: it stays, after every active event.
+        m.query.includeResolved = true
+        await m.settle()
+        m.apply(.upsert(resolved))
+        #expect(m.snapshot?.events.last?.id == shown.id)
+        #expect(m.snapshot?.events.dropLast().allSatisfy { !$0.isResolved } == true)
+    }
+
     @Test func aChangeOutOfViewOrFilteredOutLeavesTheMapAlone() async throws {
         let p = StreamingProvider()
         let europe = GeoBox(minLongitude: -25, minLatitude: 34, maxLongitude: 45, maxLatitude: 72)
