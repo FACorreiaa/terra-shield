@@ -57,7 +57,7 @@ The API lifts `attrs.severityProvisional` to the top-level `severityProvisional`
 | `magnitudeValue` | number | Latest magnitude: burned area for wildfires |
 | `magnitudeUnit` | string | `acres` · `hectare` · … |
 
-## Meteoalarm (EU weather warnings; not live yet, see BACKLOG S1.5)
+## Meteoalarm (EU weather warnings)
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -72,6 +72,44 @@ The API lifts `attrs.severityProvisional` to the top-level `severityProvisional`
 | `areas` | string[], **always** | Warning area names |
 | `emmaIds` | string[], **always** | MeteoAlarm area codes |
 | `country` | string, **always** | ISO2 of the member feed |
+
+## Tsunami (NOAA warning centers; ADR 25)
+
+Two kinds of event: US alerts (`kind=warning`, id `<center>-<incident>-<product>-warning|advisory|watch`, one event
+per alert level of a product) and PTWC threat forecasts (`kind=forecast`, id `<center>-<incident>-<product>`).
+
+Both kinds:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `center` | string, **always** | `PTWC` (Pacific, Honolulu) or `NTWC` (National, Palmer, Alaska) |
+| `product` | string, **always** | WMO product id: `WEHW40` Hawaii, `WEGM40` Guam, `WEAK51` US West Coast/Alaska, `WEPA40` Pacific threat, … |
+| `bulletin` | integer, **always** | Message number within the incident and product |
+| `incident` | string, **always** | The center's incident id |
+| `epicenter` | [lon, lat], **always** | Earthquake epicenter |
+| `geometry` | string, **always** | `zones` (drawn from NWS zones) or `epicenter` (a point: forecasts always, a US alert whose zones could not be drawn) |
+| `expiresAt` | date-time, **always** | US: the CAP expiry, renewed by each message. Forecasts: 12 h after the last message (safety net) |
+| `magnitude` | number | Preliminary magnitude |
+| `magnitudeType` | string | Magnitude type (`Mwp`, …) |
+
+US alerts (`kind=warning`):
+
+| Key | Type | Meaning |
+|---|---|---|
+| `zones` | string[], **always** | NWS zone codes (UGC) the alert names, marine and Canadian ones included |
+| `areas` | string[], **always** | One description per coastal segment ("Chignik Bay, Alaska to Samalga Pass, Alaska"); can be long |
+| `zonesUnresolved` | string[] | Named zones with no shape in the NWS zone file (marine `PZZ…`, Canadian `BCZ…`, renumbered zones) |
+
+Threat forecasts (`kind=forecast`):
+
+| Key | Type | Meaning |
+|---|---|---|
+| `guidance` | boolean, **always** | `true`: guidance for national authorities, not a warning. Show it as such |
+| `forecast` | object[], **always** | Bands, most severe first: `{band, severity, places: string[], countries: string[]}`. `band` is `over 3 m`, `1–3 m`, `0.3–1 m` or `hazardous waves possible` (first message, before heights exist; rated severe provisionally) |
+| `unmatchedPlaces` | string[] | Places PTWC named that map to no country code |
+
+The event's countries come from the zones (US alerts) or the bands (forecasts), not from the geometry: a
+forecast's point marks the epicenter, not where waves are expected.
 
 ## FIRMS
 
