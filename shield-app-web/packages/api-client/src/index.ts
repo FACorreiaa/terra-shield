@@ -10,8 +10,11 @@ type EventCluster = Schemas["Cluster"];
 type Source = Schemas["Source"];
 type Severity = Schemas["Severity"];
 type EventKind = Schemas["EventKind"];
-/** Closed set the UI draws glyphs for. The wire type is open (ADR 18): unknown values are `other`. */
-type HazardType = Schemas["EventType"];
+/**
+ * Closed set the UI draws glyphs for. The wire type is open (ADR 18): unknown values are `other`.
+ * `conflict` (ADR 27) has no glyph yet, so it renders as `other` until design adds one.
+ */
+type HazardType = Exclude<Schemas["EventType"], "conflict">;
 type ShieldClient = Client<paths>;
 
 const KNOWN_TYPES: readonly HazardType[] = [
