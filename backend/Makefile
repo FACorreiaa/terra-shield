@@ -7,7 +7,7 @@ PG_PORT      := 55440
 export DATABASE_URL      ?= postgres://shield:shield@127.0.0.1:$(PG_PORT)/shield?sslmode=disable
 export TEST_DATABASE_URL ?= postgres://shield:shield@127.0.0.1:$(PG_PORT)/postgres?sslmode=disable
 
-.PHONY: db-up db-down run worker budget migrate migrate-status seed-countries routes build test lint generate sqlc-check docker
+.PHONY: db-up db-down run worker budget migrate migrate-status seed-countries seed-warning-areas routes build test lint generate sqlc-check docker
 
 db-up: ## start local PostGIS on $(PG_PORT)
 	@docker start $(PG_CONTAINER) 2>/dev/null || docker run -d --restart unless-stopped --platform linux/amd64 --name $(PG_CONTAINER) \
@@ -43,6 +43,13 @@ migrate-status:
 COUNTRIES_FILE := data/ne_50m_admin_0_countries.geojson
 seed-countries:
 	go run ./cmd/shield seed-countries $(if $(wildcard $(COUNTRIES_FILE)),--file $(COUNTRIES_FILE))
+
+# MeteoAlarm warning areas and aliases (ADR 21). migrate loads them when the
+# pin changes; this reloads. Downloads unless local copies are in data/.
+GEOCODES_FILE := data/MeteoAlarm_Geocodes.json
+ALIASES_FILE := data/MeteoAlarm_Geocodes-Aliases.csv
+seed-warning-areas:
+	go run ./cmd/shield seed-warning-areas $(if $(wildcard $(GEOCODES_FILE)),--file $(GEOCODES_FILE)) $(if $(wildcard $(ALIASES_FILE)),--aliases $(ALIASES_FILE))
 
 routes:
 	go run ./cmd/shield routes

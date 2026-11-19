@@ -1,10 +1,6 @@
 package countries_test
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -52,23 +48,5 @@ func TestParseRejectsUnknownCodes(t *testing.T) {
 		"geometry":{"type":"Point","coordinates":[0,0]}}]}`
 	if _, _, err := countries.Parse(strings.NewReader(in)); err == nil {
 		t.Fatal("want error for a feature with no ISO codes and no override")
-	}
-}
-
-func TestFetchVerifiesChecksum(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte("tampered"))
-	}))
-	defer srv.Close()
-
-	_, err := countries.Fetch(t.Context(), srv.Client(), srv.URL, countries.DatasetSHA256)
-	if err == nil || !strings.Contains(err.Error(), "sha256") {
-		t.Fatalf("err %v, want checksum mismatch", err)
-	}
-	// The matching hash passes.
-	sum := sha256.Sum256([]byte("tampered"))
-	body, err := countries.Fetch(t.Context(), srv.Client(), srv.URL, hex.EncodeToString(sum[:]))
-	if err != nil || string(body) != "tampered" {
-		t.Fatalf("body %q err %v", body, err)
 	}
 }

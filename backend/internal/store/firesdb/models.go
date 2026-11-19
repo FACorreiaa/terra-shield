@@ -85,6 +85,25 @@ type FireDetection struct {
 	Iso2       *string
 }
 
+type GeoDataset struct {
+	Name     string
+	Version  string
+	LoadedAt time.Time
+}
+
+type MeteoalarmArea struct {
+	Code    string
+	Country string
+	Name    string
+	Geom    interface{}
+}
+
+type MeteoalarmAreaAlias struct {
+	AliasType string
+	AliasCode string
+	Code      string
+}
+
 type Source struct {
 	ID                  string
 	Name                string

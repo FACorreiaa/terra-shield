@@ -8,6 +8,7 @@ import (
 	"shield/internal/sources/eonet"
 	"shield/internal/sources/firms"
 	"shield/internal/sources/gdacs"
+	"shield/internal/sources/meteoalarm"
 	"shield/internal/sources/usgs"
 )
 
@@ -25,8 +26,7 @@ func (c *container) sources() []ingest.Source {
 		gdacs.New(feeds, c.repos.Events, c.logger),
 		eonet.New(feeds, c.repos.Events),
 		firms.New(bulk, c.repos.Fires),
-		// meteoalarm.New needs an AreaResolver for its EMMA_ID area codes;
-		// it is registered once one exists (BACKLOG S1.5).
+		meteoalarm.New(feeds, c.repos.Events, meteoalarm.NewResolver(c.repos.WarningAreas), c.logger),
 	}
 }
 

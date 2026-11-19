@@ -3,6 +3,7 @@ package store_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -147,5 +148,48 @@ func TestEventDelete(t *testing.T) {
 	}
 	if got := countriesOf(t, pool, "a"); len(got) != 0 {
 		t.Fatal("event_countries not cascaded")
+	}
+}
+
+func TestCountryAssignmentRules(t *testing.T) {
+	pool := testutil.DB(t)
+	seedWorld(t, pool)
+	s := store.NewEventRepository(pool)
+	now := time.Now().UTC().Truncate(time.Second)
+	box := func(id string, minLon, maxLon float64, rule domain.CountryRule) domain.Event {
+		e := quake(id, 0, 0, 3, now)
+		e.Geometry = json.RawMessage(fmt.Sprintf(
+			`{"type":"Polygon","coordinates":[[[%[1]g,39],[%[2]g,39],[%[2]g,39.3],[%[1]g,39.3],[%[1]g,39]]]}`, minLon, maxLon))
+		e.CountryRule = rule
+		return e
+	}
+	pt := domain.CountryRule{Issuer: "PT", MinShare: 0.05}
+	// PT/ES border at -6.2. "edge" reaches ~1 km into Spain: 0.5% of its area.
+	if _, err := s.Upsert(context.Background(), "test", []domain.Event{
+		box("plain", -8, -6.19, domain.CountryRule{}), // no rule: every country touched
+		box("edge", -8, -6.19, pt),                    // sliver dropped
+		box("spans", -7, -5, pt),                      // ~40% in Spain: kept
+		box("offshore", -11, -10, pt),                 // touches nothing: issuer still assigned
+		box("wraps", 179, -179, domain.CountryRule{}), // across the antimeridian, ~170 km wide
+	}); err != nil {
+		t.Fatal(err)
+	}
+	iso := func(id string) string {
+		var out []string
+		for _, r := range countriesOf(t, pool, id) {
+			out = append(out, r.ISO2+":"+r.Relation)
+		}
+		return fmt.Sprint(out)
+	}
+	for id, want := range map[string]string{
+		"plain":    "[ES:within PT:within]",
+		"edge":     "[PT:within]",
+		"spans":    "[ES:within PT:within]",
+		"offshore": "[PT:within]",
+		"wraps":    "[]", // planar would wrap the long way and match PT and ES
+	} {
+		if got := iso(id); got != want {
+			t.Errorf("%s: %s, want %s", id, got, want)
+		}
 	}
 }

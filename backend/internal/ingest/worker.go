@@ -48,8 +48,13 @@ func NewPollWorker(states SourceStates, logger *slog.Logger, sources []Source) *
 	return &PollWorker{sources: byID(sources), states: states, logger: logger, now: time.Now}
 }
 
-// Timeout bounds each job.
-func (*PollWorker) Timeout(*river.Job[PollArgs]) time.Duration { return pollTimeout }
+// Timeout bounds each job: pollTimeout, or a SlowSource's own bound.
+func (w *PollWorker) Timeout(job *river.Job[PollArgs]) time.Duration {
+	if s, ok := w.sources[job.Args.Source].(SlowSource); ok {
+		return s.PollTimeout()
+	}
+	return pollTimeout
+}
 
 // Work polls one source and records the outcome.
 func (w *PollWorker) Work(ctx context.Context, job *river.Job[PollArgs]) error {

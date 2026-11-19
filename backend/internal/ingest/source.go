@@ -44,6 +44,13 @@ type Housekeeper interface {
 	HousekeepInterval() time.Duration
 }
 
+// SlowSource is a Source whose poll legitimately needs longer than the
+// default bound, such as one that reads dozens of feeds. PollTimeout must
+// stay below its poll interval.
+type SlowSource interface {
+	PollTimeout() time.Duration
+}
+
 // SourceStates persists each source's metadata and polling state.
 type SourceStates interface {
 	Register(ctx context.Context, info domain.SourceInfo) error

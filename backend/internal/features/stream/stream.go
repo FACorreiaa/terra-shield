@@ -43,6 +43,9 @@ type Broker interface {
 }
 
 const (
+	// heartbeat is a contract (openapi.yaml, /v1/stream: "Every 20 s"):
+	// the Apple client treats 45 s of silence as a dead connection, so
+	// never raise it past 20 s.
 	heartbeat = 20 * time.Second
 	// maxCatchUp: a client further behind reloads rather than replays.
 	maxCatchUp = 1000

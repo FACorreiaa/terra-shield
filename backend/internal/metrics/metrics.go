@@ -51,6 +51,14 @@ var (
 		Help: "Events inserted or updated per source.",
 	}, []string{"source"})
 
+	// SourceSkipped counts records a source sent that Shield could not
+	// store, by reason. For MeteoAlarm, "unknown_area" rising means the
+	// pinned geocodes file is behind the feeds: time to move the pin.
+	SourceSkipped = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "shield_source_skipped_total",
+		Help: "Records a source sent that could not be stored, by reason.",
+	}, []string{"source", "reason"})
+
 	// SourceLag is how far our latest fetch trails the source's own last
 	// update (ADR 16): now minus the feed's Last-Modified, or what the
 	// adapter reports. Sources without a feed timestamp (EONET) have none.

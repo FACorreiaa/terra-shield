@@ -2,10 +2,13 @@
 // MeteoAlarm (EUMETNET): CAP 1.2 alerts from each member's national
 // weather service, one public JSON feed per country.
 //
-// Warning areas arrive only as EMMA_ID codes, with no geometry, so the
-// adapter needs an AreaResolver to turn codes into shapes. Until one
-// exists (MeteoAlarm's geocodes file, or its EDR API with a token) the
-// adapter is not registered with the worker; see BACKLOG S1.5.
+// A warning's areas arrive as CAP areas, each with an inline polygon drawn
+// by the national service, or with codes only: EMMA_IDs, or the NUTS2,
+// NUTS3 or FIPS codes some members send instead. Polygons are used as
+// sent; codes are drawn from MeteoAlarm's geocodes file through an
+// AreaResolver (internal/geo/warningareas, store.WarningAreaRepository).
+// A warning with any area that cannot be drawn is skipped, never drawn
+// smaller than it is.
 //
 // Each feed is a snapshot of the country's recent warnings, expired ones
 // included. A warning is keyed by its CAP identifier; an Update or Cancel
@@ -30,6 +33,7 @@ import (
 	"shield/internal/domain"
 	"shield/internal/fetch"
 	"shield/internal/ingest"
+	"shield/internal/metrics"
 	"shield/internal/severity"
 )
 
@@ -43,6 +47,22 @@ const (
 	// languages each), so 10 minutes rather than the 5 the members update at.
 	PollInterval = 10 * time.Minute
 )
+
+// PollTimeout implements ingest.SlowSource. A round reads 37 feeds (about
+// 30 MB, one request a second to the same host) and stores each country;
+// a first poll after a restart also draws every warning. Measured at
+// about 3 minutes on a heavily loaded machine; 8 leaves room inside the
+// 10-minute interval.
+func (*Source) PollTimeout() time.Duration { return 8 * time.Minute }
+
+var _ ingest.SlowSource = (*Source)(nil)
+
+// NeighborShare is how much of a warning's area another country must hold
+// to be assigned it besides the issuer (owner's call, 2026-11-19). Live,
+// 603 of 702 neighbor matches were under 5%: border mismatch with Natural
+// Earth. Those at 5% or more include real cover, such as MeteoSwiss
+// warnings for Liechtenstein.
+const NeighborShare = 0.05
 
 // Country is one member feed.
 type Country struct {
@@ -92,11 +112,19 @@ var Countries = []Country{
 	{"UA", "ukraine"},
 }
 
-// AreaResolver turns EMMA_ID area codes into one Polygon or MultiPolygon
+// Area is one CAP area of a warning: its inline polygons when the sender
+// drew any, else its geocodes. EMMA_IDs are kept alone when present; the
+// other codes an area lists then name the same place.
+type Area struct {
+	Polygons []json.RawMessage // GeoJSON Polygons
+	Codes    []domain.AreaCode
+}
+
+// AreaResolver turns a warning's areas into one Polygon or MultiPolygon
 // covering them all. ok is false when any code is unknown; the warning is
 // then skipped rather than drawn smaller than it is.
 type AreaResolver interface {
-	Resolve(ctx context.Context, emmaIDs []string) (geom json.RawMessage, ok bool, err error)
+	Resolve(ctx context.Context, areas []Area) (geom json.RawMessage, ok bool, err error)
 }
 
 // Source is the MeteoAlarm adapter.
@@ -140,16 +168,19 @@ func (s *Source) Info() domain.SourceInfo {
 
 // Poll implements ingest.Source. A failing country is logged and skipped,
 // so one member's outage does not hide every other country's warnings;
-// the poll fails only when every country failed.
+// the poll fails only when every country failed. Each country is stored
+// in its own transaction: all of Europe in one would hold the stream's
+// change lock long enough to delay every other source.
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	now := s.now()
 	var (
-		events     []domain.Event
 		superseded []string
 		failures   []error
 		unresolved int
+		upserted   int
 	)
 	for _, c := range s.countries {
+		var events []domain.Event
 		warnings, err := s.country(ctx, c, now)
 		if err != nil {
 			s.logger.Warn("meteoalarm country failed", "country", c.ISO2, "error", err)
@@ -173,18 +204,20 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 			w.Geometry = geom
 			events = append(events, w.Event)
 		}
+		n, err := s.store.Upsert(ctx, ID, events)
+		if err != nil {
+			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
+		}
+		upserted += n
 	}
 	if len(failures) == len(s.countries) {
 		return ingest.Result{}, errors.Join(failures...)
 	}
 	if unresolved > 0 {
+		metrics.SourceSkipped.WithLabelValues(ID, "unknown_area").Add(float64(unresolved))
 		s.logger.Warn("meteoalarm warnings skipped: unknown area codes", "count", unresolved)
 	}
 
-	upserted, err := s.store.Upsert(ctx, ID, events)
-	if err != nil {
-		return ingest.Result{}, err
-	}
 	deleted, err := s.store.Delete(ctx, ID, superseded)
 	if err != nil {
 		return ingest.Result{}, err
@@ -197,13 +230,17 @@ func (s *Source) country(ctx context.Context, c Country, now time.Time) ([]Warni
 	if err != nil {
 		return nil, err
 	}
-	warnings, err := Parse(resp.Body, now)
+	warnings, skipped, err := Parse(resp.Body, now)
 	if err != nil {
 		return nil, err
+	}
+	for reason, n := range skipped {
+		metrics.SourceSkipped.WithLabelValues(ID, reason).Add(float64(n))
 	}
 	for i := range warnings {
 		if !warnings[i].Cancel {
 			warnings[i].Attrs["country"] = c.ISO2
+			warnings[i].CountryRule = domain.CountryRule{Issuer: c.ISO2, MinShare: NeighborShare}
 		}
 	}
 	return warnings, nil
@@ -213,7 +250,7 @@ func (s *Source) country(ctx context.Context, c Country, now time.Time) ([]Warni
 // from Areas.
 type Warning struct {
 	domain.Event
-	Areas      []string // EMMA_ID codes, deduplicated, in feed order
+	Areas      []Area   // in feed order
 	Supersedes []string // CAP identifiers this alert replaces
 	Cancel     bool     // a Cancel message: only Supersedes matters
 }
@@ -249,6 +286,7 @@ type info struct {
 	Parameter   []valuePair `json:"parameter"`
 	Area        []struct {
 		AreaDesc string      `json:"areaDesc"`
+		Polygon  []string    `json:"polygon"` // "lat,lon lat,lon ...", closed
 		Geocode  []valuePair `json:"geocode"`
 	} `json:"area"`
 }
@@ -274,13 +312,23 @@ var types = map[int]domain.EventType{
 	13: domain.TypeFlood, // rain-flood
 }
 
+// Skip reasons for records Parse drops, as counted in
+// shield_source_skipped_total. Awareness level 1 (green, "no particular
+// awareness required") is dropped by design (ADR 2) and not counted: it is
+// most of every feed.
+const (
+	SkipNoArea  = "no_area" // no area, or one we cannot draw
+	SkipInvalid = "invalid" // no info block, unknown level, unparsable time
+)
+
 // Parse normalizes one country feed. now decides which warnings have
-// expired.
-func Parse(body []byte, now time.Time) ([]Warning, error) {
+// expired. skipped counts the records dropped, by reason.
+func Parse(body []byte, now time.Time) (warnings []Warning, skipped map[string]int, err error) {
 	var f feed
 	if err := json.Unmarshal(body, &f); err != nil {
-		return nil, fmt.Errorf("meteoalarm: decode: %w", err)
+		return nil, nil, fmt.Errorf("meteoalarm: decode: %w", err)
 	}
+	skipped = map[string]int{}
 	var out []Warning
 	for i := range f.Warnings {
 		a := &f.Warnings[i].Alert
@@ -295,23 +343,33 @@ func Parse(body []byte, now time.Time) ([]Warning, error) {
 		}
 		in := pickInfo(a.Info)
 		if in == nil {
+			skipped[SkipInvalid]++
 			continue
 		}
-		ev, areas, ok := normalize(a, in, now)
-		if !ok {
-			continue
+		ev, areas, reason := normalize(a, in, now)
+		switch reason {
+		case "":
+			w.Event, w.Areas = ev, areas
+			out = append(out, w)
+		case skipGreen:
+		default:
+			skipped[reason]++
 		}
-		w.Event, w.Areas = ev, areas
-		out = append(out, w)
 	}
-	return out, nil
+	return out, skipped, nil
 }
 
-func normalize(a *alert, in *info, now time.Time) (domain.Event, []string, bool) {
+const skipGreen = "green"
+
+// normalize builds the event and its areas, or names why it cannot.
+func normalize(a *alert, in *info, now time.Time) (domain.Event, []Area, string) {
 	levelNum, color := awareness(param(in.Parameter, "awareness_level"))
 	level, ok := severity.MeteoalarmAwareness(levelNum)
+	if levelNum == 1 {
+		return domain.Event{}, nil, skipGreen
+	}
 	if !ok {
-		return domain.Event{}, nil, false
+		return domain.Event{}, nil, SkipInvalid
 	}
 	typeNum, typeName := awareness(param(in.Parameter, "awareness_type"))
 	typ, ok := types[typeNum]
@@ -321,24 +379,32 @@ func normalize(a *alert, in *info, now time.Time) (domain.Event, []string, bool)
 	sent, err1 := time.Parse(time.RFC3339, a.Sent)
 	expires, err2 := time.Parse(time.RFC3339, in.Expires)
 	if err1 != nil || err2 != nil {
-		return domain.Event{}, nil, false
+		return domain.Event{}, nil, SkipInvalid
 	}
 	onset, err := time.Parse(time.RFC3339, in.Onset)
 	if err != nil {
 		onset = sent
 	}
 
-	var areas, descs []string
+	var (
+		areas         []Area
+		descs, emmaID []string
+	)
 	for _, ar := range in.Area {
 		descs = append(descs, ar.AreaDesc)
-		for _, g := range ar.Geocode {
-			if g.ValueName == "EMMA_ID" && g.Value != "" && !slices.Contains(areas, g.Value) {
-				areas = append(areas, g.Value)
+		area, ok := capArea(ar.Polygon, ar.Geocode)
+		if !ok {
+			return domain.Event{}, nil, SkipNoArea // never drawn smaller than it is
+		}
+		for _, c := range area.Codes {
+			if c.Type == domain.AreaTypeEMMA && !slices.Contains(emmaID, c.Value) {
+				emmaID = append(emmaID, c.Value)
 			}
 		}
+		areas = append(areas, area)
 	}
 	if len(areas) == 0 {
-		return domain.Event{}, nil, false
+		return domain.Event{}, nil, SkipNoArea
 	}
 
 	status, ended := domain.StatusActive, (*time.Time)(nil)
@@ -384,9 +450,70 @@ func normalize(a *alert, in *info, now time.Time) (domain.Event, []string, bool)
 			"sender":         in.SenderName,
 			"language":       in.Language,
 			"areas":          descs,
-			"emmaIds":        areas,
+			"emmaIds":        emmaID,
 		},
-	}, areas, true
+	}, areas, ""
+}
+
+// capArea keeps an area's inline polygons when any parse, else its
+// geocodes: the EMMA_IDs when it has some, otherwise every other code.
+// ok is false when the area has neither.
+func capArea(polygons []string, geocodes []valuePair) (Area, bool) {
+	var a Area
+	for _, p := range polygons {
+		if g, ok := capPolygon(p); ok {
+			a.Polygons = append(a.Polygons, g)
+		}
+	}
+	if len(a.Polygons) > 0 {
+		return a, true
+	}
+	var emma, other []domain.AreaCode
+	for _, g := range geocodes {
+		v := strings.TrimSpace(g.Value)
+		if v == "" || g.ValueName == "" {
+			continue
+		}
+		c := domain.AreaCode{Type: g.ValueName, Value: v}
+		if c.Type == domain.AreaTypeEMMA {
+			emma = append(emma, c)
+		} else {
+			other = append(other, c)
+		}
+	}
+	a.Codes = emma
+	if len(a.Codes) == 0 {
+		a.Codes = other
+	}
+	return a, len(a.Codes) > 0
+}
+
+// capPolygon turns a CAP polygon ("lat,lon lat,lon ...", at least four
+// points, first equal to last) into a GeoJSON Polygon. An open ring is
+// closed; anything malformed or out of range is rejected.
+func capPolygon(s string) (json.RawMessage, bool) {
+	fields := strings.Fields(s)
+	ring := make([][2]float64, 0, len(fields)+1)
+	for _, f := range fields {
+		latS, lonS, ok := strings.Cut(f, ",")
+		if !ok {
+			return nil, false
+		}
+		lat, err1 := strconv.ParseFloat(latS, 64)
+		lon, err2 := strconv.ParseFloat(lonS, 64)
+		if err1 != nil || err2 != nil || lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+			return nil, false
+		}
+		ring = append(ring, [2]float64{lon, lat})
+	}
+	if len(ring) > 0 && ring[0] != ring[len(ring)-1] {
+		ring = append(ring, ring[0])
+	}
+	if len(ring) < 4 {
+		return nil, false
+	}
+	b, err := json.Marshal(map[string]any{"type": "Polygon", "coordinates": [][][2]float64{ring}})
+	return b, err == nil
 }
 
 // pickInfo prefers English, the language Shield's UI ships first, then the

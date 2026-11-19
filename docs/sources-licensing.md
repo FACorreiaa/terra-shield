@@ -18,7 +18,10 @@ Notes:
   Upstreams Shield ingests directly are dropped (ADR 5).
 - **FIRMS** public 24 h files need no MAP_KEY. The MAP_KEY API (area queries, archives) is not used.
   Suomi NPP's file was empty on 2026-11-16 (last modified 2026-11-12); NOAA-20 and NOAA-21 carry ~80k rows/day each.
-- **Meteoalarm** warning areas are EMMA_ID codes without geometry; S1.5 is blocked until shapes are sourced
-  (`geocodes.json`, or the EDR API with a free token). National members may add their own terms; check before
-  the external TestFlight.
+- **Meteoalarm** warning areas arrive as inline CAP polygons or as codes. Codes are drawn from MeteoAlarm's own
+  geocodes file and alias list (Redistribution Hub, `gitlab.com/meteoalarm-pm-group/documents`, CC BY 4.0, pinned
+  to the 2026-11-13 commit; no token). Its terms add one condition to CC BY: modified information must be
+  redistributed alongside the unmodified original. Shield keeps the source's own severity verbatim next to the
+  derived one (ADR 2) and links every warning to MeteoAlarm. National members may add their own terms; check
+  before the external TestFlight.
 - **Excluded** (non-commercial terms): Open-Meteo, RainViewer (ADR 11).

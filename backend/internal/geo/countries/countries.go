@@ -10,28 +10,24 @@
 package countries
 
 import (
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"regexp"
 
 	"shield/internal/domain"
+	"shield/internal/geo/dataset"
 )
 
-// Pinned dataset: Natural Earth 1:50m admin-0 countries, v5.1.2, public
-// domain. Changing the version means changing both values together.
-const (
-	DatasetURL    = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_50m_admin_0_countries.geojson"
-	DatasetSHA256 = "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb"
-)
-
-// maxDatasetBytes caps the download; the pinned file is about 3 MB.
-const maxDatasetBytes = 32 << 20
+// Dataset is the pinned Natural Earth 1:50m admin-0 countries file,
+// v5.1.2, public domain (about 3 MB).
+var Dataset = dataset.Pin{
+	Name:     "countries",
+	URL:      "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_50m_admin_0_countries.geojson",
+	SHA256:   "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb",
+	MaxBytes: 32 << 20,
+}
 
 // override maps a Natural Earth ADMIN name to ISO codes. An empty ISO2
 // skips the feature.
@@ -94,42 +90,4 @@ func Parse(r io.Reader) (features []domain.Country, skipped []string, err error)
 		return nil, nil, errors.New("no features")
 	}
 	return features, skipped, nil
-}
-
-// Fetch downloads url and verifies its SHA-256, so a moved or altered file
-// fails loudly instead of loading wrong borders.
-func Fetch(ctx context.Context, client *http.Client, url, wantSHA256 string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", "shield-seed/1.0")
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GET %s: %s", url, resp.Status)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxDatasetBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(body) > maxDatasetBytes {
-		return nil, fmt.Errorf("GET %s: body over %d bytes", url, maxDatasetBytes)
-	}
-	if err := Verify(body, wantSHA256); err != nil {
-		return nil, fmt.Errorf("GET %s: %w", url, err)
-	}
-	return body, nil
-}
-
-// Verify checks body against a hex SHA-256.
-func Verify(body []byte, wantSHA256 string) error {
-	sum := sha256.Sum256(body)
-	if got := hex.EncodeToString(sum[:]); got != wantSHA256 {
-		return fmt.Errorf("sha256 %s, want %s", got, wantSHA256)
-	}
-	return nil
 }
