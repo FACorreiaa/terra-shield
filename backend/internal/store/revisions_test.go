@@ -117,3 +117,47 @@ func TestActiveIDsWithAttr(t *testing.T) {
 		t.Fatalf("ids %v err %v, want only the active PT event", ids, err)
 	}
 }
+
+func TestResolve(t *testing.T) {
+	pool := testutil.DB(t)
+	seedWorld(t, pool)
+	repo := store.NewEventRepository(pool)
+	ctx := context.Background()
+	t0 := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	e := quake("w1", -8, 39, 5, t0)
+	if _, err := repo.Upsert(ctx, "test", []domain.Event{e}); err != nil {
+		t.Fatal(err)
+	}
+	var seqBefore int64
+	if err := pool.QueryRow(ctx, "SELECT change_seq FROM events WHERE source_event_id = 'w1'").Scan(&seqBefore); err != nil {
+		t.Fatal(err)
+	}
+	at := t0.Add(3 * time.Hour)
+	n, err := repo.Resolve(ctx, "test", []string{"w1", "unknown"}, at)
+	if err != nil || n != 1 {
+		t.Fatalf("resolved %d err %v, want 1", n, err)
+	}
+	// Resolving again changes nothing.
+	if n, err := repo.Resolve(ctx, "test", []string{"w1"}, at.Add(time.Hour)); err != nil || n != 0 {
+		t.Fatalf("second resolve %d err %v", n, err)
+	}
+
+	d, err := repo.Detail(ctx, eventID(t, repo, "w1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Status != domain.StatusResolved || d.EndedAt == nil || !d.EndedAt.Equal(at) || !d.UpdatedAt.Equal(e.UpdatedAt) {
+		t.Fatalf("status %s endedAt %v updatedAt %v: want resolved at %v, source updatedAt kept", d.Status, d.EndedAt, d.UpdatedAt, at)
+	}
+	if len(d.Revisions) != 1 || d.Revisions[0].Changes["status"] == nil || d.Revisions[0].Changes["endedAt"] == nil {
+		t.Fatalf("revisions %+v, want one with status and endedAt", d.Revisions)
+	}
+	var seqAfter int64
+	var op string
+	if err := pool.QueryRow(ctx, "SELECT change_seq, change_op FROM events WHERE source_event_id = 'w1'").Scan(&seqAfter, &op); err != nil {
+		t.Fatal(err)
+	}
+	if seqAfter <= seqBefore || op != "resolved" {
+		t.Fatalf("change_seq %d → %d op %s: the stream must see the resolve", seqBefore, seqAfter, op)
+	}
+}

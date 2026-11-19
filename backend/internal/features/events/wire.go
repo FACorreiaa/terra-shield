@@ -54,7 +54,12 @@ type Cluster struct {
 	// Severities counts members per severity, zero omitted, for a
 	// cluster marker drawn in proportion.
 	Severities map[string]int `json:"severities"`
-	BBox       [4]float64     `json:"bbox"`
+	// Statuses counts members per status, and ActiveSeverities per
+	// severity among active members only, so a view that includes
+	// resolved events can still say how many are ongoing and how serious.
+	Statuses         map[string]int `json:"statuses"`
+	ActiveSeverities map[string]int `json:"activeSeverities"`
+	BBox             [4]float64     `json:"bbox"`
 }
 
 // eventPage is the part of a list response that identifies its content

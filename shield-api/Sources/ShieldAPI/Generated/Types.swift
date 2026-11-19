@@ -783,6 +783,58 @@ public enum Components {
             ///
             /// - Remark: Generated from `#/components/schemas/Cluster/severities`.
             public var severities: Components.Schemas.Cluster.SeveritiesPayload
+            /// Count per status (active, resolved); statuses with no members are omitted. The counts add up to `count`. `maxSeverity` and `severities` cover every member, resolved ones included.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Cluster/statuses`.
+            public struct StatusesPayload: Codable, Hashable, Sendable {
+                /// A container of undocumented properties.
+                public var additionalProperties: [String: Swift.Int]
+                /// Creates a new `StatusesPayload`.
+                ///
+                /// - Parameters:
+                ///   - additionalProperties: A container of undocumented properties.
+                public init(additionalProperties: [String: Swift.Int] = .init()) {
+                    self.additionalProperties = additionalProperties
+                }
+                public init(from decoder: any Swift.Decoder) throws {
+                    additionalProperties = try decoder.decodeAdditionalProperties(knownKeys: [])
+                }
+                public func encode(to encoder: any Swift.Encoder) throws {
+                    try encoder.encodeAdditionalProperties(additionalProperties)
+                }
+            }
+            /// Count per status (active, resolved); statuses with no members are omitted. The counts add up to `count`. `maxSeverity` and `severities` cover every member, resolved ones included.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Cluster/statuses`.
+            public var statuses: Components.Schemas.Cluster.StatusesPayload
+            /// Count per severity among active members only; empty when none is active. Lets a view that includes resolved events say how many ongoing events are serious.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Cluster/activeSeverities`.
+            public struct ActiveSeveritiesPayload: Codable, Hashable, Sendable {
+                /// A container of undocumented properties.
+                public var additionalProperties: [String: Swift.Int]
+                /// Creates a new `ActiveSeveritiesPayload`.
+                ///
+                /// - Parameters:
+                ///   - additionalProperties: A container of undocumented properties.
+                public init(additionalProperties: [String: Swift.Int] = .init()) {
+                    self.additionalProperties = additionalProperties
+                }
+                public init(from decoder: any Swift.Decoder) throws {
+                    additionalProperties = try decoder.decodeAdditionalProperties(knownKeys: [])
+                }
+                public func encode(to encoder: any Swift.Encoder) throws {
+                    try encoder.encodeAdditionalProperties(additionalProperties)
+                }
+            }
+            /// Count per severity among active members only; empty when none is active. Lets a view that includes resolved events say how many ongoing events are serious.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Cluster/activeSeverities`.
+            public var activeSeverities: Components.Schemas.Cluster.ActiveSeveritiesPayload
             /// minLon, minLat, maxLon, maxLat; zoom here to split the cluster.
             ///
             /// - Remark: Generated from `#/components/schemas/Cluster/bbox`.
@@ -795,6 +847,8 @@ public enum Components {
             ///   - maxSeverity:
             ///   - types: Count per event type; types with no members are omitted.
             ///   - severities: Count per severity (minor, moderate, severe, extreme); severities with no members are omitted. The counts add up to `count`.
+            ///   - statuses: Count per status (active, resolved); statuses with no members are omitted. The counts add up to `count`. `maxSeverity` and `severities` cover every member, resolved ones included.
+            ///   - activeSeverities: Count per severity among active members only; empty when none is active. Lets a view that includes resolved events say how many ongoing events are serious.
             ///   - bbox: minLon, minLat, maxLon, maxLat; zoom here to split the cluster.
             public init(
                 centroid: Components.Schemas.Coordinate,
@@ -802,6 +856,8 @@ public enum Components {
                 maxSeverity: Components.Schemas.Severity,
                 types: Components.Schemas.Cluster.TypesPayload,
                 severities: Components.Schemas.Cluster.SeveritiesPayload,
+                statuses: Components.Schemas.Cluster.StatusesPayload,
+                activeSeverities: Components.Schemas.Cluster.ActiveSeveritiesPayload,
                 bbox: [Swift.Double]
             ) {
                 self.centroid = centroid
@@ -809,6 +865,8 @@ public enum Components {
                 self.maxSeverity = maxSeverity
                 self.types = types
                 self.severities = severities
+                self.statuses = statuses
+                self.activeSeverities = activeSeverities
                 self.bbox = bbox
             }
             public enum CodingKeys: String, CodingKey {
@@ -817,6 +875,8 @@ public enum Components {
                 case maxSeverity
                 case types
                 case severities
+                case statuses
+                case activeSeverities
                 case bbox
             }
         }
@@ -2443,11 +2503,11 @@ public enum Operations {
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/country`.
                 public var country: Swift.String?
-                /// Only events updated at or after this time.
+                /// Only events that last mattered at or after this time: the last update for an active event, the end (`endedAt`, else the last update) for a resolved one.
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/since`.
                 public var since: Foundation.Date?
-                /// Only events updated before this time.
+                /// Only events that last mattered before this time, by the same rule as `since`.
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/until`.
                 public var until: Foundation.Date?
@@ -2464,8 +2524,8 @@ public enum Operations {
                 ///   - status: Comma-separated statuses (active, resolved). Defaults to active; `active,resolved` includes both.
                 ///   - source: Comma-separated source ids.
                 ///   - country: ISO 3166-1 alpha-2; matches events within the country or nearby offshore.
-                ///   - since: Only events updated at or after this time.
-                ///   - until: Only events updated before this time.
+                ///   - since: Only events that last mattered at or after this time: the last update for an active event, the end (`endedAt`, else the last update) for a resolved one.
+                ///   - until: Only events that last mattered before this time, by the same rule as `since`.
                 ///   - limit:
                 public init(
                     bbox: Components.Parameters.BBox? = nil,

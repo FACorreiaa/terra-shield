@@ -22,6 +22,7 @@ private let worldView = """
   "clusters": [{
     "centroid": {"latitude": -25.1, "longitude": 134.2}, "count": 77, "maxSeverity": "minor",
     "types": {"wildfire": 76, "landslide": 1}, "severities": {"minor": 75, "moderate": 2},
+    "statuses": {"active": 77}, "activeSeverities": {"minor": 75, "moderate": 2},
     "bbox": [113.4, -43.1, 153.6, -10.9]
   }],
   "truncated": false, "generatedAt": "2026-11-16T14:19:58.5Z"

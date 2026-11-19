@@ -113,8 +113,8 @@ paths:
         - { name: status, in: query, description: "Comma-separated statuses (active, resolved). Defaults to active; `active,resolved` includes both.", schema: { type: string }, examples: { both: { value: "active,resolved" } } }
         - { name: source, in: query, description: "Comma-separated source ids.", schema: { type: string } }
         - { name: country, in: query, description: "ISO 3166-1 alpha-2; matches events within the country or nearby offshore.", schema: { type: string, pattern: "^[A-Z]{2}$" } }
-        - { name: since, in: query, description: "Only events updated at or after this time.", schema: { type: string, format: date-time } }
-        - { name: until, in: query, description: "Only events updated before this time.", schema: { type: string, format: date-time } }
+        - { name: since, in: query, description: "Only events that last mattered at or after this time: the last update for an active event, the end (`endedAt`, else the last update) for a resolved one.", schema: { type: string, format: date-time } }
+        - { name: until, in: query, description: "Only events that last mattered before this time, by the same rule as `since`.", schema: { type: string, format: date-time } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 2000, default: 500 } }
       responses:
         "200":
@@ -448,7 +448,7 @@ components:
           description: Type- and source-specific attributes, documented in docs/attrs.md.
     Cluster:
       type: object
-      required: [centroid, count, maxSeverity, types, severities, bbox]
+      required: [centroid, count, maxSeverity, types, severities, statuses, activeSeverities, bbox]
       properties:
         centroid: { $ref: "#/components/schemas/Coordinate" }
         count: { type: integer, minimum: 2 }
@@ -462,6 +462,20 @@ components:
           description: >
             Count per severity (minor, moderate, severe, extreme); severities
             with no members are omitted. The counts add up to `count`.
+          additionalProperties: { type: integer }
+        statuses:
+          type: object
+          description: >
+            Count per status (active, resolved); statuses with no members are
+            omitted. The counts add up to `count`. `maxSeverity` and
+            `severities` cover every member, resolved ones included.
+          additionalProperties: { type: integer }
+        activeSeverities:
+          type: object
+          description: >
+            Count per severity among active members only; empty when none is
+            active. Lets a view that includes resolved events say how many
+            ongoing events are serious.
           additionalProperties: { type: integer }
         bbox:
           type: array

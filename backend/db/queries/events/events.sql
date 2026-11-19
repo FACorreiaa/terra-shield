@@ -104,6 +104,18 @@ SELECT @event_id::uuid AS event_id, iso2, 'nearby' AS relation, round((meters / 
 SELECT source_event_id FROM events
 WHERE source_id = @source_id AND status = 'active' AND attrs ->> @attr_key::text = @attr_value::text;
 
+-- name: ResolveEvent :execrows
+-- Ends one active event its source no longer lists (owner, 2026-11-19).
+-- updated_at stays the source's own (ADR 8); ended_at records when Shield
+-- saw it go. Moves the stream cursor like any other change.
+UPDATE events SET
+    status     = 'resolved',
+    ended_at   = coalesce(ended_at, @ended_at),
+    fetched_at = now(),
+    change_seq = nextval('event_change_seq'),
+    change_op  = 'resolved'
+WHERE source_id = @source_id AND source_event_id = @source_event_id AND status = 'active';
+
 -- name: DeleteEvents :many
 DELETE FROM events
 WHERE source_id = @source_id

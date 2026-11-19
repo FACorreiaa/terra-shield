@@ -63,6 +63,8 @@ func TestEventListFiltersAndOrder(t *testing.T) {
 	repo := seedEvents(t, pool)
 	ctx := context.Background()
 	since := listNow.Add(-150 * time.Minute)
+	endedWindow, afterEnd := listNow.Add(-45*time.Minute), listNow.Add(-20*time.Minute)
+	resolved := []domain.Status{domain.StatusResolved}
 
 	cases := []struct {
 		name string
@@ -107,6 +109,15 @@ func TestEventListFiltersAndOrder(t *testing.T) {
 			domain.EventQuery{Since: &since, Until: &listNow},
 			[]string{"resolved-pt", "drought-es", "quake-pt"},
 		},
+		{
+			// resolved-pt was last updated 1 h ago and ended 30 min ago: a
+			// resolved event is in the window by its end.
+			"resolved: window on endedAt",
+			domain.EventQuery{Statuses: resolved, Since: &endedWindow},
+			[]string{"resolved-pt"},
+		},
+		{"resolved: ended before the window", domain.EventQuery{Statuses: resolved, Since: &afterEnd}, nil},
+		{"resolved: until before the end", domain.EventQuery{Statuses: resolved, Until: &endedWindow}, nil},
 		{
 			"bbox",
 			domain.EventQuery{BBox: &domain.BBox{MinLon: -9, MinLat: 38, MaxLon: -3.5, MaxLat: 42}},

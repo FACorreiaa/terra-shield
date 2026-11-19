@@ -134,6 +134,7 @@ type AreaResolver interface {
 type Store interface {
 	ingest.EventStore
 	ActiveIDsWithAttr(ctx context.Context, sourceID, key, value string) ([]string, error)
+	Resolve(ctx context.Context, sourceID string, sourceEventIDs []string, at time.Time) (int, error)
 }
 
 // Source is the MeteoAlarm adapter.
@@ -184,9 +185,11 @@ func (s *Source) Info() domain.SourceInfo {
 // the stream's change lock long enough to delay every other source.
 //
 // Each feed is a full snapshot (expired warnings included), so an active
-// warning a country's feed no longer lists has been withdrawn or replaced:
-// it is removed too, as a safety net under References, which members do
-// not always send (a warning withdrawn without an Update or Cancel).
+// warning a country's feed no longer lists has ended: it is resolved (not
+// deleted, owner 2026-11-19, so it stays in the country's history), as a
+// safety net under References, which members do not always send. A
+// warning replaced by a newer version is still deleted: the new one
+// carries it on.
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	now := s.now()
 	var (
@@ -238,11 +241,15 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		if err != nil {
 			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
 		}
-		d, err := s.store.Delete(ctx, ID, append(superseded, gone...))
+		d, err := s.store.Delete(ctx, ID, superseded)
 		if err != nil {
 			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
 		}
-		changed += n + d
+		ended, err := s.store.Resolve(ctx, ID, gone, now)
+		if err != nil {
+			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
+		}
+		changed += n + d + ended
 	}
 	if len(failures) == len(s.countries) {
 		return ingest.Result{}, errors.Join(failures...)

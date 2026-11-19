@@ -76,12 +76,12 @@ func TestParseRecordedFeed(t *testing.T) {
 	}
 
 	// The burned-area table floors a Green fire: 5,437 ha is 13,435 acres.
-	if wf := m["WF1033884"]; wf.Severity != "severe" || wf.Attrs["severityBasis"] != "area" ||
+	if wf := m["WF1033884"]; wf.Severity != "severe" || wf.Attrs["severityBasis"] != "area" || wf.Attrs["severityProvisional"] != true ||
 		wf.Summary != "On 15/11/2026, a forest fire started in Australia, until 16/11/2026." {
 		t.Errorf("WF %s basis %v summary %q", wf.Severity, wf.Attrs["severityBasis"], wf.Summary)
 	}
 	// A depression below hurricane force keeps its alert; floods carry no magnitude.
-	if td := m["TC1001348"]; td.Severity != "minor" || td.Attrs["severityBasis"] != "alert" {
+	if td := m["TC1001348"]; td.Severity != "minor" || td.Attrs["severityBasis"] != "alert" || td.Attrs["severityProvisional"] != nil {
 		t.Errorf("depression %s basis %v", td.Severity, td.Attrs["severityBasis"])
 	}
 	if fl := m["FL1104285"]; fl.SourceSeverity != "Green alert" {

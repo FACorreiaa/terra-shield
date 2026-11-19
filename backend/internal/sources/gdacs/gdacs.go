@@ -234,6 +234,11 @@ func normalize(it *item) (Item, bool) {
 		attrs["alertScore"] = v
 	}
 	attrs["severityBasis"] = basis
+	if basis == "area" {
+		// Burned area says nothing about the people nearby, as for EONET
+		// fires (owner, 2026-11-19).
+		attrs["severityProvisional"] = true
+	}
 	if t := strings.TrimSpace(it.Severity.Text); t != "" {
 		attrs["severityText"] = t
 	}

@@ -335,6 +335,14 @@ export interface components {
             severities: {
                 [key: string]: number;
             };
+            /** @description Count per status (active, resolved); statuses with no members are omitted. The counts add up to `count`. `maxSeverity` and `severities` cover every member, resolved ones included. */
+            statuses: {
+                [key: string]: number;
+            };
+            /** @description Count per severity among active members only; empty when none is active. Lets a view that includes resolved events say how many ongoing events are serious. */
+            activeSeverities: {
+                [key: string]: number;
+            };
             /** @description minLon, minLat, maxLon, maxLat; zoom here to split the cluster. */
             bbox: number[];
         };
@@ -677,9 +685,9 @@ export interface operations {
                 source?: string;
                 /** @description ISO 3166-1 alpha-2; matches events within the country or nearby offshore. */
                 country?: string;
-                /** @description Only events updated at or after this time. */
+                /** @description Only events that last mattered at or after this time: the last update for an active event, the end (`endedAt`, else the last update) for a resolved one. */
                 since?: string;
-                /** @description Only events updated before this time. */
+                /** @description Only events that last mattered before this time, by the same rule as `since`. */
                 until?: string;
                 limit?: number;
             };

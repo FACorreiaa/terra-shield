@@ -42,7 +42,10 @@ func cluster(recs []domain.EventRecord, zoom int) ([]Cluster, []domain.EventReco
 }
 
 func merge(recs []domain.EventRecord, idx []int) Cluster {
-	c := Cluster{Count: len(idx), Types: map[string]int{}, Severities: map[string]int{}}
+	c := Cluster{
+		Count: len(idx), Types: map[string]int{}, Severities: map[string]int{},
+		Statuses: map[string]int{}, ActiveSeverities: map[string]int{},
+	}
 	maxLevel := severity.Minor
 	var sumLat, sumLon float64
 	c.BBox = [4]float64{math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)}
@@ -52,6 +55,10 @@ func merge(recs []domain.EventRecord, idx []int) Cluster {
 		sumLon += r.Longitude
 		c.Types[string(r.Type)]++
 		c.Severities[r.Severity]++
+		c.Statuses[string(r.Status)]++
+		if r.Status == domain.StatusActive {
+			c.ActiveSeverities[r.Severity]++
+		}
 		if l, ok := severity.Parse(r.Severity); ok && l > maxLevel {
 			maxLevel = l
 		}
