@@ -89,9 +89,9 @@ func remaining(h http.Header) int {
 }
 
 type envelope struct {
-	AC  *[]rawAircraft `json:"ac"`
-	Now int64          `json:"now"` // Unix milliseconds
-	Msg string         `json:"msg"`
+	AC  *[]json.RawMessage `json:"ac"`
+	Now int64              `json:"now"` // Unix milliseconds
+	Msg string             `json:"msg"`
 }
 
 type rawAircraft struct {
@@ -111,9 +111,10 @@ type rawAircraft struct {
 	SeenPos   *float64        `json:"seen_pos"`
 }
 
-// Parse reads a /v2 response. A wrong envelope fails; an aircraft without
-// a current position, or one whose operator opted out of display (LADD,
-// PIA), is left out.
+// Parse reads a /v2 response. A wrong envelope fails; an aircraft that
+// does not decode, has no current position, or whose operator opted out of
+// display (LADD, PIA) is left out, so one odd entry never costs the whole
+// answer (and the quota it took).
 func Parse(body []byte) (domain.AircraftArea, error) {
 	var env envelope
 	if err := json.Unmarshal(body, &env); err != nil {
@@ -124,8 +125,12 @@ func Parse(body []byte) (domain.AircraftArea, error) {
 	}
 	at := time.UnixMilli(env.Now).UTC()
 	out := make([]domain.Aircraft, 0, len(*env.AC))
-	for i := range *env.AC {
-		if a, ok := convert(&(*env.AC)[i], at); ok {
+	for _, raw := range *env.AC {
+		var r rawAircraft
+		if json.Unmarshal(raw, &r) != nil {
+			continue
+		}
+		if a, ok := convert(&r, at); ok {
 			out = append(out, a)
 		}
 	}

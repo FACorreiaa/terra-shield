@@ -69,6 +69,12 @@ func TestParseFailsClosed(t *testing.T) {
 	if a, err := Parse([]byte(`{"ac":[],"now":1795111276001}`)); err != nil || len(a.Aircraft) != 0 {
 		t.Errorf("an empty sky is an answer: %v %v", a, err)
 	}
+	odd := `{"now":1795111276001,"ac":[
+		{"hex":"aaaaa1","lat":38,"lon":-9,"seen_pos":1,"baro_rate":"fast"},
+		{"hex":"aaaaa2","lat":38,"lon":-9,"seen_pos":1}]}`
+	if a, err := Parse([]byte(odd)); err != nil || len(a.Aircraft) != 1 || a.Aircraft[0].Hex != "aaaaa2" {
+		t.Errorf("one entry that does not decode must not cost the others: %+v %v", a, err)
+	}
 }
 
 func TestArea(t *testing.T) {
@@ -102,5 +108,21 @@ func TestArea(t *testing.T) {
 	var qe *domain.QuotaError
 	if _, err := c.Area(context.Background(), 38.5, -9, 120); !errors.As(err, &qe) || qe.RetryAfter != 2*time.Minute {
 		t.Fatalf("429: %v", err)
+	}
+}
+
+func TestReplay(t *testing.T) {
+	now := time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)
+	srv := httptest.NewServer(Replay(func() time.Time { return now }))
+	defer srv.Close()
+	c := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), srv.URL)
+	area, err := c.Area(context.Background(), 51.5, -0.1, 120) // London
+	if err != nil || !area.At.Equal(now) || len(area.Aircraft) != 5 || area.QuotaRemaining != 500 {
+		t.Fatalf("%+v %v", area, err)
+	}
+	for _, a := range area.Aircraft {
+		if a.Lat < 49 || a.Lat > 54 || a.Lon < -4 || a.Lon > 4 {
+			t.Errorf("%s at %.2f,%.2f is not around London", a.Hex, a.Lat, a.Lon)
+		}
 	}
 }

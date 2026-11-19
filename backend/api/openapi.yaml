@@ -247,13 +247,15 @@ paths:
       summary: Live aircraft positions in a map view (adsb.lol), a separate layer from events.
       description: >
         Positions are cached in memory and never stored. The world is cut
-        into 5° cells; `bbox` is required and may span at most 6 of them
-        (about zoom 7 and closer), else 400. Each cell is refreshed from the
-        feed at most once a minute, and only while its daily quota allows
-        (no key: 500 requests a day), so under load answers can be minutes
-        old: show `dataAt`, and poll no faster than once a minute. A cell
-        with no data younger than 10 minutes is left out and `complete` is
-        false. Aircraft whose operators opted out of display (FAA LADD,
+        into 5° cells (on multiples of 5°); `bbox` is required and may span
+        at most 4 of them, else 400 ("zoom in"): a view up to 5° high and 5°
+        wide always fits, up to 10° × 10° fits when aligned. Each cell is
+        refreshed from the feed at most once a minute, and only while its
+        daily quota allows. Without a key (500 requests a day) the whole
+        server gets one request every ~3 minutes, so one viewer's 4-cell
+        view is up to 12 minutes old: show `dataAt`, and poll no faster than
+        once a minute. A cell with no data younger than 15 minutes is left
+        out and `complete` is false. Aircraft whose operators opted out of display (FAA LADD,
         privacy ICAO addresses) are never returned. Military aircraft are
         returned as the feed reports them, with `military` set. Data ODbL
         1.0: show `attribution` on the map.

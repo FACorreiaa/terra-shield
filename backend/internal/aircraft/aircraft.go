@@ -9,8 +9,10 @@
 // Retry-After, and a local pace spreads the daily quota over the day.
 // When no request is allowed a cell is served stale, with its age, for up
 // to MaxStale, then left out and the answer marked incomplete. Without a
-// key (owner, 2026-11-19) the feed allows 500 requests a day, so under
-// sustained use positions are minutes old: clients show dataAt.
+// key (owner, 2026-11-19) the feed allows 500 requests a day: one request
+// every 3.2 minutes for the whole server once the burst is spent. The
+// defaults are sized from that (TestSteadyState): one viewer of a 4-cell
+// view gets complete answers up to 12 minutes old. Clients show dataAt.
 package aircraft
 
 import (
@@ -45,8 +47,8 @@ type Feed interface {
 // Options tunes the cache. Zero values take the defaults.
 type Options struct {
 	TTL          time.Duration // a cell is not fetched again sooner; default 60 s
-	MaxStale     time.Duration // a stale cell is served this long; default 10 min
-	MaxCells     int           // cells one request may span; default 6
+	MaxStale     time.Duration // a stale cell is served this long; default 15 min
+	MaxCells     int           // cells one request may span; default 4
 	Reserve      int           // feed quota kept back for other use; default 50
 	PerDay       int           // local pace, requests a day; default 450
 	Burst        int           // requests allowed at once under the pace; default 12
@@ -64,14 +66,14 @@ func (o *Options) defaults() {
 		}
 	}
 	set(&o.TTL, time.Minute)
-	set(&o.MaxStale, 10*time.Minute)
+	set(&o.MaxStale, 15*time.Minute)
 	set(&o.ErrorBackoff, 30*time.Second)
 	set(&o.QuotaBackoff, 30*time.Minute)
 	set(&o.FetchTimeout, 8*time.Second)
 	for _, p := range []struct {
 		n *int
 		v int
-	}{{&o.MaxCells, 6}, {&o.Reserve, 50}, {&o.PerDay, 450}, {&o.Burst, 12}} {
+	}{{&o.MaxCells, 4}, {&o.Reserve, 50}, {&o.PerDay, 450}, {&o.Burst, 12}} {
 		if *p.n <= 0 {
 			*p.n = p.v
 		}
@@ -137,12 +139,7 @@ func (s *Service) InBox(ctx context.Context, bb domain.BBox) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	areas := make([]*domain.AircraftArea, len(keys))
-	var wg sync.WaitGroup
-	for i, k := range keys {
-		wg.Go(func() { areas[i] = s.get(ctx, k) })
-	}
-	wg.Wait()
+	areas := s.load(ctx, keys)
 
 	res := Result{Complete: true}
 	byHex := map[string]domain.Aircraft{}
@@ -173,50 +170,88 @@ func (s *Service) InBox(ctx context.Context, bb domain.BBox) (Result, error) {
 	return res, nil
 }
 
-// get returns a cell's area: fresh, refetched, stale, or nil.
-func (s *Service) get(ctx context.Context, k cellKey) *domain.AircraftArea {
+// load returns each cell's area (nil when none is young enough). Budget is
+// claimed in one pass, stalest cell first, so a view's cells take turns
+// when requests are scarce instead of racing for them; the claimed
+// requests then run in parallel.
+func (s *Service) load(ctx context.Context, keys []cellKey) []*domain.AircraftArea {
+	areas := make([]*domain.AircraftArea, len(keys))
+	fetch := make([]bool, len(keys))
+	waits := make([]chan struct{}, len(keys))
+
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	c := s.cells[k]
-	if c == nil {
-		c = &cell{}
-		s.cells[k] = c
+	now := s.o.Now()
+	order := make([]int, len(keys))
+	for i, k := range keys {
+		order[i] = i
+		if s.cells[k] == nil {
+			s.cells[k] = &cell{}
+		}
 	}
-	for c.inflight != nil {
-		ch := c.inflight
-		s.mu.Unlock()
+	sort.SliceStable(order, func(a, b int) bool {
+		return s.cells[keys[order[a]]].fetchedAt.Before(s.cells[keys[order[b]]].fetchedAt)
+	})
+	for _, i := range order {
+		c := s.cells[keys[i]]
+		switch {
+		case c.inflight != nil:
+			waits[i] = c.inflight
+		case c.area != nil && now.Sub(c.fetchedAt) < s.o.TTL:
+			metrics.AircraftCells.WithLabelValues("fresh").Inc()
+			areas[i] = c.area
+		case now.Sub(c.failedAt) >= s.o.ErrorBackoff && !now.Before(s.blockedUntil) && s.limiter.AllowN(now, 1):
+			c.inflight = make(chan struct{})
+			fetch[i] = true
+		default:
+			areas[i] = s.served(c, now)
+		}
+	}
+	s.mu.Unlock()
+
+	var wg sync.WaitGroup
+	for i, k := range keys {
+		if fetch[i] {
+			wg.Go(func() { areas[i] = s.fetch(ctx, k) })
+		}
+	}
+	wg.Wait()
+
+	for i, ch := range waits {
+		if ch == nil {
+			continue
+		}
 		select {
 		case <-ch:
 		case <-ctx.Done():
 		}
 		s.mu.Lock()
-		if ctx.Err() != nil {
-			return s.served(c, s.o.Now())
+		c := s.cells[keys[i]]
+		if c.area != nil && s.o.Now().Sub(c.fetchedAt) < s.o.TTL {
+			metrics.AircraftCells.WithLabelValues("fresh").Inc()
+			areas[i] = c.area
+		} else {
+			areas[i] = s.served(c, s.o.Now())
 		}
+		s.mu.Unlock()
 	}
-	now := s.o.Now()
-	if c.area != nil && now.Sub(c.fetchedAt) < s.o.TTL {
-		metrics.AircraftCells.WithLabelValues("fresh").Inc()
-		return c.area
-	}
-	if now.Sub(c.failedAt) < s.o.ErrorBackoff || now.Before(s.blockedUntil) || !s.limiter.AllowN(now, 1) {
-		return s.served(c, now)
-	}
+	return areas
+}
 
-	ch := make(chan struct{})
-	c.inflight = ch
-	s.mu.Unlock()
+// fetch runs one claimed request (c.inflight is set) and records it.
+func (s *Service) fetch(ctx context.Context, k cellKey) *domain.AircraftArea {
 	// Detached: other viewers wait on this request, so one viewer leaving
 	// must not cancel it (and waste the quota it costs).
 	fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), s.o.FetchTimeout)
 	lat, lon := center(k)
 	area, err := s.feed.Area(fctx, lat, lon, radiusNM(k))
 	cancel()
-	s.mu.Lock()
-	close(ch)
-	c.inflight = nil
-	now = s.o.Now()
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	c := s.cells[k]
+	close(c.inflight)
+	c.inflight = nil
+	now := s.o.Now()
 	if err != nil {
 		s.failed(c, err, now)
 		return s.served(c, now)

@@ -95,9 +95,10 @@ func TestCells(t *testing.T) {
 		{"across the antimeridian", domain.BBox{MinLon: 178, MinLat: -18, MaxLon: -178, MaxLat: -16}, 2, false},
 		{"the pole clamps", domain.BBox{MinLon: 0, MinLat: 88, MaxLon: 1, MaxLat: 90}, 1, false},
 		{"a continent", domain.BBox{MinLon: -10, MinLat: 35, MaxLon: 30, MaxLat: 60}, 0, true},
+		{"six cells", domain.BBox{MinLon: -9.9, MinLat: 36, MaxLon: 4.9, MaxLat: 44}, 0, true},
 	}
 	for _, tc := range cases {
-		got, err := cells(tc.bb, 6)
+		got, err := cells(tc.bb, 4)
 		if tc.err {
 			if !errors.Is(err, ErrTooLarge) {
 				t.Errorf("%s: %v", tc.name, err)
@@ -184,13 +185,13 @@ func TestQuotaServesStaleThenNothing(t *testing.T) {
 		t.Fatalf("asked during Retry-After: %d calls", f.calls.Load())
 	}
 	f.fail(nil)
-	c.add(5 * time.Minute) // 11 min after the last data: past MaxStale, but asking is allowed again
+	c.add(5 * time.Minute) // past Retry-After: asking is allowed again
 	if res, _ := s.InBox(ctx, bb); f.calls.Load() != 3 || !res.Complete {
 		t.Fatalf("after Retry-After: %d calls, %+v", f.calls.Load(), res)
 	}
 
 	f.fail(&domain.QuotaError{})
-	c.add(11 * time.Minute)
+	c.add(16 * time.Minute)
 	res, _ = s.InBox(ctx, bb)
 	if res.Complete || len(res.Aircraft) != 0 || !res.DataAt.IsZero() {
 		t.Fatalf("past MaxStale: %+v", res)
@@ -228,5 +229,38 @@ func TestPaceSpreadsTheQuota(t *testing.T) {
 	res, _ := s.InBox(context.Background(), iberia)
 	if f.calls.Load() != 1 || res.Complete {
 		t.Fatalf("burst 1 over 4 cells: %d calls, complete %v", f.calls.Load(), res.Complete)
+	}
+}
+
+// TestSteadyState sizes the defaults to the keyless quota: after the
+// burst, one viewer polling every minute gets complete answers, a 4-cell
+// view up to 12 minutes old and a single cell up to 3.
+func TestSteadyState(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		bb    domain.BBox
+		worst time.Duration
+	}{
+		{"one cell", domain.BBox{MinLon: -9.9, MinLat: 36, MaxLon: -5.1, MaxLat: 39}, 3 * time.Minute},
+		{"four cells", iberia, 12 * time.Minute},
+	} {
+		s, _, c := setup(Options{})
+		var worst time.Duration
+		for m := range 180 {
+			res, err := s.InBox(context.Background(), tc.bb)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if m >= 30 { // past the burst
+				if !res.Complete {
+					t.Fatalf("%s: incomplete at minute %d", tc.name, m)
+				}
+				worst = max(worst, c.now().Sub(res.DataAt))
+			}
+			c.add(time.Minute)
+		}
+		if worst > tc.worst {
+			t.Errorf("%s: data up to %s old, want at most %s", tc.name, worst, tc.worst)
+		}
 	}
 }
