@@ -91,7 +91,7 @@ struct MapSheet: View {
             // Compact at peek, where the map needs the room; the big numbers above it. Gone
             // while searching: the results need the room.
             if !search.isActive || isPeek {
-                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot), style: isPeek ? .compact : .full,
+                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot, includesResolved: model.query.includeResolved), style: isPeek ? .compact : .full,
                           query: model.query, tap: { model.query = model.query.toggling($0) })
             }
         }

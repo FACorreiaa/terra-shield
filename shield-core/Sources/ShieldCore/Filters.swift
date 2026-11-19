@@ -8,6 +8,8 @@ public enum ActiveFilter: Sendable, Hashable, CaseIterable {
     case severity
     case kinds
     case window
+    /// Resolved events shown too (DESIGN.md §10.6 "include resolved").
+    case status
 }
 
 extension EventQuery {
@@ -35,6 +37,7 @@ extension EventQuery {
         case .severity: minimumSeverity != Self.standard.minimumSeverity
         case .kinds: kinds != Self.standard.kinds
         case .window: window != Self.standard.window
+        case .status: includeResolved != Self.standard.includeResolved
         }
     }
 
@@ -46,12 +49,13 @@ extension EventQuery {
         case .severity: q.minimumSeverity = Self.standard.minimumSeverity
         case .kinds: q.kinds = Self.standard.kinds
         case .window: q.window = Self.standard.window
+        case .status: q.includeResolved = Self.standard.includeResolved
         }
         return q
     }
 
     /// The chip's words: "Earthquake", "Flood, Storm", "5 types", "Severe+", "Warnings only",
-    /// "Observed + forecasts", "7 d".
+    /// "Observed + forecasts", "7 d", "With resolved".
     public func label(for filter: ActiveFilter) -> String {
         switch filter {
         case .types:
@@ -65,6 +69,8 @@ extension EventQuery {
             return chosen.map(\.pluralLabel).joined(separator: " + ").capitalizedFirst
         case .window:
             return window.map(Self.windowLabel) ?? "Any time"
+        case .status:
+            return includeResolved ? "With resolved" : "Active only"
         }
     }
 
@@ -127,6 +133,8 @@ public struct FilterStore: Sendable {
         /// Seconds; nil for any time.
         var window: Double?
         var showsDetections: Bool
+        /// Added after version 1 shipped, so optional: a blob without it still reads.
+        var includeResolved: Bool?
     }
 
     public func load() -> SavedFilters {
@@ -143,6 +151,7 @@ public struct FilterStore: Sendable {
         // Only a window the sheet offers: anything else (or none, which would send no `since`
         // at all) can't be shown or changed back, so it falls back to the default.
         if let window = blob.window, EventQuery.windows.contains(window) { query.window = window }
+        query.includeResolved = blob.includeResolved ?? standard.includeResolved
         // Never restore a query that shows nothing: the UI can't produce one.
         if query.types.isEmpty { query.types = standard.types }
         if query.kinds.isEmpty { query.kinds = standard.kinds }
@@ -156,7 +165,8 @@ public struct FilterStore: Sendable {
             minimumSeverity: q.minimumSeverity.rawValue,
             excludedKinds: EventQuery.eventKinds.filter { !q.kinds.contains($0) }.map(\.rawValue),
             window: q.window,
-            showsDetections: filters.showsDetections
+            showsDetections: filters.showsDetections,
+            includeResolved: q.includeResolved
         )
         if let data = try? JSONEncoder().encode(blob) { defaults.set(data, forKey: key) }
     }

@@ -49,9 +49,8 @@ struct EventList: View {
     }
 
     private func list(_ snapshot: MapSnapshot) -> some View {
-        let events = snapshot.events.sorted {
-            $0.severity != $1.severity ? $0.severity > $1.severity : $0.updatedAt > $1.updatedAt
-        }
+        // Most severe, then newest; resolved events last.
+        let events = snapshot.events.sortedForDisplay()
         let clustered = snapshot.totalCount - snapshot.events.count
         return rows(events)
             .safeAreaInset(edge: .bottom, spacing: 0) {
