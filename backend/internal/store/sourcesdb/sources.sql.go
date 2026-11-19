@@ -72,7 +72,7 @@ func (q *Queries) GetSourceValidators(ctx context.Context, id string) (GetSource
 
 const listSources = `-- name: ListSources :many
 SELECT id, name, url, license, attribution, poll_interval_seconds, enabled,
-       last_success_at, last_error, last_error_at, scope, terms_url, cadence
+       last_success_at, last_error, last_error_at, scope, terms_url, cadence, on_demand
 FROM sources
 ORDER BY id
 `
@@ -91,6 +91,7 @@ type ListSourcesRow struct {
 	Scope               *string
 	TermsUrl            *string
 	Cadence             *string
+	OnDemand            bool
 }
 
 func (q *Queries) ListSources(ctx context.Context) ([]ListSourcesRow, error) {
@@ -116,6 +117,7 @@ func (q *Queries) ListSources(ctx context.Context) ([]ListSourcesRow, error) {
 			&i.Scope,
 			&i.TermsUrl,
 			&i.Cadence,
+			&i.OnDemand,
 		); err != nil {
 			return nil, err
 		}
@@ -174,9 +176,9 @@ func (q *Queries) RecordSourceSuccess(ctx context.Context, arg RecordSourceSucce
 
 const upsertSource = `-- name: UpsertSource :exec
 INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled, official_warnings, hazards,
-                     scope, terms_url, cadence)
+                     scope, terms_url, cadence, on_demand)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-        $10, $11, $12)
+        $10, $11, $12, $13)
 ON CONFLICT (id) DO UPDATE SET
     name                  = EXCLUDED.name,
     url                   = EXCLUDED.url,
@@ -189,6 +191,7 @@ ON CONFLICT (id) DO UPDATE SET
     scope                 = EXCLUDED.scope,
     terms_url             = EXCLUDED.terms_url,
     cadence               = EXCLUDED.cadence,
+    on_demand             = EXCLUDED.on_demand,
     updated_at            = now()
 `
 
@@ -205,6 +208,7 @@ type UpsertSourceParams struct {
 	Scope               *string
 	TermsUrl            *string
 	Cadence             *string
+	OnDemand            bool
 }
 
 func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) error {
@@ -221,6 +225,7 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) erro
 		arg.Scope,
 		arg.TermsUrl,
 		arg.Cadence,
+		arg.OnDemand,
 	)
 	return err
 }

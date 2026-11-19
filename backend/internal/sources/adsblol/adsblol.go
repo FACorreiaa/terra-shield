@@ -42,6 +42,29 @@ const (
 	flagLADD     = 8 // FAA Limiting Aircraft Data Displayed: asked not to be shown
 )
 
+// ID is the source's id in /v1/sources.
+const ID = "adsblol"
+
+// Info describes the feed for /v1/sources. The API registers it at start:
+// the worker never polls it (OnDemand), and its aircraft are not hazards,
+// so it never counts as a country's coverage.
+func Info(refresh time.Duration) domain.SourceInfo {
+	return domain.SourceInfo{
+		ID:           ID,
+		Name:         "adsb.lol",
+		URL:          "https://adsb.lol/",
+		License:      License,
+		Attribution:  Attribution,
+		PollInterval: refresh,
+		Enabled:      true,
+		NonHazard:    true,
+		OnDemand:     true,
+		Scope:        "Live aircraft positions worldwide, for map views up to 10° across",
+		TermsURL:     "https://www.adsb.lol/docs/open-data/api/",
+		Cadence:      "continuously; fetched while someone views the flights layer",
+	}
+}
+
 // Client queries one circle at a time. Safe for concurrent use.
 type Client struct {
 	base string

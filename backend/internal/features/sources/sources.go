@@ -45,6 +45,7 @@ type Source struct {
 	Coverage            string     `json:"coverage,omitempty"`
 	TermsURL            string     `json:"termsUrl,omitempty"`
 	Cadence             string     `json:"cadence,omitempty"`
+	OnDemand            bool       `json:"onDemand,omitempty"`
 	LastSuccessAt       *time.Time `json:"lastSuccessAt,omitempty"`
 	LastErrorAt         *time.Time `json:"lastErrorAt,omitempty"`
 	Stale               bool       `json:"stale"`
@@ -94,6 +95,7 @@ func FromStatus(r *domain.SourceStatus, now time.Time) Source {
 		Coverage:            r.Scope,
 		TermsURL:            r.TermsURL,
 		Cadence:             r.Cadence,
+		OnDemand:            r.OnDemand,
 		LastSuccessAt:       r.LastSuccessAt,
 		LastErrorAt:         r.LastErrorAt,
 		Stale:               r.Stale(now),

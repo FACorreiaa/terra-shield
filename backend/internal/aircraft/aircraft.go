@@ -57,6 +57,16 @@ type Options struct {
 	FetchTimeout time.Duration // one feed request; default 8 s
 	Now          func() time.Time
 	Logger       *slog.Logger
+	// Health records the feed's successes and failures under SourceID,
+	// for /v1/sources. Optional.
+	Health   Health
+	SourceID string
+}
+
+// Health records a source's fetch results. store.SourceRepository is one.
+type Health interface {
+	RecordSuccess(ctx context.Context, id string, at time.Time, v domain.Validators) error
+	RecordError(ctx context.Context, id string, at time.Time, msg string) error
 }
 
 func (o *Options) defaults() {
@@ -129,6 +139,9 @@ func New(feed Feed, o Options) *Service {
 		cells:   map[cellKey]*cell{},
 	}
 }
+
+// TTL is how often a cell is refreshed at most.
+func (s *Service) TTL() time.Duration { return s.o.TTL }
 
 // MaxCells is how many cells one request may span.
 func (s *Service) MaxCells() int { return s.o.MaxCells }
@@ -245,6 +258,7 @@ func (s *Service) fetch(ctx context.Context, k cellKey) *domain.AircraftArea {
 	lat, lon := center(k)
 	area, err := s.feed.Area(fctx, lat, lon, radiusNM(k))
 	cancel()
+	s.record(ctx, err)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -266,6 +280,26 @@ func (s *Service) fetch(ctx context.Context, k cellKey) *domain.AircraftArea {
 	}
 	metrics.AircraftCells.WithLabelValues("fresh").Inc()
 	return c.area
+}
+
+// record writes the result to Health, outside s.mu and detached from the
+// viewer. A failure to record is logged, never served.
+func (s *Service) record(ctx context.Context, fetchErr error) {
+	if s.o.Health == nil {
+		return
+	}
+	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+	defer cancel()
+	now := s.o.Now()
+	var err error
+	if fetchErr == nil {
+		err = s.o.Health.RecordSuccess(rctx, s.o.SourceID, now, domain.Validators{})
+	} else {
+		err = s.o.Health.RecordError(rctx, s.o.SourceID, now, fetchErr.Error())
+	}
+	if err != nil {
+		s.o.Logger.Warn("record aircraft feed health", "err", err)
+	}
 }
 
 // served is a cell's area when it cannot be fetched now: stale up to

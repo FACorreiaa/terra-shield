@@ -136,6 +136,7 @@ type Source struct {
 	Scope               *string
 	TermsUrl            *string
 	Cadence             *string
+	OnDemand            bool
 }
 
 type SourceCoverage struct {
