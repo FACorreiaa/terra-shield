@@ -61,33 +61,64 @@ func (in *Info) param(name string) string {
 	return ""
 }
 
-// Outcome is what one message means for its product: store an event,
-// end the one stored, or nothing.
+// Outcome is what one message means for its product. Every message is a
+// snapshot of the product's state: what Events holds is in force, and
+// every other event of the product has ended, at At.
 type Outcome struct {
-	Event *domain.Event // to upsert
-	End   bool          // resolve Key at At
-	At    time.Time
-	// Zones are the UGC codes a US product names; the source draws them.
-	Zones []string
-	// NeedsText: a threat message whose heights are only in the bulletin
-	// text (CAP carries one area); call Threat with it.
+	Events []Draft
+	At     time.Time
+	// Ignore: a test or exercise; nothing changes.
+	Ignore bool
+	// NeedsText: a PTWC threat message, whose wave heights are only in the
+	// bulletin text; call Threat with it.
 	NeedsText bool
 }
 
-// US products: the alert level, from the CAP event (owner, 2026-11-19).
-var usLevels = map[string]severity.Level{
-	"Tsunami Warning":  severity.Extreme,
-	"Tsunami Advisory": severity.Severe,
-	"Tsunami Watch":    severity.Moderate,
+// Draft is an event to store, with the NWS zones (UGC) to draw it from.
+type Draft struct {
+	Event domain.Event
+	Zones []string
+}
+
+// US alert levels, from the CAP event (owner, 2026-11-19). CAP's own
+// severity rates Advisory and Watch alike (Moderate), so it is not used.
+var usLevels = map[string]struct {
+	level severity.Level
+	slug  string
+}{
+	"Tsunami Warning":  {severity.Extreme, "warning"},
+	"Tsunami Advisory": {severity.Severe, "advisory"},
+	"Tsunami Watch":    {severity.Moderate, "watch"},
+}
+
+// levelSlugs, most severe first: a product's US events are its key plus
+// one of these.
+var levelSlugs = []string{"warning", "advisory", "watch"}
+
+// threatProducts are PTWC's threat messages: Pacific, Caribbean.
+var threatProducts = map[string]bool{"WEPA40": true, "WECA41": true, "WECA43": true}
+
+// ProductKeys are every event id one product can hold: its threat
+// forecast and one US event per level.
+func ProductKeys(e Entry) []string {
+	keys := []string{e.Key()}
+	for _, l := range levelSlugs {
+		keys = append(keys, e.Key()+"-"+l)
+	}
+	return keys
 }
 
 // threatExpiry bounds a threat forecast PTWC stops updating without a
 // final message: its CAP has no expiry. PTWC updates hourly or so.
 const threatExpiry = 12 * time.Hour
 
-// Classify reads one message for entry. A test or exercise means nothing;
-// a cancellation, a final message (no info), or a level that is not a
-// hazard (Information) ends the product's event.
+// Classify reads one message for entry. US products carry one <info> per
+// coastal segment, each with its own level and zones (NTWC's West Coast
+// and Alaska product mixed Warning, Advisory and Cancellation segments in
+// one message); segments of one level make one event. Canceled segments
+// and information statements are not hazards. An event string not known
+// here is an error, never read as an end: a warning is not dropped
+// because its wording changed.
 func Classify(e Entry, a *Alert) (Outcome, error) {
 	sent, err := time.Parse(time.RFC3339, strings.TrimSpace(a.Sent))
 	if err != nil {
@@ -95,48 +126,93 @@ func Classify(e Entry, a *Alert) (Outcome, error) {
 	}
 	sent = sent.UTC()
 	if !strings.EqualFold(a.Status, "Actual") {
-		return Outcome{}, nil
+		return Outcome{Ignore: true, At: sent}, nil
 	}
 	if len(a.Info) == 0 || strings.EqualFold(a.MsgType, "Cancel") {
-		return Outcome{End: true, At: sent}, nil
+		return Outcome{At: sent}, nil // a final message: everything ends
 	}
-	in := &a.Info[0]
-	event := strings.TrimSpace(in.Event)
-	if strings.Contains(event, "Cancellation") {
-		return Outcome{End: true, At: sent}, nil
+	type level struct {
+		severity severity.Level
+		event    string
+		zones    []string
+		areas    []string
+		expires  time.Time
+		info     *Info
 	}
-	if ugc := in.param("NWSUGC"); ugc != "" {
-		level, ok := usLevels[event]
-		if !ok {
-			return Outcome{End: true, At: sent}, nil // Information, or anything not a hazard
+	levels := map[string]*level{}
+	us, other := false, 0
+	for i := range a.Info {
+		in := &a.Info[i]
+		event := strings.TrimSpace(in.Event)
+		ugc := in.param("NWSUGC")
+		us = us || ugc != ""
+		lv, known := usLevels[event]
+		switch {
+		case strings.Contains(event, "Cancellation"), strings.HasPrefix(event, "Tsunami Information"):
+			continue
+		case known && ugc != "":
+			zones, err := ExpandUGC(ugc)
+			if err != nil {
+				return Outcome{}, fmt.Errorf("tsunami: %s: %w", a.Identifier, err)
+			}
+			l := levels[lv.slug]
+			if l == nil {
+				l = &level{severity: lv.level, event: event, info: in}
+				levels[lv.slug] = l
+			}
+			l.zones = append(l.zones, zones...)
+			l.areas = append(l.areas, usPlace(in))
+			if exp, err := time.Parse(time.RFC3339, strings.TrimSpace(in.Expires)); err == nil && exp.After(l.expires) {
+				l.expires = exp.UTC()
+			}
+		case ugc != "" || known:
+			return Outcome{}, fmt.Errorf("tsunami: %s: unknown US alert %q", a.Identifier, event)
+		default:
+			other++
 		}
-		zones, err := ExpandUGC(ugc)
-		if err != nil {
-			return Outcome{}, fmt.Errorf("tsunami: %s: %w", a.Identifier, err)
+	}
+	switch {
+	case us && other > 0:
+		return Outcome{}, fmt.Errorf("tsunami: %s mixes US and non-US segments", a.Identifier)
+	case other > 0 && threatProducts[e.Product]:
+		return Outcome{NeedsText: true, At: sent}, nil
+	case other > 0:
+		return Outcome{}, fmt.Errorf("tsunami: %s: unknown message %q in %s", a.Identifier, a.Info[0].Event, e.Product)
+	}
+	out := Outcome{At: sent}
+	for _, slug := range levelSlugs {
+		l := levels[slug]
+		if l == nil {
+			continue
 		}
-		ev, err := base(e, a, in, sent)
+		ev, err := base(e, a, l.info, sent)
 		if err != nil {
 			return Outcome{}, err
 		}
+		ev.SourceEventID = e.Key() + "-" + slug
 		ev.Kind = domain.KindWarning
-		ev.Severity = level.String()
-		place := usPlace(in)
-		ev.Title = event + " · " + place
-		ev.Summary = fmt.Sprintf("%s for %s after %s.", event, place, quake(in))
-		if exp, err := time.Parse(time.RFC3339, strings.TrimSpace(in.Expires)); err == nil {
-			ev.Attrs["expiresAt"] = exp.UTC()
+		ev.Severity = l.severity.String()
+		ev.SourceSeverity = l.event
+		zones := dedupe(l.zones)
+		ev.Title = l.event + " · " + regions(zones)
+		ev.Summary = fmt.Sprintf("%s for %s after %s.", l.event, strings.Join(l.areas, "; "), quake(l.info))
+		if !l.expires.IsZero() {
+			ev.Attrs["expiresAt"] = l.expires
 		}
 		ev.Attrs["zones"] = zones
-		return Outcome{Event: &ev, Zones: zones}, nil
+		ev.Attrs["areas"] = l.areas
+		// Countries from the zones the message names, drawn or not: BC
+		// zones tag Canada though NWS holds no shape for them, and a
+		// drawn sliver never tags a neighbor.
+		ev.CountryRule = domain.CountryRule{Listed: zoneCountries(zones)}
+		out.Events = append(out.Events, Draft{Event: ev, Zones: zones})
 	}
-	if strings.HasPrefix(event, "Tsunami Information") {
-		return Outcome{End: true, At: sent}, nil
-	}
-	return Outcome{NeedsText: true, At: sent}, nil
+	return out, nil
 }
 
 // Threat builds the forecast event of a PTWC threat message from its
-// bulletin text, or ends it when no coast expects hazardous waves.
+// bulletin text. A forecast naming no coast at 0.3 m or more ends it; a
+// text without a forecast section is an error (the format changed).
 func Threat(e Entry, a *Alert, text string) (Outcome, error) {
 	sent, err := time.Parse(time.RFC3339, strings.TrimSpace(a.Sent))
 	if err != nil || len(a.Info) == 0 {
@@ -144,9 +220,12 @@ func Threat(e Entry, a *Alert, text string) (Outcome, error) {
 	}
 	sent = sent.UTC()
 	in := &a.Info[0]
-	bands := ParseThreat(text)
+	bands, ok := ParseThreat(text)
+	if !ok {
+		return Outcome{}, fmt.Errorf("tsunami: %s: bulletin has no threat forecast", a.Identifier)
+	}
 	if len(bands) == 0 {
-		return Outcome{End: true, At: sent}, nil
+		return Outcome{At: sent}, nil
 	}
 	ev, err := base(e, a, in, sent)
 	if err != nil {
@@ -183,7 +262,73 @@ func Threat(e Entry, a *Alert, text string) (Outcome, error) {
 	if len(unmatched) > 0 {
 		ev.Attrs["unmatchedPlaces"] = unmatched
 	}
-	return Outcome{Event: &ev}, nil
+	return Outcome{Events: []Draft{{Event: ev}}, At: sent}, nil
+}
+
+func dedupe(s []string) []string {
+	seen := make(map[string]bool, len(s))
+	out := s[:0:0]
+	for _, v := range s {
+		if !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// zoneRegions names the state or territory of a UGC prefix. Marine zones
+// (PZ, AM, ...) name no region.
+var zoneRegions = map[string]string{
+	"AK": "Alaska", "AS": "American Samoa", "BC": "British Columbia", "CA": "California", "GU": "Guam",
+	"HI": "Hawaii", "MP": "Northern Mariana Islands", "OR": "Oregon", "PR": "Puerto Rico",
+	"VI": "US Virgin Islands", "WA": "Washington", "UM": "US Minor Outlying Islands",
+	"FL": "Florida", "GA": "Georgia", "SC": "South Carolina", "NC": "North Carolina", "VA": "Virginia",
+	"MD": "Maryland", "DE": "Delaware", "NJ": "New Jersey", "NY": "New York", "CT": "Connecticut",
+	"RI": "Rhode Island", "MA": "Massachusetts", "NH": "New Hampshire", "ME": "Maine", "AL": "Alabama",
+	"MS": "Mississippi", "LA": "Louisiana", "TX": "Texas",
+}
+
+// zoneCountries maps UGC prefixes to ISO 3166-1 alpha-2: US states to US,
+// territories to their own code, British Columbia to CA. Marine zones and
+// unknown prefixes tag nothing.
+func zoneCountries(zones []string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, z := range zones {
+		p := z[:2]
+		iso := ""
+		switch {
+		case p == "BC":
+			iso = "CA"
+		case p == "GU" || p == "MP" || p == "AS" || p == "PR" || p == "VI" || p == "UM":
+			iso = p
+		case zoneRegions[p] != "":
+			iso = "US"
+		}
+		if iso != "" && !seen[iso] {
+			seen[iso] = true
+			out = append(out, iso)
+		}
+	}
+	return out
+}
+
+// regions lists the states and territories a product's zones lie in, in
+// the order they first appear: "California, Oregon, Washington, Alaska".
+func regions(zones []string) string {
+	var names []string
+	seen := map[string]bool{}
+	for _, z := range zones {
+		if n, ok := zoneRegions[z[:2]]; ok && !seen[n] {
+			seen[n] = true
+			names = append(names, n)
+		}
+	}
+	if len(names) == 0 {
+		return "US coasts"
+	}
+	return strings.Join(names, ", ")
 }
 
 // base fills what every stored tsunami event shares; geometry is the
@@ -299,15 +444,17 @@ func lowerFirst(s string) string {
 	return "near " + s
 }
 
-// usPlace is the coast a US product covers: "ALL COUNTIES IN THE STATE OF
-// HAWAII" → "Hawaii"; "Guam and CNMI" stays.
+// usPlace is the coast one segment of a US product covers: "ALL COUNTIES
+// IN THE STATE OF HAWAII" → "Hawaii"; NTWC's "Coastal areas between and
+// including Chignik Bay, Alaska to Samalga Pass, Alaska" → "Chignik Bay,
+// Alaska to Samalga Pass, Alaska"; "Guam and CNMI" stays.
 func usPlace(in *Info) string {
 	desc := ""
 	if len(in.Areas) > 0 {
 		desc = strings.TrimSpace(in.Areas[0].Desc)
 	}
 	upper := strings.ToUpper(desc)
-	for _, p := range []string{"ALL COUNTIES IN THE STATE OF ", "ALL COUNTIES IN "} {
+	for _, p := range []string{"ALL COUNTIES IN THE STATE OF ", "ALL COUNTIES IN ", "COASTAL AREAS BETWEEN AND INCLUDING "} {
 		if strings.HasPrefix(upper, p) {
 			desc = desc[len(p):]
 			break

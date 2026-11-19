@@ -20,8 +20,8 @@ type Band struct {
 // A forecast bullet starts with "*" and runs to the blank line after its
 // list of places. Bands below 0.3 m are not a hazard and are dropped.
 var (
-	bulletRe = regexp.MustCompile(`(?m)^\s*\*\s`)
-	bands    = []struct {
+	bulletRe  = regexp.MustCompile(`(?m)^\s*\*\s`)
+	bandRules = []struct {
 		re    *regexp.Regexp
 		label string
 		level severity.Level
@@ -41,12 +41,13 @@ var (
 
 // ParseThreat reads the TSUNAMI THREAT FORECAST section of a PTWC threat
 // message. It returns the bands worth storing, most severe first; none
-// means no coast expects hazardous waves (or the threat has passed).
-func ParseThreat(text string) []Band {
+// means no coast expects hazardous waves (or the threat has passed). ok
+// is false when the text has no forecast section at all.
+func ParseThreat(text string) (bands []Band, ok bool) {
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	start := strings.Index(text, "TSUNAMI THREAT FORECAST")
 	if start < 0 {
-		return nil
+		return nil, false
 	}
 	section := text[start:]
 	if end := strings.Index(section, "RECOMMENDED ACTIONS"); end > 0 {
@@ -61,7 +62,7 @@ func ParseThreat(text string) []Band {
 		}
 		bullet := section[loc[0]:end]
 		head := strings.Join(strings.Fields(bullet), " ")
-		for _, b := range bands {
+		for _, b := range bandRules {
 			if !b.re.MatchString(head) {
 				continue
 			}
@@ -101,7 +102,7 @@ func ParseThreat(text string) []Band {
 			}
 		}
 	}
-	return sorted
+	return sorted, true
 }
 
 // places splits "CHILE... HAWAII... JAPAN... NORTHWESTERN HAWAIIAN\n

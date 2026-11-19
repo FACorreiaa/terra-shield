@@ -102,7 +102,8 @@ Islands) are official alerts for the NWS zones they name, rated by level:
 | Tsunami Watch | moderate | a tsunami is possible: be ready to act |
 | Information, Cancellation | not stored; ends the product's event | |
 
-CAP's own `severity` rates Advisory and Watch the same (Moderate), so the level is used instead.
+CAP's own `severity` rates Advisory and Watch the same (Moderate), so the level is used instead. One message can hold
+segments at several levels along different coasts; each level is its own event (ADR 25).
 
 PTWC's threat messages for the Pacific and Caribbean are forecasts for national authorities (`kind=forecast`,
 `attrs.guidance`), rated by the highest wave band that names a coast:

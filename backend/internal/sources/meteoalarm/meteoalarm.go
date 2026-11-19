@@ -252,16 +252,17 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		}
 		changed += n + d + ended
 	}
-	if len(failures) == len(s.countries) {
-		return ingest.Result{}, errors.Join(failures...)
-	}
 	// A country whose feed keeps failing would keep its warnings past
-	// their end (Ukraine and Switzerland failed on 2026-11-19).
+	// their end (Ukraine and Switzerland failed on 2026-11-19). Swept even
+	// when every feed failed: that is when it matters most.
 	expired, err := s.store.ResolveExpired(ctx, ID, now)
 	if err != nil {
 		return ingest.Result{}, err
 	}
 	changed += expired
+	if len(failures) == len(s.countries) {
+		return ingest.Result{}, errors.Join(failures...)
+	}
 	if unresolved > 0 {
 		metrics.SourceSkipped.WithLabelValues(ID, "unknown_area").Add(float64(unresolved))
 		s.logger.Warn("meteoalarm warnings skipped: unknown area codes", "count", unresolved)

@@ -12,9 +12,12 @@
 //     Stored as forecasts at the epicenter, tagged with the countries they
 //     name, never counted as official warnings (ADR 7).
 //
-// One event per product of an incident (its key), updated as the level
-// changes from bulletin to bulletin, and resolved by a cancellation, a
-// final message, a downgrade to Information, or its expiry.
+// Each message is a snapshot of its product. A US product holds one event
+// per alert level (a message can mix Warning, Advisory and Watch segments
+// along different coasts), a threat message one forecast; each is updated
+// bulletin by bulletin and resolved when a later message no longer holds
+// it (cancellation, final message, information statement, downgrade) or
+// when it expires.
 package tsunami
 
 import (
@@ -66,9 +69,11 @@ type Source struct {
 	zones  ZoneResolver
 	logger *slog.Logger
 	now    func() time.Time
-	// done is the newest bulletin stored per key, so a poll fetches only
-	// messages it has not handled. Lost on restart: the next poll then
-	// re-reads the last day's messages, and unchanged ones cost no writes.
+	// done is the newest bulletin handled per product, so a poll fetches
+	// only messages it has not handled. Lost on restart, when the next
+	// changed list re-reads the last day's messages (their latest bulletin
+	// per product, idempotent). The list's validators only advance once
+	// every message in it was handled, so a 304 never hides a failed one.
 	done map[string]int
 }
 
@@ -106,11 +111,14 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 		if err != nil {
 			return ingest.Result{}, err
 		}
-		n, err := s.handle(ctx, Latest(entries, now.Add(-window)))
+		n, failed, err := s.handle(ctx, Latest(entries, now.Add(-window)), now)
 		if err != nil {
 			return ingest.Result{}, err
 		}
 		changed += n
+		if failed > 0 {
+			resp.Validators = v // retry the failed messages next poll
+		}
 	}
 	expired, err := s.store.ResolveExpired(ctx, ID, now)
 	if err != nil {
@@ -123,8 +131,7 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 // handle reads each message not handled yet, oldest first, and stores
 // what it means. A message that fails to fetch or parse is logged and
 // retried next poll; the others still go through.
-func (s *Source) handle(ctx context.Context, entries []Entry) (int, error) {
-	changed, failed := 0, 0
+func (s *Source) handle(ctx context.Context, entries []Entry, now time.Time) (changed, failed int, err error) {
 	for _, e := range entries {
 		if s.done[e.Key()] >= e.Bulletin {
 			continue
@@ -132,24 +139,24 @@ func (s *Source) handle(ctx context.Context, entries []Entry) (int, error) {
 		out, err := s.read(ctx, e)
 		if err != nil {
 			if ctx.Err() != nil {
-				return changed, ctx.Err()
+				return changed, failed, ctx.Err()
 			}
 			failed++
 			s.logger.Warn("tsunami message skipped", "key", e.Key(), "bulletin", e.Bulletin, "error", err)
 			metrics.SourceSkipped.WithLabelValues(ID, "unreadable").Inc()
 			continue
 		}
-		n, err := s.apply(ctx, e, out)
+		n, err := s.apply(ctx, e, out, now)
 		if err != nil {
-			return changed, err // a store error: River retries the poll
+			return changed, failed, err // a store error: River retries the poll
 		}
 		changed += n
 		s.done[e.Key()] = e.Bulletin
 	}
 	if failed > 0 && failed == len(entries) {
-		return changed, errors.New("tsunami: no message could be read")
+		return changed, failed, errors.New("tsunami: no message could be read")
 	}
-	return changed, nil
+	return changed, failed, nil
 }
 
 func (s *Source) read(ctx context.Context, e Entry) (Outcome, error) {
@@ -172,18 +179,43 @@ func (s *Source) read(ctx context.Context, e Entry) (Outcome, error) {
 	return Threat(e, &a, string(text.Body))
 }
 
-func (s *Source) apply(ctx context.Context, e Entry, out Outcome) (int, error) {
-	switch {
-	case out.End:
-		return s.store.Resolve(ctx, ID, []string{e.Key()}, out.At)
-	case out.Event == nil:
+// apply stores a message's snapshot: its events, drawn, are upserted and
+// the product's other events resolved. An event already past its expiry
+// (a stale latest bulletin read after a restart) counts as ended, so it
+// is never stored as active again.
+func (s *Source) apply(ctx context.Context, e Entry, out Outcome, now time.Time) (int, error) {
+	if out.Ignore {
 		return 0, nil
 	}
-	ev := out.Event
-	if len(out.Zones) > 0 {
-		s.draw(ctx, ev, out.Zones)
+	keep := map[string]bool{}
+	var events []domain.Event
+	for i := range out.Events {
+		d := &out.Events[i]
+		ev := d.Event
+		if exp, ok := ev.Attrs["expiresAt"].(time.Time); ok && !exp.After(now) {
+			continue
+		}
+		if len(d.Zones) > 0 {
+			s.draw(ctx, &ev, d.Zones)
+		}
+		keep[ev.SourceEventID] = true
+		events = append(events, ev)
 	}
-	return s.store.Upsert(ctx, ID, []domain.Event{*ev})
+	var gone []string
+	for _, k := range ProductKeys(e) {
+		if !keep[k] {
+			gone = append(gone, k)
+		}
+	}
+	ended, err := s.store.Resolve(ctx, ID, gone, out.At)
+	if err != nil {
+		return 0, err
+	}
+	if len(events) == 0 {
+		return ended, nil
+	}
+	n, err := s.store.Upsert(ctx, ID, events)
+	return n + ended, err
 }
 
 // draw replaces the epicenter with the zones a US product names. Zones we
@@ -205,9 +237,6 @@ func (s *Source) draw(ctx context.Context, ev *domain.Event, zones []string) {
 	}
 	ev.Geometry = geom
 	ev.Attrs["geometry"] = "zones"
-	// Zone borders follow the coast more finely than Natural Earth's
-	// countries: a share rule keeps slivers from tagging neighbors.
-	ev.CountryRule = domain.CountryRule{MinShare: 0.05}
 }
 
 func missingZones(asked, found []string) []string {
