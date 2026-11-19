@@ -1,14 +1,14 @@
 -- name: ListSources :many
 SELECT id, name, url, license, attribution, poll_interval_seconds, enabled,
-       last_success_at, last_error, last_error_at, scope, terms_url, cadence
+       last_success_at, last_error, last_error_at, scope, terms_url, cadence, on_demand
 FROM sources
 ORDER BY id;
 
 -- name: UpsertSource :exec
 INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled, official_warnings, hazards,
-                     scope, terms_url, cadence)
+                     scope, terms_url, cadence, on_demand)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-        sqlc.narg(scope), sqlc.narg(terms_url), sqlc.narg(cadence))
+        sqlc.narg(scope), sqlc.narg(terms_url), sqlc.narg(cadence), sqlc.arg(on_demand))
 ON CONFLICT (id) DO UPDATE SET
     name                  = EXCLUDED.name,
     url                   = EXCLUDED.url,
@@ -21,6 +21,7 @@ ON CONFLICT (id) DO UPDATE SET
     scope                 = EXCLUDED.scope,
     terms_url             = EXCLUDED.terms_url,
     cadence               = EXCLUDED.cadence,
+    on_demand             = EXCLUDED.on_demand,
     updated_at            = now();
 
 -- name: ClearSourceCoverage :exec

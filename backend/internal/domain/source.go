@@ -26,6 +26,10 @@ type SourceInfo struct {
 	// TermsURL is the source's license or terms page; empty when it could
 	// not be verified.
 	TermsURL string
+	// OnDemand marks a source the API fetches while someone watches
+	// (adsb.lol, ADR 28) instead of one the worker polls. It is never
+	// stale: an unwatched layer is not a failing one.
+	OnDemand bool
 	// Cadence is how often the source itself publishes ("monthly
 	// release"), as opposed to how often Shield polls it.
 	Cadence string
@@ -59,7 +63,7 @@ const staleAfter = 3
 // Stale reports whether an enabled source has gone more than three poll
 // intervals without a success.
 func (s SourceStatus) Stale(now time.Time) bool {
-	if !s.Enabled {
+	if !s.Enabled || s.OnDemand {
 		return false
 	}
 	return s.LastSuccessAt == nil || now.Sub(*s.LastSuccessAt) > staleAfter*s.PollInterval

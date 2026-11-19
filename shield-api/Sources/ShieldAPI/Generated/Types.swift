@@ -393,11 +393,16 @@ public enum Components {
             ///
             /// - Remark: Generated from `#/components/schemas/Source/cadence`.
             public var cadence: Swift.String?
+            /// True for a source Shield fetches only while someone views its layer (live flights), not on a schedule: pollIntervalSeconds is then the fastest refresh, and the source is never stale.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Source/onDemand`.
+            public var onDemand: Swift.Bool?
             /// - Remark: Generated from `#/components/schemas/Source/lastSuccessAt`.
             public var lastSuccessAt: Foundation.Date?
             /// - Remark: Generated from `#/components/schemas/Source/lastErrorAt`.
             public var lastErrorAt: Foundation.Date?
-            /// True when the last success is older than three poll intervals.
+            /// True when the last success is older than three poll intervals. Always false for an on-demand source.
             ///
             /// - Remark: Generated from `#/components/schemas/Source/stale`.
             public var stale: Swift.Bool?
@@ -414,9 +419,10 @@ public enum Components {
             ///   - coverage: One line on what the source covers, for the Sources screen ("Earthquakes of magnitude 2.5 and above, worldwide"). Free text; unrelated to a country summary's coverage object.
             ///   - termsUrl: The source's licence or terms page. Absent when not verified.
             ///   - cadence: How often the source itself publishes ("monthly release"), as opposed to pollIntervalSeconds, how often Shield checks it.
+            ///   - onDemand: True for a source Shield fetches only while someone views its layer (live flights), not on a schedule: pollIntervalSeconds is then the fastest refresh, and the source is never stale.
             ///   - lastSuccessAt:
             ///   - lastErrorAt:
-            ///   - stale: True when the last success is older than three poll intervals.
+            ///   - stale: True when the last success is older than three poll intervals. Always false for an on-demand source.
             public init(
                 id: Swift.String,
                 name: Swift.String,
@@ -428,6 +434,7 @@ public enum Components {
                 coverage: Swift.String? = nil,
                 termsUrl: Swift.String? = nil,
                 cadence: Swift.String? = nil,
+                onDemand: Swift.Bool? = nil,
                 lastSuccessAt: Foundation.Date? = nil,
                 lastErrorAt: Foundation.Date? = nil,
                 stale: Swift.Bool? = nil
@@ -442,6 +449,7 @@ public enum Components {
                 self.coverage = coverage
                 self.termsUrl = termsUrl
                 self.cadence = cadence
+                self.onDemand = onDemand
                 self.lastSuccessAt = lastSuccessAt
                 self.lastErrorAt = lastErrorAt
                 self.stale = stale
@@ -457,6 +465,7 @@ public enum Components {
                 case coverage
                 case termsUrl
                 case cadence
+                case onDemand
                 case lastSuccessAt
                 case lastErrorAt
                 case stale

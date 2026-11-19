@@ -4,8 +4,11 @@ import (
 	"log/slog"
 	"net/url"
 	"testing"
+	"time"
 
 	"shield/internal/config"
+	"shield/internal/domain"
+	"shield/internal/sources/adsblol"
 	"shield/internal/store"
 )
 
@@ -15,8 +18,11 @@ import (
 func TestSourcesDescribeThemselves(t *testing.T) {
 	c := &container{cfg: config.Base{}, logger: slog.New(slog.DiscardHandler), repos: store.New(nil)}
 	seen := map[string]bool{}
+	infos := []domain.SourceInfo{adsblol.Info(time.Minute)} // registered by the API
 	for _, s := range c.sources() {
-		info := s.Info()
+		infos = append(infos, s.Info())
+	}
+	for _, info := range infos {
 		if seen[info.ID] {
 			t.Errorf("source %s registered twice", info.ID)
 		}

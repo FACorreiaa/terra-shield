@@ -436,11 +436,17 @@ components:
             How often the source itself publishes ("monthly release"), as
             opposed to pollIntervalSeconds, how often Shield checks it.
           examples: [monthly release]
+        onDemand:
+          type: boolean
+          description: >
+            True for a source Shield fetches only while someone views its
+            layer (live flights), not on a schedule: pollIntervalSeconds is
+            then the fastest refresh, and the source is never stale.
         lastSuccessAt: { type: string, format: date-time }
         lastErrorAt: { type: string, format: date-time }
         stale:
           type: boolean
-          description: True when the last success is older than three poll intervals.
+          description: True when the last success is older than three poll intervals. Always false for an on-demand source.
     OpenEventType:
       description: >
         An EventType, or a type added after this client was built: treat

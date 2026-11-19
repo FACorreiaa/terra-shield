@@ -16,7 +16,7 @@ func TestSourceLifecycle(t *testing.T) {
 	info := domain.SourceInfo{
 		ID: "s", Name: "S", URL: "https://example.org", License: "PD",
 		Attribution: "S", PollInterval: time.Minute, Enabled: true,
-		Scope: "Quakes", TermsURL: "https://example.org/terms", Cadence: "hourly",
+		Scope: "Quakes", TermsURL: "https://example.org/terms", Cadence: "hourly", OnDemand: true,
 	}
 	if err := repo.Register(ctx, info); err != nil {
 		t.Fatal(err)
@@ -62,7 +62,7 @@ func TestSourceLifecycle(t *testing.T) {
 	got := list[0]
 	if got.Name != "Renamed" || got.PollInterval != time.Minute || got.LastError != "HTTP 502" ||
 		got.LastSuccessAt == nil || !got.LastSuccessAt.Equal(at) ||
-		got.Scope != "Quakes" || got.Cadence != "hourly" || got.TermsURL != "" {
+		got.Scope != "Quakes" || got.Cadence != "hourly" || got.TermsURL != "" || !got.OnDemand {
 		t.Fatalf("status %+v", got)
 	}
 }

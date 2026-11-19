@@ -83,3 +83,16 @@ func TestListHandler(t *testing.T) {
 		t.Fatalf("no database → %d", rec.Code)
 	}
 }
+
+// An on-demand source (adsb.lol) is fetched only while someone watches,
+// so a quiet layer is never reported stale.
+func TestOnDemandNeverStale(t *testing.T) {
+	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	s := domain.SourceStatus{SourceInfo: domain.SourceInfo{Enabled: true, OnDemand: true, PollInterval: time.Minute}}
+	if s.Stale(now) {
+		t.Fatal("never fetched, on demand: not stale")
+	}
+	if w := FromStatus(&s, now); !w.OnDemand || w.Stale {
+		t.Fatalf("wire %+v", w)
+	}
+}

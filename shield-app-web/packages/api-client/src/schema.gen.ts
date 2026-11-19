@@ -270,11 +270,13 @@ export interface components {
              * @example monthly release
              */
             cadence?: string;
+            /** @description True for a source Shield fetches only while someone views its layer (live flights), not on a schedule: pollIntervalSeconds is then the fastest refresh, and the source is never stale. */
+            onDemand?: boolean;
             /** Format: date-time */
             lastSuccessAt?: string;
             /** Format: date-time */
             lastErrorAt?: string;
-            /** @description True when the last success is older than three poll intervals. */
+            /** @description True when the last success is older than three poll intervals. Always false for an on-demand source. */
             stale?: boolean;
         };
         /** @description An EventType, or a type added after this client was built: treat unknown values as "other". New types are added without a new API version (ADR 18). */

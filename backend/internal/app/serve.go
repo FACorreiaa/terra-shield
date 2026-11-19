@@ -32,7 +32,11 @@ func serve(ctx context.Context, cfg config.Base, logger *slog.Logger) error {
 	// cache (the worker never polls it). Its own client, so the 1 s gap
 	// the hazard feeds share does not slow a viewport's cells.
 	flightsHTTP := fetch.New(fetch.Options{UserAgent: c.userAgent(), Timeout: 8 * time.Second, MaxBody: 8 << 20, HostGap: 200 * time.Millisecond})
-	flights := aircraft.New(adsblol.New(flightsHTTP, cfg.AircraftFeedURL), aircraft.Options{Logger: logger})
+	flightOpts := aircraft.Options{Logger: logger, Health: c.repos.Sources, SourceID: adsblol.ID}
+	flights := aircraft.New(adsblol.New(flightsHTTP, cfg.AircraftFeedURL), flightOpts)
+	if err := c.repos.Sources.Register(ctx, adsblol.Info(flights.TTL())); err != nil {
+		return fmt.Errorf("register flights source: %w", err)
+	}
 
 	health := server.NewHealth()
 	server.AddDatabaseCheck(health, c.pool, logger)

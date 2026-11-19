@@ -45,6 +45,7 @@ func (r *SourceRepository) Register(ctx context.Context, info domain.SourceInfo)
 		Scope:               nonEmpty(info.Scope),
 		TermsUrl:            nonEmpty(info.TermsURL),
 		Cadence:             nonEmpty(info.Cadence),
+		OnDemand:            info.OnDemand,
 	})
 	if err != nil {
 		return fmt.Errorf("register source %s: %w", info.ID, err)
@@ -122,6 +123,7 @@ func (r *SourceRepository) List(ctx context.Context) ([]domain.SourceStatus, err
 				Scope:        deref(row.Scope),
 				TermsURL:     deref(row.TermsUrl),
 				Cadence:      deref(row.Cadence),
+				OnDemand:     row.OnDemand,
 			},
 			LastSuccessAt: row.LastSuccessAt,
 			LastErrorAt:   row.LastErrorAt,

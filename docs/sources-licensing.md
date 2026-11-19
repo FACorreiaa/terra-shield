@@ -5,7 +5,7 @@ Checked 2026-11-16 against each source's live endpoint. Shown in-app on the Sour
 cadence come from each adapter's `Info()`. A terms page is listed only once verified live: GDACS
 (`termofuse.aspx`), NASA EONET and FIRMS (Earthdata's data use guidance), NOAA (`weather.gov/disclaimer`) and UCDP
 (the download page) were checked on 2026-11-19. USGS's policy page refuses scripted requests and MeteoAlarm's terms
-document has not been located, so neither has a `termsUrl` yet.
+document has not been located, so neither has a `termsUrl` yet. adsb.lol (live flights) is listed too, registered by the API rather than the worker, with `onDemand: true`: it is fetched only while someone views the layer.
 
 | Source | Feed used | License | Attribution | Publishes | Shield polls | Conditional GET |
 |---|---|---|---|---|---|---|

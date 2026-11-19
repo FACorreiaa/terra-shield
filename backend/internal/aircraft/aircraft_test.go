@@ -264,3 +264,39 @@ func TestSteadyState(t *testing.T) {
 		}
 	}
 }
+
+type fakeHealth struct {
+	mu       sync.Mutex
+	ok, errs []string
+}
+
+func (h *fakeHealth) RecordSuccess(_ context.Context, id string, _ time.Time, _ domain.Validators) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.ok = append(h.ok, id)
+	return nil
+}
+
+func (h *fakeHealth) RecordError(_ context.Context, id string, _ time.Time, msg string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.errs = append(h.errs, id+": "+msg)
+	return nil
+}
+
+func TestRecordsFeedHealth(t *testing.T) {
+	h := &fakeHealth{}
+	s, f, c := setup(Options{Health: h, SourceID: "adsblol"}, plane("a", -9.1, 38.7, t0))
+	one := domain.BBox{MinLon: -9.3, MinLat: 38.6, MaxLon: -9.0, MaxLat: 38.8}
+	if _, err := s.InBox(context.Background(), one); err != nil {
+		t.Fatal(err)
+	}
+	f.fail(errors.New("HTTP 502"))
+	c.add(2 * time.Minute)
+	if _, err := s.InBox(context.Background(), one); err != nil {
+		t.Fatal(err)
+	}
+	if len(h.ok) != 1 || h.ok[0] != "adsblol" || len(h.errs) != 1 || h.errs[0] != "adsblol: HTTP 502" {
+		t.Fatalf("ok %v errs %v", h.ok, h.errs)
+	}
+}
