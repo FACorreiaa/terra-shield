@@ -85,6 +85,9 @@ func (*Source) Info() domain.SourceInfo {
 		PollInterval: PollInterval,
 		Enabled:      true,
 		NonHazard:    true,
+		Scope:        "Armed-conflict events with deaths, worldwide; research estimates 1 to 2 months old",
+		TermsURL:     "https://ucdp.uu.se/downloads/",
+		Cadence:      "monthly release",
 	}
 }
 

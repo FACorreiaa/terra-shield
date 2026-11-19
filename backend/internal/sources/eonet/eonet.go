@@ -64,6 +64,9 @@ func (*Source) Info() domain.SourceInfo {
 		URL:          "https://eonet.gsfc.nasa.gov/",
 		License:      "Public domain (NASA)",
 		Attribution:  "NASA Earth Observatory Natural Event Tracker (EONET)",
+		Scope:        "Natural events worldwide, curated by NASA from other agencies",
+		TermsURL:     "https://www.earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance",
+		Cadence:      "minutes to days, per upstream agency",
 		PollInterval: PollInterval,
 		Enabled:      true,
 	}

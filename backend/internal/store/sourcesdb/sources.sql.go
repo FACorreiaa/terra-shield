@@ -72,7 +72,7 @@ func (q *Queries) GetSourceValidators(ctx context.Context, id string) (GetSource
 
 const listSources = `-- name: ListSources :many
 SELECT id, name, url, license, attribution, poll_interval_seconds, enabled,
-       last_success_at, last_error, last_error_at
+       last_success_at, last_error, last_error_at, scope, terms_url, cadence
 FROM sources
 ORDER BY id
 `
@@ -88,6 +88,9 @@ type ListSourcesRow struct {
 	LastSuccessAt       *time.Time
 	LastError           *string
 	LastErrorAt         *time.Time
+	Scope               *string
+	TermsUrl            *string
+	Cadence             *string
 }
 
 func (q *Queries) ListSources(ctx context.Context) ([]ListSourcesRow, error) {
@@ -110,6 +113,9 @@ func (q *Queries) ListSources(ctx context.Context) ([]ListSourcesRow, error) {
 			&i.LastSuccessAt,
 			&i.LastError,
 			&i.LastErrorAt,
+			&i.Scope,
+			&i.TermsUrl,
+			&i.Cadence,
 		); err != nil {
 			return nil, err
 		}
@@ -167,8 +173,10 @@ func (q *Queries) RecordSourceSuccess(ctx context.Context, arg RecordSourceSucce
 }
 
 const upsertSource = `-- name: UpsertSource :exec
-INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled, official_warnings, hazards)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled, official_warnings, hazards,
+                     scope, terms_url, cadence)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+        $10, $11, $12)
 ON CONFLICT (id) DO UPDATE SET
     name                  = EXCLUDED.name,
     url                   = EXCLUDED.url,
@@ -178,6 +186,9 @@ ON CONFLICT (id) DO UPDATE SET
     enabled               = EXCLUDED.enabled,
     official_warnings     = EXCLUDED.official_warnings,
     hazards               = EXCLUDED.hazards,
+    scope                 = EXCLUDED.scope,
+    terms_url             = EXCLUDED.terms_url,
+    cadence               = EXCLUDED.cadence,
     updated_at            = now()
 `
 
@@ -191,6 +202,9 @@ type UpsertSourceParams struct {
 	Enabled             bool
 	OfficialWarnings    bool
 	Hazards             bool
+	Scope               *string
+	TermsUrl            *string
+	Cadence             *string
 }
 
 func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) error {
@@ -204,6 +218,9 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) erro
 		arg.Enabled,
 		arg.OfficialWarnings,
 		arg.Hazards,
+		arg.Scope,
+		arg.TermsUrl,
+		arg.Cadence,
 	)
 	return err
 }

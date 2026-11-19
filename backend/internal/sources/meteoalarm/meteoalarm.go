@@ -172,6 +172,8 @@ func (s *Source) Info() domain.SourceInfo {
 		URL:              "https://meteoalarm.org/",
 		License:          "CC BY 4.0",
 		Attribution:      "MeteoAlarm (EUMETNET) and the national meteorological services",
+		Scope:            fmt.Sprintf("Official weather warnings, %d European countries", len(coverage)),
+		Cadence:          "as each national weather service issues them",
 		PollInterval:     PollInterval,
 		Enabled:          true,
 	}

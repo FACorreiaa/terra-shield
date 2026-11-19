@@ -79,6 +79,9 @@ func (*Source) Info() domain.SourceInfo {
 		URL:          "https://www.gdacs.org/",
 		License:      "CC BY 4.0 (European Union)",
 		Attribution:  "GDACS, a cooperation framework of the United Nations and the European Commission",
+		Scope:        "Disaster alerts worldwide: earthquakes, tropical cyclones, floods, volcanoes, wildfires, droughts",
+		TermsURL:     "https://www.gdacs.org/About/termofuse.aspx",
+		Cadence:      "every few minutes",
 		PollInterval: PollInterval,
 		Enabled:      true,
 	}
