@@ -24,6 +24,7 @@ struct MapScreen: View {
     /// The map layer's trailing safe-area inset. iPadOS gives the inspector as one, and the map,
     /// which ignores the safe area, runs on underneath it; framing has to leave that part out.
     @State private var mapTrailingInset: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionForToast
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var peekHeight = MapScreen.defaultPeekHeight
@@ -61,6 +62,21 @@ struct MapScreen: View {
                 if active, search.countries.isEmpty { Task { await loadCountries() } }
             }
             #if DEBUG
+            // Automation: `SHIELD_FAKE_ARRIVAL=1` sends a copy of an event in view, made severe
+            // and new, through the stream path once it is live (the toast and the arrive fade).
+            .task {
+                guard ProcessInfo.processInfo.environment["SHIELD_FAKE_ARRIVAL"] == "1" else { return }
+                // Once live, plus time for Show on map to settle when combined with it.
+                for _ in 0..<120 where !model.isLive { try? await Task.sleep(for: .milliseconds(250)) }
+                try? await Task.sleep(for: .seconds(4))
+                guard var copy = model.snapshot?.events.first else { return }
+                copy.id = UUID()
+                copy.severity = .severe
+                // Beside the original, so the two don't merge into one cluster.
+                copy.centroid = Coordinate(latitude: copy.centroid.latitude - 0.6,
+                                           longitude: copy.centroid.longitude + 0.6)
+                model.simulate(.created(copy))
+            }
             // Automation: `SHIELD_DETAIL_ACTION=map|country` runs the detail's Show on map, or its
             // first country link, once the selected event's detail loads (no simulator taps).
             .task {
@@ -434,6 +450,14 @@ struct MapScreen: View {
                         refresh: { model.reload() }
                     )
                 }
+                if let toast = model.toast {
+                    NewEventToast(toast: toast, open: {
+                        model.selectedEventID = toast.event.id
+                        model.dismissToast()
+                    }, dismiss: model.dismissToast)
+                    .id(toast.id)
+                    .transition(reduceMotionForToast ? .opacity : .move(edge: .top).combined(with: .opacity))
+                }
                 if case .failed(.unreachable(let reason)) = model.phase {
                     ErrorBanner(message: reason, retry: model.reload)
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -459,6 +483,14 @@ struct MapScreen: View {
             .animation(ShieldMotion.standard, value: model.phase)
             .animation(ShieldMotion.spring, value: model.selectedEventID)
             .animation(ShieldMotion.standard, value: model.showsDetections)
+            .animation(ShieldMotion.standard, value: model.toast)
+        }
+        // A toast is read out once and leaves after 6 s; a newer one restarts the clock.
+        .task(id: model.toast?.id) {
+            guard let toast = model.toast else { return }
+            AccessibilityNotification.Announcement(toast.text).post()
+            do { try await Task.sleep(for: .seconds(6)) } catch { return }
+            if model.toast?.id == toast.id { model.dismissToast() }
         }
     }
 

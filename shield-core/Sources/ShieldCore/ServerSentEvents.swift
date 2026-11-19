@@ -133,9 +133,12 @@ public struct SSEStreamDecoder: Sendable {
 
 /// A change from `GET /v1/stream` (ADR 16), already decoded.
 public enum LiveChange: Sendable, Hashable {
-    /// `event.created`, `event.updated` or `event.resolved`: the event in its latest state.
-    /// Created and updated are alike because the server coalesces changes after a reconnect.
+    /// `event.updated` or `event.resolved`: the event in its latest state.
     case upsert(HazardEvent)
+    /// `event.created`: applied like an upsert (the server coalesces changes after a reconnect,
+    /// so a created event may come again as updated). Once the stream is live it is also news:
+    /// the map fades it in, and a severe one in view is toasted (DESIGN.md §10.1).
+    case created(HazardEvent)
     /// `event.removed`: the source retracted it.
     case removed(UUID)
     /// The cursor is too far behind (or unknown): reload `/v1/events`.

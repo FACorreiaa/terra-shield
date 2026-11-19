@@ -103,6 +103,15 @@ private func collect(_ p: APIEventProvider, after cursor: String?) async throws 
         #expect(e.source == "gdacs")
     }
 
+    @Test func aCreatedEventIsTold() {
+        // Only `event.created` is news (the map fades it in); updates and resolutions are not.
+        let created = APIEventProvider.liveChange(SSEMessage(id: "1003", event: "event.created", data: wireWildfire))
+        guard case .created(let e)? = created else { Issue.record("not created: \(String(describing: created))"); return }
+        #expect(e.title == "Wildfire in Sudan")
+        let resolved = APIEventProvider.liveChange(SSEMessage(id: "1004", event: "event.resolved", data: wireWildfire))
+        guard case .upsert? = resolved else { Issue.record("not an upsert: \(String(describing: resolved))"); return }
+    }
+
     @Test func aFirstConnectionSendsNoCursor() async throws {
         let t = CannedStream(body: "id: 1\nevent: ready\ndata: {}\n\n")
         _ = try await collect(provider(t), after: nil)
