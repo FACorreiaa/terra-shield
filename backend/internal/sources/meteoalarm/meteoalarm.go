@@ -29,6 +29,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"shield/internal/domain"
 	"shield/internal/fetch"
@@ -183,8 +185,8 @@ func (s *Source) Info() domain.SourceInfo {
 //
 // Each feed is a full snapshot (expired warnings included), so an active
 // warning a country's feed no longer lists has been withdrawn or replaced:
-// it is removed too. On 2026-11-19, 43 Croatian warnings left the feed
-// that way with nothing referencing them.
+// it is removed too, as a safety net under References, which members do
+// not always send (a warning withdrawn without an Update or Cancel).
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	now := s.now()
 	var (
@@ -674,6 +676,26 @@ var levelColors = map[int]string{2: "Yellow", 3: "Orange", 4: "Red"}
 // "Yellow wind warning". The first area follows unless the name has one.
 // headlineUsed reports whether the headline became the name; when it did
 // not, the caller keeps it in the summary.
+// containsWord reports whether word occurs in s as a whole word, so the
+// French department "Ain" is not found in "rain-flood".
+func containsWord(s, word string) bool {
+	for i := 0; ; {
+		j := strings.Index(s[i:], word)
+		if j < 0 {
+			return false
+		}
+		start, end := i+j, i+j+len(word)
+		before, _ := utf8.DecodeLastRuneInString(s[:start])
+		after, _ := utf8.DecodeRuneInString(s[end:])
+		if (start == 0 || !isWordRune(before)) && (end == len(s) || !isWordRune(after)) {
+			return true
+		}
+		i = start + 1
+	}
+}
+
+func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
+
 func warningTitle(headline, event string, level, awarenessType int, areas []string) (title string, headlineUsed bool) {
 	headline, event = strings.TrimSpace(headline), strings.TrimSpace(event)
 	var name string
@@ -698,7 +720,7 @@ func warningTitle(headline, event string, level, awarenessType int, areas []stri
 		if a == "" {
 			continue
 		}
-		if strings.Contains(lower, strings.ToLower(a)) {
+		if containsWord(lower, strings.ToLower(a)) {
 			return name, headlineUsed // the name already says where
 		}
 		if place == "" {

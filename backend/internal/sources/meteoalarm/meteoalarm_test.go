@@ -309,6 +309,10 @@ func TestWarningTitle(t *testing.T) {
 		want                  string
 		used                  bool
 	}{
+		{
+			name: "area inside a word is not a match", headline: "Moderate rain-flood warning", level: 2, typ: 12,
+			areas: []string{"Calvados", "Ain"}, want: "Moderate rain-flood warning · Calvados +1", used: true,
+		},
 		{"short headline, place added", "Strong rainfall", "Strong rainfall", 2, 10, []string{"Genève"}, "Strong rainfall · Genève", true},
 		{
 			"place already named", "Yellow Strong wind warning for Poland - Opolskie Province Nyski County", "Yellow Wind warning", 2, 1,
