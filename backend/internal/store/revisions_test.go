@@ -161,3 +161,27 @@ func TestResolve(t *testing.T) {
 		t.Fatalf("change_seq %d → %d op %s: the stream must see the resolve", seqBefore, seqAfter, op)
 	}
 }
+
+func TestResolveExpired(t *testing.T) {
+	pool := testutil.DB(t)
+	seedWorld(t, pool)
+	repo := store.NewEventRepository(pool)
+	ctx := context.Background()
+	t0 := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	past, future, none := quake("past", -8, 39, 5, t0), quake("future", -8, 39, 5, t0), quake("none", -8, 39, 5, t0)
+	past.Attrs = map[string]any{"expiresAt": t0.Add(time.Hour)}
+	future.Attrs = map[string]any{"expiresAt": t0.Add(3 * time.Hour)}
+	if _, err := repo.Upsert(ctx, "test", []domain.Event{past, future, none}); err != nil {
+		t.Fatal(err)
+	}
+	n, err := repo.ResolveExpired(ctx, "test", t0.Add(2*time.Hour))
+	if err != nil || n != 1 {
+		t.Fatalf("resolved %d err %v, want only the one past its expiry", n, err)
+	}
+	for id, want := range map[string]domain.Status{"past": domain.StatusResolved, "future": domain.StatusActive, "none": domain.StatusActive} {
+		d, err := repo.Detail(ctx, eventID(t, repo, id))
+		if err != nil || d.Status != want {
+			t.Errorf("%s: %s err %v, want %s", id, d.Status, err, want)
+		}
+	}
+}

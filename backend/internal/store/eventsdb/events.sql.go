@@ -203,6 +203,38 @@ func (q *Queries) EventSnapshot(ctx context.Context, arg EventSnapshotParams) (E
 	return i, err
 }
 
+const expiredActiveEventIDs = `-- name: ExpiredActiveEventIDs :many
+SELECT source_event_id FROM events
+WHERE source_id = $1 AND status = 'active'
+  AND attrs ? 'expiresAt' AND (attrs ->> 'expiresAt')::timestamptz < $2::timestamptz
+`
+
+type ExpiredActiveEventIDsParams struct {
+	SourceID string
+	Now      time.Time
+}
+
+// A source's active events whose attrs.expiresAt (RFC 3339) has passed.
+func (q *Queries) ExpiredActiveEventIDs(ctx context.Context, arg ExpiredActiveEventIDsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, expiredActiveEventIDs, arg.SourceID, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var source_event_id string
+		if err := rows.Scan(&source_event_id); err != nil {
+			return nil, err
+		}
+		items = append(items, source_event_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertEventRevision = `-- name: InsertEventRevision :exec
 INSERT INTO event_revisions (event_id, changes) VALUES ($1, $2)
 `

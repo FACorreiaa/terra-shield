@@ -111,6 +111,12 @@ SELECT @event_id::uuid AS event_id, iso2, 'nearby' AS relation, round((meters / 
 SELECT source_event_id FROM events
 WHERE source_id = @source_id AND status = 'active' AND attrs ->> @attr_key::text = @attr_value::text;
 
+-- name: ExpiredActiveEventIDs :many
+-- A source's active events whose attrs.expiresAt (RFC 3339) has passed.
+SELECT source_event_id FROM events
+WHERE source_id = @source_id AND status = 'active'
+  AND attrs ? 'expiresAt' AND (attrs ->> 'expiresAt')::timestamptz < @now::timestamptz;
+
 -- name: ResolveEvent :execrows
 -- Ends one active event its source no longer lists (owner, 2026-11-19).
 -- updated_at stays the source's own (ADR 8); ended_at records when Shield

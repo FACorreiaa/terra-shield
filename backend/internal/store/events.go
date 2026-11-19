@@ -183,6 +183,17 @@ func (r *EventRepository) Resolve(ctx context.Context, sourceID string, sourceEv
 	return changed, nil
 }
 
+// ResolveExpired resolves a source's active events whose attrs.expiresAt
+// has passed, at now: the expiry sweep for warnings whose feed stopped
+// listing them, or failed, before they ended.
+func (r *EventRepository) ResolveExpired(ctx context.Context, sourceID string, now time.Time) (int, error) {
+	ids, err := eventsdb.New(r.pool).ExpiredActiveEventIDs(ctx, eventsdb.ExpiredActiveEventIDsParams{SourceID: sourceID, Now: now})
+	if err != nil {
+		return 0, fmt.Errorf("expired events: %w", err)
+	}
+	return r.Resolve(ctx, sourceID, ids, now)
+}
+
 // Delete removes events a source has retracted (a USGS "deleted" event is a
 // false detection, not a resolved one). Each leaves a tombstone so stream
 // clients drop it too.
