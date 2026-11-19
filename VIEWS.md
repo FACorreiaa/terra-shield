@@ -207,6 +207,9 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        source polled minutes before.
      - Gone sends Open official source to the source's home page, not the event's dead page.
 6. **S3.6 Live.** `NewEventToast`, the arrive animation, and stale handling driven by SSE + sources.
+   *Built (2026-11-19):* the toast sits under the map's top row (capsule, chips, controls), one
+   line, severity-tinted edge; the arrival fade is Core Animation on the marker view, so it works
+   the same on the Mac.
 7. **S3.7 Sources.** `SourceRow`, `DisclaimerBanner`, onboarding, and `EmptyState` with the mascot.
 8. **S3.8 macOS.** `NavigationSplitView` shell, inspector, keyboard shortcuts (DESIGN §10).
 9. **Phase 2 Web.** The same catalog in Svelte, plus the MapLibre style (DESIGN §9).

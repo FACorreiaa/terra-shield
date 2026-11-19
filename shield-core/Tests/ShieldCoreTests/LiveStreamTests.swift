@@ -377,3 +377,90 @@ private final class TestClock: @unchecked Sendable {
         #expect(!m.isLive)
     }
 }
+
+/// DESIGN.md §10.1 "New event": a live arrival fades in, and a severe+ one in view is toasted.
+@MainActor @Suite struct ArrivalTests {
+    let now = Date(timeIntervalSince1970: 3600)
+
+    private func liveModel(_ p: StreamingProvider, box: GeoBox = .world) async -> LiveMapModel {
+        let m = LiveMapModel(provider: p, debounce: .zero, now: { [now] in now })
+        m.viewportDidChange(MapViewport(box: box, zoom: 9))
+        await m.settle()
+        m.apply(.ready)
+        await m.settle()
+        return m
+    }
+
+    private func quake(_ severity: Severity, at c: Coordinate = Coordinate(latitude: 10, longitude: 10)) -> HazardEvent {
+        var e = moved(sample(3), to: c, now: now)
+        e.id = UUID()
+        e.type = .earthquake
+        e.severity = severity
+        e.attrs = ["mag": 6.1, "magType": "mww"]
+        e.countries = [EventCountry(iso2: "CL", relation: .within)]
+        return e
+    }
+
+    @Test func aSevereArrivalInViewIsAnimatedAndToasted() async {
+        let m = await liveModel(StreamingProvider())
+        let e = quake(.severe)
+        m.apply(.created(e))
+        #expect(m.snapshot?.events.contains { $0.id == e.id } == true)
+        #expect(m.arrivals.contains(e.id))
+        #expect(m.toast?.event.id == e.id)
+        #expect(m.toast?.text == "New · Severe earthquake · M6.1 · Chile")
+    }
+
+    @Test func belowSevereIsAnimatedButNotToasted() async {
+        let m = await liveModel(StreamingProvider())
+        let e = quake(.moderate)
+        m.apply(.created(e))
+        #expect(m.arrivals.contains(e.id))
+        #expect(m.toast == nil)
+    }
+
+    @Test func outOfViewIsNeither() async {
+        let m = await liveModel(StreamingProvider(), box: GeoBox(minLongitude: 0, minLatitude: 0, maxLongitude: 20, maxLatitude: 20))
+        let e = quake(.extreme, at: Coordinate(latitude: -33, longitude: 151))
+        m.apply(.created(e))
+        #expect(m.arrivals.isEmpty)
+        #expect(m.toast == nil)
+    }
+
+    @Test func anUpdateIsNotAnArrival() async {
+        let m = await liveModel(StreamingProvider())
+        m.apply(.upsert(quake(.extreme)))
+        #expect(m.arrivals.isEmpty)
+        #expect(m.toast == nil)
+    }
+
+    @Test func theBacklogBeforeReadyIsNotAnnounced() async {
+        // After a reconnect the missed changes replay before `ready`: not news.
+        let m = LiveMapModel(provider: StreamingProvider(), debounce: .zero, now: { [now] in now })
+        m.viewportDidChange(MapViewport(box: .world, zoom: 9))
+        await m.settle()
+        let e = quake(.extreme)
+        m.apply(.created(e))
+        #expect(m.snapshot?.events.contains { $0.id == e.id } == true)
+        #expect(m.arrivals.isEmpty)
+        #expect(m.toast == nil)
+    }
+
+    @Test func theViewConsumesArrivalsAndDismissesTheToast() async {
+        let m = await liveModel(StreamingProvider())
+        let e = quake(.severe)
+        m.apply(.created(e))
+        m.arrived(e.id)
+        #expect(m.arrivals.isEmpty)
+        m.dismissToast()
+        #expect(m.toast == nil)
+    }
+
+    @Test func theLineUsesTheLeadFigureWithoutAMagnitude() {
+        var e = quake(.extreme)
+        e.type = .wildfire
+        e.attrs = ["magnitudeValue": 48484, "magnitudeUnit": "hectares"]
+        e.countries = []
+        #expect(e.arrivalLine == "New · Extreme wildfire · 48,484 ha")
+    }
+}

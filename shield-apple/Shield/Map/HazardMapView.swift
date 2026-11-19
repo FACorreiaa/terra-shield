@@ -271,6 +271,50 @@ struct HazardMapView {
 
         // MARK: MKMapViewDelegate
 
+        /// DESIGN.md §13 `arrive`: a live arrival fades in and scales up from 0.6 (a plain fade
+        /// under Reduce Motion). Only events the model names as arrivals; a reload's markers
+        /// just appear.
+        func mapView(_ mapView: MKMapView, didAdd views: [MKAnnotationView]) {
+            for view in views {
+                guard let a = view.annotation as? EventAnnotation, model.arrivals.contains(a.event.id) else { continue }
+                model.arrived(a.event.id)
+                Self.arrive(view)
+            }
+        }
+
+        private static func arrive(_ view: MKAnnotationView) {
+            #if os(iOS)
+            let reduceMotion = UIAccessibility.isReduceMotionEnabled
+            let layer = view.layer
+            // UIKit layers scale about their centre.
+            let from = CATransform3DMakeScale(0.6, 0.6, 1)
+            #else
+            let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            view.wantsLayer = true
+            guard let layer = view.layer else { return }
+            // AppKit layers anchor at the corner: scale about the centre explicitly.
+            let mid = CGPoint(x: layer.bounds.midX, y: layer.bounds.midY)
+            let from = CATransform3DConcat(
+                CATransform3DConcat(CATransform3DMakeTranslation(-mid.x, -mid.y, 0), CATransform3DMakeScale(0.6, 0.6, 1)),
+                CATransform3DMakeTranslation(mid.x, mid.y, 0))
+            #endif
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0
+            fade.toValue = 1
+            var animations: [CAAnimation] = [fade]
+            if !reduceMotion {
+                let grow = CABasicAnimation(keyPath: "transform")
+                grow.fromValue = NSValue(caTransform3D: from)
+                grow.toValue = NSValue(caTransform3D: CATransform3DIdentity)
+                animations.append(grow)
+            }
+            let group = CAAnimationGroup()
+            group.animations = animations
+            group.duration = 0.4 // tokens.json motion.arrive
+            group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            layer.add(group, forKey: "arrive")
+        }
+
         func mapView(_ mapView: MKMapView, viewFor annotation: any MKAnnotation) -> MKAnnotationView? {
             switch annotation {
             case let a as EventAnnotation:

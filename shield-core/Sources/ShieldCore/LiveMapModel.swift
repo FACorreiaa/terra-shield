@@ -268,6 +268,9 @@ public final class LiveMapModel {
             reload()
         case .reset:
             reload()
+        case .created(let event):
+            if streamReady { noteArrival(event) }
+            apply(.upsert(event))
         case .upsert(let event):
             // An event chosen outside the map's list keeps up too: it may never be in the snapshot.
             if chosenEvent?.id == event.id { chosenEvent = event }
@@ -299,6 +302,37 @@ public final class LiveMapModel {
                 schedule(after: debounce)
             }
         }
+    }
+
+    // MARK: Arrivals (DESIGN.md §10.1 "New event", §13 `arrive`)
+
+    /// Live arrivals in view the map hasn't animated yet; it calls `arrived(_:)` once it has.
+    public private(set) var arrivals: Set<UUID> = []
+    /// The newest severe or extreme arrival in view, until the view dismisses it.
+    public private(set) var toast: EventToast?
+    @ObservationIgnored private var arrivalTimes: [UUID: Date] = [:]
+
+    public func arrived(_ id: UUID) {
+        arrivals.remove(id)
+        arrivalTimes[id] = nil
+    }
+
+    public func dismissToast() { toast = nil }
+
+    #if DEBUG
+    /// Screenshot automation: a change as if the stream sent it.
+    public func simulate(_ change: LiveChange) { apply(change) }
+    #endif
+
+    private func noteArrival(_ event: HazardEvent) {
+        let t = now()
+        guard viewport.box.contains(event.centroid), query.matches(event, now: t) else { return }
+        // An arrival the map never drew (a reload left it in a cluster) is forgotten after a few
+        // seconds, so the set can't grow.
+        for (id, at) in arrivalTimes where t.timeIntervalSince(at) > 5 { arrived(id) }
+        arrivals.insert(event.id)
+        arrivalTimes[event.id] = t
+        if event.severity >= .severe { toast = EventToast(event: event) }
     }
 
     private func canPatch(_ snapshot: MapSnapshot) -> Bool {

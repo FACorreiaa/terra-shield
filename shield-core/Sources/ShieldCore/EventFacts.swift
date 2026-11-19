@@ -279,3 +279,30 @@ extension HazardEvent {
         return out
     }
 }
+
+// MARK: - Arrival toast
+
+/// One line for a live arrival: "New · Severe earthquake · M6.1 · Chile" (DESIGN.md §10.1).
+public struct EventToast: Sendable, Hashable, Identifiable {
+    public let event: HazardEvent
+    public var text: String { event.arrivalLine }
+    public var id: UUID { event.id }
+
+    public init(event: HazardEvent) { self.event = event }
+}
+
+extension HazardEvent {
+    /// Severity and type, then the magnitude or lead figure, then the first country.
+    public var arrivalLine: String {
+        var parts = ["New", "\(severity.label) \(type.label.lowercased())"]
+        if let m = earthquake?.magnitude {
+            parts.append("M\(String(format: "%.1f", m))")
+        } else if let lead = keyFigures.first(where: \.isLead) {
+            parts.append(lead.value)
+        }
+        if let iso2 = countries.first?.iso2 {
+            parts.append(Locale(identifier: "en").localizedString(forRegionCode: iso2) ?? iso2)
+        }
+        return parts.joined(separator: " · ")
+    }
+}

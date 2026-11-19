@@ -119,8 +119,9 @@ extension APIEventProvider {
         let data = Data(message.data.utf8)
         switch message.event {
         case "event.created", "event.updated", "event.resolved":
-            guard let event = try? decoder.decode(Components.Schemas.Event.self, from: data) else { return nil }
-            return (try? HazardEvent(event)).map(LiveChange.upsert)
+            guard let event = try? decoder.decode(Components.Schemas.Event.self, from: data),
+                  let mapped = try? HazardEvent(event) else { return nil }
+            return message.event == "event.created" ? .created(mapped) : .upsert(mapped)
         case "event.removed":
             struct Removed: Decodable { let id: String }
             guard let removed = try? decoder.decode(Removed.self, from: data),
