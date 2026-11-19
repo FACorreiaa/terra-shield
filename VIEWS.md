@@ -196,7 +196,9 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      snapshot (panned away, joined a server cluster); a merge into a local MapKit cluster is unchecked. DEBUG: `SHIELD_SELECT=<id>`, `SHIELD_GALLERY=detail`.
    - **Not built:** the map snippet (Show on map frames the main map instead), the §12 header
      art, and a public share link (Share sends the source's record until the web app has one).
-   - **Deviations for the owner** (DESIGN §10.3):
+   - Map snippet (`EventMapSnippet`): the area drawn by kind on a still map, tap = Show on map.
+     The type's §12 art sits behind the header at 30%, faded out to transparent.
+   - **Deviations, accepted by the owner 2026-11-19** (DESIGN §10.3):
      - Mac/iPad show it in an `.inspector` (320–380 pt) rather than the old card on the map.
      - A source's retraction keeps the detail open as gone instead of closing it.
      - The timeline says "Area updated", not "Area grew": the API only flags a geometry change.

@@ -21,6 +21,9 @@ struct MapScreen: View {
     /// The sidebar holds the list and its notices; the map repeats them only when it's hidden.
     @State private var columnVisibility = NavigationSplitViewVisibility.automatic
     @FocusState private var sidebarSearchFocused: Bool
+    /// The map layer's trailing safe-area inset. iPadOS gives the inspector as one, and the map,
+    /// which ignores the safe area, runs on underneath it; framing has to leave that part out.
+    @State private var mapTrailingInset: CGFloat = 0
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var peekHeight = MapScreen.defaultPeekHeight
@@ -58,6 +61,23 @@ struct MapScreen: View {
                 if active, search.countries.isEmpty { Task { await loadCountries() } }
             }
             #if DEBUG
+            // Automation: `SHIELD_DETAIL_ACTION=map|country` runs the detail's Show on map, or its
+            // first country link, once the selected event's detail loads (no simulator taps).
+            .task {
+                guard let action = ProcessInfo.processInfo.environment["SHIELD_DETAIL_ACTION"] else { return }
+                for _ in 0..<40 {
+                    if case .loaded = model.selectedDetail { break }
+                    try? await Task.sleep(for: .milliseconds(250))
+                }
+                try? await Task.sleep(for: .seconds(1))
+                guard let event = model.selectedEvent else { return }
+                let detail = eventDetail(event)
+                switch action {
+                case "map": detail.showOnMap?()
+                case "country": if let iso2 = event.countries.first?.iso2 { detail.openCountry?(iso2) }
+                default: break
+                }
+            }
             // Screenshot automation: `SHIELD_COUNTRY=PT` opens Portugal's overview.
             .task {
                 guard let code = ProcessInfo.processInfo.environment["SHIELD_COUNTRY"] else { return }
@@ -153,7 +173,10 @@ struct MapScreen: View {
             }
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 260) // DESIGN.md §10
         } detail: {
-            mapLayer(showsNotices: columnVisibility == .detailOnly)
+            mapLayer(showsNotices: columnVisibility == .detailOnly, trailingCover: inspectorCover)
+                #if os(iOS)
+                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.trailing } action: { mapTrailingInset = $0 }
+                #endif
                 .toolbar(removing: .title)
                 // DESIGN.md §10 (macOS): the selected event in the inspector, beside the map.
                 .inspector(isPresented: inspectorShown) {
@@ -372,9 +395,21 @@ struct MapScreen: View {
 
     // MARK: Map
 
-    private func mapLayer(showsNotices: Bool, bottomCover: CGFloat = 0) -> some View {
+    /// How much of the map's trailing edge the inspector covers: zero beside it, its width over it.
+    /// How much of the map's trailing edge sits under the inspector (iPad); zero on the Mac,
+    /// whose inspector is a column beside the map.
+    private var inspectorCover: CGFloat {
+        #if os(iOS)
+        mapTrailingInset
+        #else
+        0
+        #endif
+    }
+
+    private func mapLayer(showsNotices: Bool, bottomCover: CGFloat = 0, trailingCover: CGFloat = 0) -> some View {
         ZStack {
-            HazardMapView(model: model, fitWorldRequest: fitWorldRequest, focus: focus, bottomCover: bottomCover)
+            HazardMapView(model: model, fitWorldRequest: fitWorldRequest, focus: focus,
+                          bottomCover: bottomCover, trailingCover: trailingCover)
                 .ignoresSafeArea()
 
             VStack(spacing: ShieldSpace.s2) {

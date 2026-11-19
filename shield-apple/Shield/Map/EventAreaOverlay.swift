@@ -44,13 +44,7 @@ enum EventArea {
     static func renderer(for overlay: any MKOverlay, event: HazardEvent, isStale: Bool) -> MKOverlayRenderer {
         let faded = isStale || event.isResolved
         let color = faded ? (PlatformColor(named: "Muted") ?? .gray) : PlatformColor(event.severity.color)
-        let style: (fill: CGFloat, width: CGFloat, dashed: Bool) = switch event.kind {
-        case .observed: (0.18, 1.5, false)
-        case .warning: (0.10, 2, false)
-        case .forecast: (0, 1.5, true)
-        // Detections have no area by design (§5); should one arrive with a shape, outline only.
-        case .detection: (0, 1, false)
-        }
+        let style = Self.style(for: event.kind)
         let renderer: MKOverlayPathRenderer
         switch overlay {
         case let polygons as MKMultiPolygon:
@@ -66,6 +60,18 @@ enum EventArea {
         renderer.lineJoin = .round
         if style.dashed { renderer.lineDashPattern = [6, 4] }
         return renderer
+    }
+
+    /// Fill alpha, stroke width and dash by kind (DESIGN.md §5); the map and the detail's
+    /// snippet share it.
+    static func style(for kind: EventKind) -> (fill: CGFloat, width: CGFloat, dashed: Bool) {
+        switch kind {
+        case .observed: (0.18, 1.5, false)
+        case .warning: (0.10, 2, false)
+        case .forecast: (0, 1.5, true)
+        // Detections have no area by design (§5); should one arrive with a shape, outline only.
+        case .detection: (0, 1, false)
+        }
     }
 
     /// MapKit's x is linear in longitude, so a longitude past ±180° maps just beyond the world's

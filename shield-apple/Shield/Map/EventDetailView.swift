@@ -18,6 +18,8 @@ struct EventDetailView: View {
     var countryName: (String) -> String
     var openCountry: ((String) -> Void)? = nil
     var showOnMap: (() -> Void)? = nil
+    /// The type's background behind the header (DESIGN.md §12); the gallery turns it off.
+    var headerArt = true
     var close: () -> Void
 
     var body: some View {
@@ -37,6 +39,8 @@ struct EventDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             KeyFigures(figures: event.keyFigures)
+            EventMapSnippet(event: event, geometry: loadedGeometry,
+                            isFaded: event.isResolved || isGone || isStale, showOnMap: showOnMap)
             if let showOnMap {
                 Button(action: showOnMap) {
                     Label("Show on map", systemImage: "map")
@@ -59,6 +63,10 @@ struct EventDetailView: View {
             footer
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var loadedGeometry: EventGeometry? {
+        if case .loaded(let detail) = state { detail.geometry } else { nil }
     }
 
     private var isGone: Bool {
@@ -104,6 +112,11 @@ struct EventDetailView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Close")
+        }
+        .background {
+            if headerArt, let art = event.type.headerArt {
+                HeaderArt(name: art, isFaded: event.isResolved || isGone)
+            }
         }
     }
 
@@ -194,6 +207,42 @@ struct EventDetailView: View {
                 .foregroundStyle(Color.accent)
             }
         }
+    }
+}
+
+// MARK: - Header art (DESIGN.md §12)
+
+extension HazardType {
+    /// The detail header's background, for the types §12 gives one; nil keeps the plain panel.
+    var headerArt: String? {
+        switch self {
+        case .storm, .tropicalCyclone, .heavyRain, .flood, .wind: "HeaderPrecipitation"
+        case .wildfire, .heat, .drought, .volcano: "HeaderWildfire"
+        default: nil
+        }
+    }
+}
+
+/// The type's art at 30%, bled past the header's padding and faded out radially (§12's vignette)
+/// to transparent rather than to a colour, so it melts into the sheet or inspector alike.
+/// Decoration only: hidden from VoiceOver, and desaturated with a resolved or gone event.
+private struct HeaderArt: View {
+    let name: String
+    let isFaded: Bool
+
+    var body: some View {
+        Image(name)
+            .resizable()
+            .scaledToFill()
+            .opacity(0.3)
+            .saturation(isFaded ? 0 : 1)
+            .mask {
+                EllipticalGradient(colors: [.black, .clear], center: .center,
+                                   startRadiusFraction: 0.1, endRadiusFraction: 0.5)
+            }
+            .padding(-ShieldSpace.s5)
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
     }
 }
 
