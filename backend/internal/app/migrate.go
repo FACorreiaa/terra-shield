@@ -53,10 +53,10 @@ func migrateCmd(ctx context.Context, cfg config.Base, logger *slog.Logger, o opt
 		}
 	}
 	// NWS zones likewise: without them, a US tsunami warning falls back to
-	// its epicentre until the next migrate loads them.
+	// its epicenter until the next migrate loads them.
 	if v, err := c.repos.WarningAreas.DatasetVersion(ctx, nwszones.Zones.Name); err != nil || v != nwszones.Version(nwszones.Zones) {
 		if err := seedNWSZones(ctx, c.repos.NWSZones, logger, ""); err != nil {
-			logger.Warn("nws zones not seeded; US tsunami warnings draw at the epicentre until they are", "error", err)
+			logger.Warn("nws zones not seeded; US tsunami warnings draw at the epicenter until they are", "error", err)
 		}
 	}
 	return nil

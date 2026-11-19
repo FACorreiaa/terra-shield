@@ -73,7 +73,7 @@ type Event struct {
 //
 // Listed, when set, replaces geometry altogether: the source names the
 // countries an event applies to (a tsunami threat forecast lists the
-// coasts it expects waves on, far from the marker at the epicentre).
+// coasts it expects waves on, far from the marker at the epicenter).
 // Codes not in the countries table are ignored.
 type CountryRule struct {
 	Issuer   string   // ISO 3166-1 alpha-2

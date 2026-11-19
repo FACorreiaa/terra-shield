@@ -19,6 +19,7 @@ import (
 	"io"
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -122,23 +123,22 @@ func Parse(zipped []byte) ([]domain.ForecastZone, error) {
 }
 
 func member(zr *zip.Reader, ext string) ([]byte, error) {
-	for _, f := range zr.File {
-		if strings.HasSuffix(strings.ToLower(f.Name), ext) {
-			rc, err := f.Open()
-			if err != nil {
-				return nil, err
-			}
-			defer rc.Close()
-			return io.ReadAll(io.LimitReader(rc, 256<<20))
-		}
+	i := slices.IndexFunc(zr.File, func(f *zip.File) bool { return strings.HasSuffix(strings.ToLower(f.Name), ext) })
+	if i < 0 {
+		return nil, fmt.Errorf("nws zones: no %s in the archive", ext)
 	}
-	return nil, fmt.Errorf("nws zones: no %s in the archive", ext)
+	rc, err := zr.File[i].Open()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	return io.ReadAll(io.LimitReader(rc, 256<<20))
 }
 
 const (
-	shpHeader    = 100
-	shapeNull    = 0
-	shapePolygon = 5
+	shpHeader           = 100
+	shapeNull    uint32 = 0
+	shapePolygon uint32 = 5
 )
 
 // readPolygons returns each record's rings, in file order; a null shape
@@ -147,7 +147,7 @@ func readPolygons(b []byte) ([][][][2]float64, error) {
 	if len(b) < shpHeader || binary.BigEndian.Uint32(b[0:4]) != 9994 {
 		return nil, errors.New("nws zones: not a shapefile")
 	}
-	if t := int32(binary.LittleEndian.Uint32(b[32:36])); t != shapePolygon {
+	if t := binary.LittleEndian.Uint32(b[32:36]); t != shapePolygon {
 		return nil, fmt.Errorf("nws zones: shape type %d, want polygons", t)
 	}
 	var out [][][][2]float64
@@ -171,7 +171,7 @@ func readPolygons(b []byte) ([][][][2]float64, error) {
 }
 
 func polygon(c []byte) ([][][2]float64, error) {
-	switch t := int32(binary.LittleEndian.Uint32(c[0:4])); t {
+	switch t := binary.LittleEndian.Uint32(c[0:4]); t {
 	case shapeNull:
 		return nil, nil
 	case shapePolygon:

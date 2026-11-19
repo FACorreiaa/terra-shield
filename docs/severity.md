@@ -89,3 +89,31 @@ which members fill differently (DWD sends `Minor` for yellow; MeteoAlarm's own l
 
 `source_severity` shows "Yellow warning" / "Orange warning" / "Red warning". The CAP `severity`, `certainty` and
 `urgency` are kept in attrs.
+
+## Tsunami (NOAA warning centers; owner, 2026-11-19)
+
+US products (Hawaii, Alaska, the US West Coast, Guam, American Samoa, the Marianas, Puerto Rico, the Virgin
+Islands) are official alerts for the NWS zones they name, rated by level:
+
+| Alert | Shield | NWS meaning |
+|---|---|---|
+| Tsunami Warning | extreme | dangerous coastal flooding and currents: move inland |
+| Tsunami Advisory | severe | strong currents and waves: stay off beaches |
+| Tsunami Watch | moderate | a tsunami is possible: be ready to act |
+| Information, Cancellation | not stored; ends the product's event | |
+
+CAP's own `severity` rates Advisory and Watch the same (Moderate), so the level is used instead.
+
+PTWC's threat messages for the Pacific and Caribbean are forecasts for national authorities (`kind=forecast`,
+`attrs.guidance`), rated by the highest wave band that names a coast:
+
+| Forecast | Shield |
+|---|---|
+| waves over 3 m | extreme |
+| 1–3 m | severe |
+| 0.3–1 m | moderate |
+| under 0.3 m only, or "the threat has passed" | not stored; ends the forecast |
+| "hazardous waves possible" (first message, before a forecast is computed) | **severe** (provisional: not in the owner's table) |
+
+`attrs.forecast` keeps every band with its places and countries. Countries come from the names PTWC lists
+(Hawaii → US, Chuuk → FM, Kermadec Islands → NZ), not from the marker, which sits at the epicenter.

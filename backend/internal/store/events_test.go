@@ -172,7 +172,7 @@ func TestCountryAssignmentRules(t *testing.T) {
 		box("offshore", -11, -10, pt),                 // touches nothing: issuer still assigned
 		box("wraps", 179, -179, domain.CountryRule{}), // across the antimeridian, ~170 km wide
 		// Named countries win over geometry: a forecast's marker sits at
-		// the epicentre, far from the coasts it lists. Unknown codes drop.
+		// the epicenter, far from the coasts it lists. Unknown codes drop.
 		box("listed", -11, -10, domain.CountryRule{Listed: []string{"ES", "ZZ"}}),
 	}); err != nil {
 		t.Fatal(err)
