@@ -15,6 +15,8 @@ struct HazardMapView {
     /// Points of the map's bottom edge covered by other UI, on top of the safe area (iOS: the
     /// peeking sheet). The attribution must stay visible above it (DECISIONS #11).
     var bottomCover: CGFloat = 0
+    /// Points of the trailing edge under the inspector (iPad), which framing leaves out.
+    var trailingCover: CGFloat = 0
 
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
 
@@ -46,6 +48,7 @@ struct HazardMapView {
     }
 
     private func update(_ coordinator: Coordinator) {
+        coordinator.trailingCover = trailingCover
         // Reading these here registers them with Observation: SwiftUI calls update again
         // when any of them changes.
         coordinator.apply(
@@ -215,6 +218,9 @@ struct HazardMapView {
         var focusID: UUID?
         /// The last focus, when it came and the cover it was framed for.
         var lastFocus: (region: MKCoordinateRegion, at: Date, cover: CGFloat)?
+        /// The inspector's cover of the trailing edge (iPad). MapKit leaves the bottom margin out
+        /// of `setVisibleMapRect` by itself but not this one, so `show` pads for it.
+        var trailingCover: CGFloat = 0
         /// A focus that came before the map had a size.
         var pendingFocus: (region: MKCoordinateRegion, cover: CGFloat)?
 
@@ -241,7 +247,7 @@ struct HazardMapView {
             let center = MKMapPoint(region.center)
             let rect = MKMapRect(x: center.x - width / 2, y: north.y, width: width, height: south.y - north.y)
             #if os(iOS)
-            let padding = UIEdgeInsets(top: 104, left: 24, bottom: 24, right: 72)
+            let padding = UIEdgeInsets(top: 104, left: 24, bottom: 24, right: 72 + trailingCover)
             #else
             let padding = NSEdgeInsets(top: 72, left: 32, bottom: 56, right: 80)
             #endif
