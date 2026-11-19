@@ -184,6 +184,52 @@ func periodic(id string, every time.Duration, args river.JobArgs, attempts int) 
 	)
 }
 
+// TaskArgs is the River job that runs one maintenance Task.
+type TaskArgs struct {
+	Task string `json:"task"`
+}
+
+// Kind is the River job kind.
+func (TaskArgs) Kind() string { return "maintenance_task" }
+
+// TaskWorker runs TaskArgs jobs.
+type TaskWorker struct {
+	river.WorkerDefaults[TaskArgs]
+	tasks  map[string]Task
+	logger *slog.Logger
+}
+
+// Work runs the task once.
+func (w *TaskWorker) Work(ctx context.Context, job *river.Job[TaskArgs]) error {
+	t, ok := w.tasks[job.Args.Task]
+	if !ok {
+		return river.JobCancel(fmt.Errorf("unknown task %q", job.Args.Task))
+	}
+	if err := t.Run(ctx); err != nil {
+		w.logger.Warn("maintenance task failed", "task", job.Args.Task, "error", err)
+		return err
+	}
+	return nil
+}
+
+// taskJobs schedules each task; a failed run is not retried, the next
+// tick runs it again.
+func taskJobs(tasks []Task) []*river.PeriodicJob {
+	jobs := make([]*river.PeriodicJob, 0, len(tasks))
+	for _, t := range tasks {
+		jobs = append(jobs, periodic("task:"+t.Name(), t.Interval(), TaskArgs{Task: t.Name()}, 1))
+	}
+	return jobs
+}
+
+func tasksByName(tasks []Task) map[string]Task {
+	m := make(map[string]Task, len(tasks))
+	for _, t := range tasks {
+		m[t.Name()] = t
+	}
+	return m
+}
+
 func byID(sources []Source) map[string]Source {
 	m := make(map[string]Source, len(sources))
 	for _, s := range sources {

@@ -220,10 +220,14 @@ func (h *Hub) Subscribe(f Filter, client string) (*Subscription, error) {
 
 // CatchUp returns the changes after cursor `after` and up to `upTo` (a
 // subscription's Start), unfiltered. complete is false when more than max
-// would be needed: the client should reload instead.
+// would be needed, or the cursor is below the stream floor: the client
+// should reload instead.
 func (h *Hub) CatchUp(ctx context.Context, after, upTo int64, maxChanges int) ([]domain.StreamChange, bool, error) {
 	// One past the budget tells "exactly maxChanges" from "more".
 	changes, more, err := h.src.Changes(ctx, after, maxChanges+1)
+	if errors.Is(err, domain.ErrCursorTooOld) {
+		return nil, false, nil // the change log no longer reaches back: reload
+	}
 	if err != nil {
 		return nil, false, err
 	}

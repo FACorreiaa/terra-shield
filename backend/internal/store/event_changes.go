@@ -20,7 +20,9 @@ const eventChannel = "shield_events"
 // `after`, in cursor order, and whether more follow. Events come with
 // their list-view record (no geometry) and bounding box; removals only
 // with their id. Both tables are read in one snapshot, so a commit landing
-// between the reads cannot advance a cursor past a change it missed.
+// between the reads cannot advance a cursor past a change it missed. A
+// cursor below the stream floor (pruned tombstones; migration 00008) is
+// domain.ErrCursorTooOld, read in the same snapshot.
 func (r *EventRepository) Changes(ctx context.Context, after int64, limit int) ([]domain.StreamChange, bool, error) {
 	if limit <= 0 {
 		return nil, false, fmt.Errorf("event changes: limit must be positive")
@@ -30,6 +32,13 @@ func (r *EventRepository) Changes(ctx context.Context, after int64, limit int) (
 		return nil, false, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	floor, err := eventsdb.New(tx).StreamFloor(ctx)
+	if err != nil {
+		return nil, false, fmt.Errorf("stream floor: %w", err)
+	}
+	if after < floor {
+		return nil, false, domain.ErrCursorTooOld
+	}
 	rows, err := tx.Query(ctx, `
 SELECT `+recordColumns+`,
        NULL::text,

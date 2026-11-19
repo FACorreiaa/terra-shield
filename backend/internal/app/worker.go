@@ -8,6 +8,7 @@ import (
 	"shield/internal/config"
 	"shield/internal/ingest"
 	"shield/internal/metrics"
+	"shield/internal/retention"
 )
 
 func worker(ctx context.Context, cfg config.Base, logger *slog.Logger) error {
@@ -23,7 +24,9 @@ func worker(ctx context.Context, cfg config.Base, logger *slog.Logger) error {
 	opsErr := make(chan error, 1)
 	go func() { opsErr <- listen(opsCtx, logger, newHTTPServer(cfg.MetricsPort, opsMux())) }()
 
-	runErr := ingest.NewRunner(c.pool, c.repos.Sources, c.sources(), logger).Run(ctx)
+	runErr := ingest.NewRunner(c.pool, c.repos.Sources, c.sources(), logger).
+		WithTasks(retention.New(c.repos.Events, logger)).
+		Run(ctx)
 	stopOps()
 	if err := <-opsErr; err != nil && runErr == nil {
 		return err

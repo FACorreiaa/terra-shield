@@ -67,6 +67,11 @@ type EventRevision struct {
 	Changes []byte
 }
 
+type EventStreamFloor struct {
+	Singleton bool
+	Seq       int64
+}
+
 type EventTombstone struct {
 	Seq       int64
 	EventID   uuid.UUID

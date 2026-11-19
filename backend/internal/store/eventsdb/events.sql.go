@@ -163,6 +163,30 @@ func (q *Queries) DeleteEvents(ctx context.Context, arg DeleteEventsParams) ([]u
 	return items, nil
 }
 
+const deleteEventsByID = `-- name: DeleteEventsByID :many
+DELETE FROM events WHERE id = ANY($1::uuid[]) RETURNING id
+`
+
+func (q *Queries) DeleteEventsByID(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, deleteEventsByID, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const eventSnapshot = `-- name: EventSnapshot :one
 SELECT id, severity, status, source_severity, title, ended_at,
        md5(ST_AsBinary(geom)) AS geom_hash
@@ -235,6 +259,39 @@ func (q *Queries) ExpiredActiveEventIDs(ctx context.Context, arg ExpiredActiveEv
 	return items, nil
 }
 
+const expiredResolvedEventIDs = `-- name: ExpiredResolvedEventIDs :many
+SELECT id FROM events
+WHERE status = 'resolved' AND coalesce(ended_at, updated_at) < $1::timestamptz
+ORDER BY coalesce(ended_at, updated_at)
+LIMIT $2
+`
+
+type ExpiredResolvedEventIDsParams struct {
+	Before  time.Time
+	MaxRows int32
+}
+
+// Resolved events that ended before @before, oldest first (retention).
+func (q *Queries) ExpiredResolvedEventIDs(ctx context.Context, arg ExpiredResolvedEventIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, expiredResolvedEventIDs, arg.Before, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertEventRevision = `-- name: InsertEventRevision :exec
 INSERT INTO event_revisions (event_id, changes) VALUES ($1, $2)
 `
@@ -264,11 +321,13 @@ func (q *Queries) InsertEventTombstones(ctx context.Context, eventIds []uuid.UUI
 const latestEventChange = `-- name: LatestEventChange :one
 SELECT GREATEST(
     COALESCE((SELECT max(change_seq) FROM events), 0),
-    COALESCE((SELECT max(seq) FROM event_tombstones), 0)
+    COALESCE((SELECT max(seq) FROM event_tombstones), 0),
+    (SELECT seq FROM event_stream_floor)
 )::bigint
 `
 
-// The highest committed change cursor; 0 when nothing has changed yet.
+// The highest committed change cursor; 0 when nothing has changed yet. The
+// stream floor keeps it from moving back when pruned tombstones held it.
 func (q *Queries) LatestEventChange(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, latestEventChange)
 	var column_1 int64
@@ -335,6 +394,36 @@ func (q *Queries) NotifyEventChanges(ctx context.Context) error {
 	return err
 }
 
+const pruneEventTombstones = `-- name: PruneEventTombstones :one
+WITH gone AS (
+    DELETE FROM event_tombstones WHERE removed_at < $1::timestamptz RETURNING seq
+)
+SELECT COALESCE(max(seq), 0)::bigint AS max_seq, count(*)::bigint AS removed FROM gone
+`
+
+type PruneEventTombstonesRow struct {
+	MaxSeq  int64
+	Removed int64
+}
+
+// Deletes tombstones written before @before and returns the highest seq
+// removed (0 when none).
+func (q *Queries) PruneEventTombstones(ctx context.Context, before time.Time) (PruneEventTombstonesRow, error) {
+	row := q.db.QueryRow(ctx, pruneEventTombstones, before)
+	var i PruneEventTombstonesRow
+	err := row.Scan(&i.MaxSeq, &i.Removed)
+	return i, err
+}
+
+const raiseStreamFloor = `-- name: RaiseStreamFloor :exec
+UPDATE event_stream_floor SET seq = GREATEST(seq, $1::bigint)
+`
+
+func (q *Queries) RaiseStreamFloor(ctx context.Context, seq int64) error {
+	_, err := q.db.Exec(ctx, raiseStreamFloor, seq)
+	return err
+}
+
 const resolveEvent = `-- name: ResolveEvent :execrows
 UPDATE events SET
     status     = 'resolved',
@@ -360,6 +449,17 @@ func (q *Queries) ResolveEvent(ctx context.Context, arg ResolveEventParams) (int
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const streamFloor = `-- name: StreamFloor :one
+SELECT seq FROM event_stream_floor
+`
+
+func (q *Queries) StreamFloor(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, streamFloor)
+	var seq int64
+	err := row.Scan(&seq)
+	return seq, err
 }
 
 const upsertEvent = `-- name: UpsertEvent :one

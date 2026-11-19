@@ -22,12 +22,19 @@ type Runner struct {
 	pool    *pgxpool.Pool // River's queue lives in the same database
 	states  SourceStates
 	sources []Source
+	tasks   []Task
 	logger  *slog.Logger
 }
 
 // NewRunner builds a Runner.
 func NewRunner(pool *pgxpool.Pool, states SourceStates, sources []Source, logger *slog.Logger) *Runner {
 	return &Runner{pool: pool, states: states, sources: sources, logger: logger}
+}
+
+// WithTasks adds maintenance tasks to the schedule.
+func (r *Runner) WithTasks(tasks ...Task) *Runner {
+	r.tasks = append(r.tasks, tasks...)
+	return r
 }
 
 // seedHealth exports a source's poll interval and last success before its
@@ -65,11 +72,12 @@ func (r *Runner) Run(ctx context.Context) error {
 	workers := river.NewWorkers()
 	river.AddWorker(workers, NewPollWorker(r.states, r.logger, r.sources))
 	river.AddWorker(workers, &HousekeepWorker{sources: byID(r.sources), logger: r.logger})
+	river.AddWorker(workers, &TaskWorker{tasks: tasksByName(r.tasks), logger: r.logger})
 	client, err := river.NewClient(riverpgxv5.New(r.pool), &river.Config{
 		Logger:       r.logger,
 		Queues:       map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: 4}},
 		Workers:      workers,
-		PeriodicJobs: periodicJobs(r.sources),
+		PeriodicJobs: append(periodicJobs(r.sources), taskJobs(r.tasks)...),
 	})
 	if err != nil {
 		return err
