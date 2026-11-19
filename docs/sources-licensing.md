@@ -11,6 +11,7 @@ Checked 2026-11-16 against each source's live endpoint. Shown in-app on the Sour
 | NASA FIRMS | `firms.modaps.eosdis.nasa.gov/data/active_fire/*-viirs-c2/csv/*_Global_24h.csv` | NASA open data, no restrictions | NASA FIRMS | per satellite pass (~3 h NRT latency) | 15 min | ignored; HEAD + ETag |
 | Meteoalarm | `feeds.meteoalarm.org/api/v1/warnings/feeds-<country>` | CC BY 4.0 | MeteoAlarm (EUMETNET) | per national service | 5 min (planned) | none sent |
 | NOAA Tsunami Warning Centers | `www.tsunami.gov/events/js/previous.js` (last 40 messages) + each message's CAP and bulletin text | Public domain (U.S. Government work) | NOAA/NWS Pacific and National Tsunami Warning Centers | on each earthquake that could cause a tsunami; updates about hourly | 60 s | Last-Modified |
+| UCDP Candidate Events | `ucdp.uu.se/downloads/candidateged/GEDEvent_v<YY>_0_<M>.csv`, the months that can hold an event of the last 90 days (no token; the API needs one) | CC BY 4.0, citation required: Hegre, Croicu, Eck and Högbladh (2020), "Introducing the UCDP Candidate Events Dataset", *Research & Politics* | Uppsala Conflict Data Program | monthly, around the 20th, for the month before | 6 h | none (each file read in full; the store skips unchanged) |
 | NWS forecast zones | `www.weather.gov/source/gis/Shapefiles/WSOM/z_16ap26.zip` (pinned, SHA-256) | Public domain (U.S. Government work) | National Weather Service | when zones change | loaded by `migrate` | — |
 
 Notes:

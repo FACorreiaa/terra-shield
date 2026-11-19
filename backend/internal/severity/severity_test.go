@@ -99,3 +99,11 @@ func TestLevelOrderAndNames(t *testing.T) {
 		t.Error("Max() of nothing should be Minor")
 	}
 }
+
+func TestConflictFatalities(t *testing.T) {
+	for best, want := range map[int]Level{0: Minor, 4: Minor, 5: Moderate, 24: Moderate, 25: Severe, 99: Severe, 100: Extreme, 5714: Extreme} {
+		if got := ConflictFatalities(best); got != want {
+			t.Errorf("%d deaths: %v, want %v", best, got, want)
+		}
+	}
+}

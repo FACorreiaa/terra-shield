@@ -10,6 +10,7 @@ import (
 	"shield/internal/sources/gdacs"
 	"shield/internal/sources/meteoalarm"
 	"shield/internal/sources/tsunami"
+	"shield/internal/sources/ucdp"
 	"shield/internal/sources/usgs"
 )
 
@@ -29,6 +30,7 @@ func (c *container) sources() []ingest.Source {
 		firms.New(bulk, c.repos.Fires),
 		meteoalarm.New(feeds, c.repos.Events, meteoalarm.NewResolver(c.repos.WarningAreas), c.logger),
 		tsunami.New(feeds, c.repos.Events, c.repos.NWSZones, c.logger),
+		ucdp.New(feeds, c.repos.Events),
 	}
 }
 

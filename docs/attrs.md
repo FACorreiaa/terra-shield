@@ -111,6 +111,24 @@ Threat forecasts (`kind=forecast`):
 The event's countries come from the zones (US alerts) or the bands (forecasts), not from the geometry: a
 forecast's point marks the epicenter, not where waves are expected.
 
+## UCDP (armed conflicts; ADR 27)
+
+A conflict event is one incident of organized lethal violence, from UCDP's monthly Candidate release: a research estimate, one to two months old, shown for 90 days after its end date. `observedAt`, `updatedAt` and `startedAt` are the event's own dates (UCDP gives no edit time): show "Sep 21" and "monthly estimate (UCDP)", not "updated N ago". News-source text and names are never stored.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `violenceType` | string, **always** | `state_based` (a government is a side) · `non_state` (organized groups) · `one_sided` (an actor against civilians) |
+| `conflictName` | string, **always** | UCDP's conflict name ("Pakistan: Government") |
+| `sideA`, `sideB` | string, **always** | The two sides; `Civilians` for one-sided violence. "Unidentified group" where UCDP cannot name the actor |
+| `deathsBest`, `deathsLow`, `deathsHigh` | integer, **always** | Fatality estimates; `deathsBest` sets the severity |
+| `deathsSideA`, `deathsSideB`, `deathsCivilians`, `deathsUnknown` | integer, **always** | The best estimate split by who died |
+| `locationPrecision` | string, **always** | `exact` · `within_25km` · `admin2` (district centroid) · `admin1` (province centroid) · `area` (a line or fuzzy area). Draw anything but `exact` as approximate. Country-level and at-sea events are not ingested |
+| `datePrecision` | string, **always** | `day` · `days_2_6` · `week` · `month` · `months` (up to a year): `startedAt`–`observedAt` is the range |
+| `codeStatus` | string, **always** | UCDP's review status: `Clear`, or `Check deaths`, `Check dyad`, `Check geography`, … |
+| `sourceCount` | integer, **always** | How many sources UCDP used |
+| `expiresAt` | RFC 3339, **always** | 90 days after the end date; the event resolves then |
+| `severityProvisional` | boolean | Lifted to the top level by the API |
+
 ## FIRMS
 
 FIRMS detections are not events. They are served by `/v1/fires`, with properties `satellite`, `acquiredAt`,
