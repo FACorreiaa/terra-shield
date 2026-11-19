@@ -28,11 +28,12 @@ var footprintClasses = map[string][]string{
 	"VO": {"Poly_area", "Poly_Affected"},
 }
 
-// needsFootprint: only active Orange and Red events. They are few (a
+// needsFootprint: only active Orange and Red alerts. They are few (a
 // handful a week) while each geometry is 6–300 KB, and they are the events
-// where a wrong country list misleads most.
+// where a wrong country list misleads most. It reads GDACS's own alert, not
+// the floored severity: the area floor alone would lift ~150 fires.
 func needsFootprint(it *Item) bool {
-	return it.Status == domain.StatusActive && it.Level >= severity.Severe && len(footprintClasses[it.Code]) > 0
+	return it.Status == domain.StatusActive && it.Alert >= severity.Severe && len(footprintClasses[it.Code]) > 0
 }
 
 type geometryCollection struct {

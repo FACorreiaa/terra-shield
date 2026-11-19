@@ -118,6 +118,14 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	return true, nil
 }
 
+// ActiveIDsWithAttr lists the source event ids of a source's active events
+// whose attrs[key] equals value.
+func (r *EventRepository) ActiveIDsWithAttr(ctx context.Context, sourceID, key, value string) ([]string, error) {
+	return eventsdb.New(r.pool).ActiveEventIDsWithAttr(ctx, eventsdb.ActiveEventIDsWithAttrParams{
+		SourceID: sourceID, AttrKey: key, AttrValue: value,
+	})
+}
+
 // Delete removes events a source has retracted (a USGS "deleted" event is a
 // false detection, not a resolved one). Each leaves a tombstone so stream
 // clients drop it too.

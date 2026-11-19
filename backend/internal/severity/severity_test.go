@@ -46,6 +46,15 @@ func TestGDACSAlert(t *testing.T) {
 	}
 }
 
+func TestCycloneWindKmh(t *testing.T) {
+	cases := map[float64]Level{0: Minor, 118: Minor, 119: Moderate, 177: Moderate, 178: Severe, 251: Severe, 252: Extreme}
+	for kmh, want := range cases {
+		if got := CycloneWindKmh(kmh); got != want {
+			t.Errorf("%v km/h = %s, want %s", kmh, got, want)
+		}
+	}
+}
+
 func TestWildfireAcres(t *testing.T) {
 	cases := map[float64]Level{0: Minor, 999: Minor, 1000: Moderate, 9999: Moderate, 10000: Severe, 99999: Severe, 100000: Extreme}
 	for acres, want := range cases {

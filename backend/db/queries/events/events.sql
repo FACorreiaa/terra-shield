@@ -98,6 +98,12 @@ SELECT @event_id::uuid AS event_id, iso2, 'within' AS relation, 0::real AS dista
 UNION ALL
 SELECT @event_id::uuid AS event_id, iso2, 'nearby' AS relation, round((meters / 1000)::numeric, 1)::real AS distance_km FROM nearby;
 
+-- name: ActiveEventIDsWithAttr :many
+-- A source's active events whose attrs[key] is value; MeteoAlarm uses it
+-- to find what a country's full-snapshot feed no longer lists.
+SELECT source_event_id FROM events
+WHERE source_id = @source_id AND status = 'active' AND attrs ->> @attr_key::text = @attr_value::text;
+
 -- name: DeleteEvents :many
 DELETE FROM events
 WHERE source_id = @source_id

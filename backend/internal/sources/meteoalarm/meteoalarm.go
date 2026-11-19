@@ -29,6 +29,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"shield/internal/domain"
 	"shield/internal/fetch"
@@ -127,19 +129,26 @@ type AreaResolver interface {
 	Resolve(ctx context.Context, areas []Area) (geom json.RawMessage, ok bool, err error)
 }
 
+// Store is what the adapter writes to: events, plus the active ones it
+// stored for a country, to reconcile against each full-snapshot feed.
+type Store interface {
+	ingest.EventStore
+	ActiveIDsWithAttr(ctx context.Context, sourceID, key, value string) ([]string, error)
+}
+
 // Source is the MeteoAlarm adapter.
 type Source struct {
 	base      string
 	countries []Country
 	client    *fetch.Client
-	store     ingest.EventStore
+	store     Store
 	areas     AreaResolver
 	logger    *slog.Logger
 	now       func() time.Time
 }
 
 // New builds the adapter over every member feed.
-func New(client *fetch.Client, store ingest.EventStore, areas AreaResolver, logger *slog.Logger) *Source {
+func New(client *fetch.Client, store Store, areas AreaResolver, logger *slog.Logger) *Source {
 	return &Source{
 		base: FeedBase, countries: Countries, client: client, store: store,
 		areas: areas, logger: logger, now: time.Now,
@@ -173,6 +182,11 @@ func (s *Source) Info() domain.SourceInfo {
 // after, so an updated warning never sits beside its old version while the
 // other countries are read. All of Europe in one transaction would hold
 // the stream's change lock long enough to delay every other source.
+//
+// Each feed is a full snapshot (expired warnings included), so an active
+// warning a country's feed no longer lists has been withdrawn or replaced:
+// it is removed too, as a safety net under References, which members do
+// not always send (a warning withdrawn without an Update or Cancel).
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	now := s.now()
 	var (
@@ -185,16 +199,24 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 			events     []domain.Event
 			superseded []string
 		)
-		warnings, err := s.country(ctx, c, now)
+		feed, err := s.country(ctx, c, now)
 		if err != nil {
 			s.logger.Warn("meteoalarm country failed", "country", c.ISO2, "error", err)
 			failures = append(failures, fmt.Errorf("%s: %w", c.ISO2, err))
 			continue
 		}
-		for i := range warnings {
-			w := &warnings[i]
-			superseded = append(superseded, w.Supersedes...)
-			if w.Cancel {
+		replaced := map[string]bool{}
+		for i := range feed.Warnings {
+			for _, id := range feed.Warnings[i].Supersedes {
+				replaced[id] = true
+				superseded = append(superseded, id)
+			}
+		}
+		for i := range feed.Warnings {
+			w := &feed.Warnings[i]
+			// A replaced warning the feed still lists would be stored and
+			// then deleted on every poll.
+			if w.Cancel || replaced[w.SourceEventID] {
 				continue
 			}
 			geom, ok, err := s.areas.Resolve(ctx, w.Areas)
@@ -212,7 +234,11 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		if err != nil {
 			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
 		}
-		d, err := s.store.Delete(ctx, ID, superseded)
+		gone, err := s.unlisted(ctx, c, feed.Listed, replaced)
+		if err != nil {
+			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
+		}
+		d, err := s.store.Delete(ctx, ID, append(superseded, gone...))
 		if err != nil {
 			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
 		}
@@ -228,25 +254,50 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 	return ingest.Result{Upserted: changed}, nil
 }
 
-func (s *Source) country(ctx context.Context, c Country, now time.Time) ([]Warning, error) {
+// unlisted returns the country's active warnings its feed no longer lists,
+// leaving out those a record in it replaces (already being removed). An
+// empty feed proves nothing (a member outage can look like one), so it
+// removes nothing.
+func (s *Source) unlisted(ctx context.Context, c Country, listed, replaced map[string]bool) ([]string, error) {
+	if len(listed) == 0 {
+		return nil, nil
+	}
+	active, err := s.store.ActiveIDsWithAttr(ctx, ID, "country", c.ISO2)
+	if err != nil {
+		return nil, err
+	}
+	var gone []string
+	for _, id := range active {
+		if !listed[id] && !replaced[id] {
+			gone = append(gone, id)
+		}
+	}
+	if len(gone) > 0 {
+		s.logger.Info("meteoalarm warnings left the feed", "country", c.ISO2, "count", len(gone))
+	}
+	return gone, nil
+}
+
+func (s *Source) country(ctx context.Context, c Country, now time.Time) (Parsed, error) {
 	resp, err := s.client.Get(ctx, s.base+c.Slug, domain.Validators{})
 	if err != nil {
-		return nil, err
+		return Parsed{}, err
 	}
-	warnings, skipped, err := Parse(resp.Body, now)
+	feed, err := Parse(resp.Body, now)
 	if err != nil {
-		return nil, err
+		return Parsed{}, err
 	}
-	for reason, n := range skipped {
+	for reason, n := range feed.Skipped {
 		metrics.SourceSkipped.WithLabelValues(ID, reason).Add(float64(n))
 	}
+	warnings := feed.Warnings
 	for i := range warnings {
 		if !warnings[i].Cancel {
 			warnings[i].Attrs["country"] = c.ISO2
 			warnings[i].CountryRule = domain.CountryRule{Issuer: c.ISO2, MinShare: NeighborShare}
 		}
 	}
-	return warnings, nil
+	return feed, nil
 }
 
 // Warning is one parsed alert. Geometry is left empty for Poll to resolve
@@ -255,7 +306,7 @@ type Warning struct {
 	domain.Event
 	Areas      []Area   // in feed order
 	Supersedes []string // CAP identifiers this alert replaces
-	Cancel     bool     // a Cancel message: only Supersedes matters
+	Cancel     bool     // nothing to store (a Cancel, or an Update we skip, such as one lowered to green): only Supersedes matters
 }
 
 type feed struct {
@@ -324,17 +375,28 @@ const (
 	SkipInvalid = "invalid" // no info block, unknown level, unparsable time
 )
 
+// Parsed is one country feed, normalized.
+type Parsed struct {
+	Warnings []Warning
+	Skipped  map[string]int  // records dropped, by reason
+	Listed   map[string]bool // every identifier in the feed, stored or not
+}
+
 // Parse normalizes one country feed. now decides which warnings have
-// expired. skipped counts the records dropped, by reason.
-func Parse(body []byte, now time.Time) (warnings []Warning, skipped map[string]int, err error) {
+// expired.
+func Parse(body []byte, now time.Time) (Parsed, error) {
 	var f feed
 	if err := json.Unmarshal(body, &f); err != nil {
-		return nil, nil, fmt.Errorf("meteoalarm: decode: %w", err)
+		return Parsed{}, fmt.Errorf("meteoalarm: decode: %w", err)
 	}
-	skipped = map[string]int{}
+	skipped := map[string]int{}
+	listed := make(map[string]bool, len(f.Warnings))
 	var out []Warning
 	for i := range f.Warnings {
 		a := &f.Warnings[i].Alert
+		if a.Identifier != "" {
+			listed[a.Identifier] = true
+		}
 		if a.Identifier == "" || !strings.EqualFold(a.Status, "Actual") {
 			continue // exercises, tests, drafts
 		}
@@ -345,21 +407,30 @@ func Parse(body []byte, now time.Time) (warnings []Warning, skipped map[string]i
 			continue
 		}
 		in := pickInfo(a.Info)
-		if in == nil {
-			skipped[SkipInvalid]++
-			continue
+		reason := SkipInvalid
+		if in != nil {
+			var ev domain.Event
+			var areas []Area
+			ev, areas, reason = normalize(a, in, now)
+			if reason == "" {
+				w.Event, w.Areas = ev, areas
+				out = append(out, w)
+				continue
+			}
 		}
-		ev, areas, reason := normalize(a, in, now)
-		switch reason {
-		case "":
-			w.Event, w.Areas = ev, areas
-			out = append(out, w)
-		case skipGreen:
-		default:
+		if reason != skipGreen {
 			skipped[reason]++
 		}
+		// A record we do not store can still replace one we did: a member
+		// lowering a yellow warning to green sends an Update at level 1
+		// that references the yellow one (375 in Croatia's feed on
+		// 2026-11-19). Without this, the yellow stayed on the map.
+		if len(w.Supersedes) > 0 {
+			w.Cancel = true
+			out = append(out, w)
+		}
 	}
-	return out, skipped, nil
+	return Parsed{Warnings: out, Skipped: skipped, Listed: listed}, nil
 }
 
 const skipGreen = "green"
@@ -416,15 +487,15 @@ func normalize(a *alert, in *info, now time.Time) (domain.Event, []Area, string)
 		status, ended = domain.StatusResolved, &e
 	}
 	started := onset.UTC()
-	title := strings.TrimSpace(in.Headline)
-	if title == "" {
-		title = strings.TrimSpace(in.Event)
-	}
+	title, headlineUsed := warningTitle(in.Headline, in.Event, levelNum, typeNum, descs)
 	url := in.Web
 	if url == "" {
 		url = "https://meteoalarm.org/"
 	}
 	summary := strings.TrimSpace(in.Description)
+	if h := strings.TrimSpace(in.Headline); !headlineUsed && h != "" && !strings.Contains(summary, h) {
+		summary = strings.TrimSpace(h + "\n\n" + summary) // a sentence-long headline still says something
+	}
 	if instr := strings.TrimSpace(in.Instruction); instr != "" {
 		summary = strings.TrimSpace(summary + "\n\n" + instr)
 	}
@@ -577,3 +648,100 @@ func sourceSeverity(level int, color string) string {
 	}
 	return strings.ToUpper(color[:1]) + strings.ToLower(color[1:]) + " warning"
 }
+
+// Title limits, in runes: a name longer than maxName is a sentence (some
+// members put the whole forecast in the headline), and an area is cut at
+// maxArea.
+const (
+	maxName = 60
+	maxArea = 40
+)
+
+// typeLabels name MeteoAlarm's awareness types for a title Shield builds
+// itself.
+var typeLabels = map[int]string{
+	1: "wind", 2: "snow and ice", 3: "thunderstorm", 4: "fog", 5: "high temperature",
+	6: "low temperature", 7: "coastal", 8: "forest fire", 9: "avalanche", 10: "rain",
+	12: "flood", 13: "rain and flood",
+}
+
+var levelColors = map[int]string{2: "Yellow", 3: "Orange", 4: "Red"}
+
+// warningTitle builds a short title that names the place. Members write
+// headlines differently: "Strong rainfall" (no place, and 110 Swiss
+// warnings share it), "Gale, yellow level, North Cape - ..., 2026-11-14T12:00"
+// (a sentence), or a Romanian forecast in the English block. The name is
+// the headline when it is short, else CAP's event name when that is a
+// name ("Gale"; Romania sends "awareness_type=1, awareness_level=2"), else
+// "Yellow wind warning". The first area follows unless the name has one.
+// headlineUsed reports whether the headline became the name; when it did
+// not, the caller keeps it in the summary.
+// containsWord reports whether word occurs in s as a whole word, so the
+// French department "Ain" is not found in "rain-flood".
+func containsWord(s, word string) bool {
+	for i := 0; ; {
+		j := strings.Index(s[i:], word)
+		if j < 0 {
+			return false
+		}
+		start, end := i+j, i+j+len(word)
+		before, _ := utf8.DecodeLastRuneInString(s[:start])
+		after, _ := utf8.DecodeRuneInString(s[end:])
+		if (start == 0 || !isWordRune(before)) && (end == len(s) || !isWordRune(after)) {
+			return true
+		}
+		i = start + 1
+	}
+}
+
+func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
+
+func warningTitle(headline, event string, level, awarenessType int, areas []string) (title string, headlineUsed bool) {
+	headline, event = strings.TrimSpace(headline), strings.TrimSpace(event)
+	var name string
+	switch {
+	case headline != "" && runeLen(headline) <= maxName:
+		name, headlineUsed = headline, true
+	case event != "" && runeLen(event) <= maxName && !strings.Contains(event, "="):
+		name = event
+	default:
+		label := typeLabels[awarenessType]
+		if label == "" {
+			label = "weather"
+		}
+		name = strings.TrimSpace(levelColors[level] + " " + label + " warning")
+	}
+
+	var place string
+	named := 0
+	lower := strings.ToLower(name)
+	for _, a := range areas {
+		a = strings.TrimSpace(a)
+		if a == "" {
+			continue
+		}
+		if containsWord(lower, strings.ToLower(a)) {
+			return name, headlineUsed // the name already says where
+		}
+		if place == "" {
+			place = a
+		}
+		named++
+	}
+	if place == "" {
+		return name, headlineUsed
+	}
+	if runeLen(place) > maxArea {
+		cut := string([]rune(place)[:maxArea-1])
+		if i := strings.LastIndex(cut, " "); i > len(cut)/2 {
+			cut = cut[:i] // at a word, not inside one
+		}
+		place = strings.TrimRight(cut, " ,;-") + "…"
+	}
+	if named > 1 {
+		place += fmt.Sprintf(" +%d", named-1)
+	}
+	return name + " · " + place, headlineUsed
+}
+
+func runeLen(s string) int { return len([]rune(s)) }

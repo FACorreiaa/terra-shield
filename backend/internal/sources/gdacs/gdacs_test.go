@@ -60,7 +60,8 @@ func TestParseRecordedFeed(t *testing.T) {
 	}
 
 	tc := m["TC1001350"]
-	if tc.Type != "tropical_cyclone" || tc.Title != "Tropical cyclone XAVIER-26" || tc.Severity != "minor" || tc.Status != "active" {
+	if tc.Type != "tropical_cyclone" || tc.Title != "Tropical cyclone XAVIER-26" || tc.Severity != "moderate" || tc.Status != "active" ||
+		tc.Attrs["severityBasis"] != "wind" { // Green alert, but 176 km/h is Category 2
 		t.Errorf("TC %+v", tc)
 	}
 	if tc.SourceSeverity != "Green alert, Tropical Storm (maximum wind speed of 176 km/h)" {
@@ -74,8 +75,22 @@ func TestParseRecordedFeed(t *testing.T) {
 		t.Errorf("bbox order %v", bb)
 	}
 
+	// The burned-area table floors a Green fire: 5,437 ha is 13,435 acres.
+	if wf := m["WF1033884"]; wf.Severity != "severe" || wf.Attrs["severityBasis"] != "area" ||
+		wf.Summary != "On 15/11/2026, a forest fire started in Australia, until 16/11/2026." {
+		t.Errorf("WF %s basis %v summary %q", wf.Severity, wf.Attrs["severityBasis"], wf.Summary)
+	}
+	// A depression below hurricane force keeps its alert; floods carry no magnitude.
+	if td := m["TC1001348"]; td.Severity != "minor" || td.Attrs["severityBasis"] != "alert" {
+		t.Errorf("depression %s basis %v", td.Severity, td.Attrs["severityBasis"])
+	}
+	if fl := m["FL1104285"]; fl.SourceSeverity != "Green alert" {
+		t.Errorf("flood source severity %q", fl.SourceSeverity)
+	}
+
 	dr := m["DR1023877"]
-	if dr.Type != "drought" || dr.Severity != "severe" || dr.Status != "active" {
+	if dr.Type != "drought" || dr.Severity != "severe" || dr.Status != "active" ||
+		dr.Attrs["severityBasis"] != "alert" || strings.Contains(dr.Summary, "  ") {
 		t.Errorf("current Orange drought %+v", dr)
 	}
 	if n := len(dr.Attrs["countries"].([]string)); n < 2 {
@@ -109,6 +124,9 @@ func TestParseEdgeCases(t *testing.T) {
 	}
 
 	wf := m["WF9002"]
+	if wf.Severity != "moderate" || wf.Attrs["severityBasis"] != "area" { // 1,200 ha = 2,965 acres
+		t.Errorf("WF9002 %s basis %v", wf.Severity, wf.Attrs["severityBasis"])
+	}
 	if wf.Title != "Wildfire in Brazil, Bolivia and 2 more" {
 		t.Errorf("title %q", wf.Title)
 	}

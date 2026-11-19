@@ -50,6 +50,10 @@ func TestRevisionsAndDetail(t *testing.T) {
 	e.UpdatedAt = t0.Add(time.Minute)
 	upsert(e) // only attrs and timestamps: stored, but no revision
 
+	e.Title = "M 5.0 - renamed"
+	e.UpdatedAt = t0.Add(90 * time.Second)
+	upsert(e) // a rename alone: stored, but no revision
+
 	e.Severity, e.SourceSeverity = "severe", "M 6.1"
 	e.UpdatedAt = t0.Add(2 * time.Minute)
 	upsert(e) // revision 1
@@ -64,7 +68,7 @@ func TestRevisionsAndDetail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.ID != id.String() || d.Severity != "severe" || d.Status != domain.StatusResolved || d.Attrs["mag"] != 5.1 {
+	if d.ID != id.String() || d.Title != "M 5.0 - renamed" || d.Severity != "severe" || d.Status != domain.StatusResolved || d.Attrs["mag"] != 5.1 {
 		t.Fatalf("record %+v", d.EventRecord)
 	}
 	var g struct {
@@ -91,5 +95,25 @@ func TestRevisionsAndDetail(t *testing.T) {
 
 	if _, err := repo.Detail(ctx, uuid.New()); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("missing id: %v", err)
+	}
+}
+
+func TestActiveIDsWithAttr(t *testing.T) {
+	pool := testutil.DB(t)
+	seedWorld(t, pool)
+	repo := store.NewEventRepository(pool)
+	ctx := context.Background()
+	t0 := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	pt, es, gone := quake("pt", -8, 39, 5, t0), quake("es", -4, 40, 5, t0), quake("pt-old", -8, 39, 5, t0)
+	pt.Attrs = map[string]any{"country": "PT"}
+	es.Attrs = map[string]any{"country": "ES"}
+	gone.Attrs = map[string]any{"country": "PT"}
+	gone.Status = domain.StatusResolved
+	if _, err := repo.Upsert(ctx, "test", []domain.Event{pt, es, gone}); err != nil {
+		t.Fatal(err)
+	}
+	ids, err := repo.ActiveIDsWithAttr(ctx, "test", "country", "PT")
+	if err != nil || len(ids) != 1 || ids[0] != "pt" {
+		t.Fatalf("ids %v err %v, want only the active PT event", ids, err)
 	}
 }

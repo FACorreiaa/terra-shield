@@ -34,6 +34,14 @@ func revisionChanges(before, after *eventsdb.EventSnapshotRow) map[string]any {
 	if before.GeomHash != after.GeomHash {
 		changes["geometry"] = map[string]any{"changed": true}
 	}
+	// A rename alone is not a revision (ADR 6 records severity, status and
+	// geometry): a source rewording its titles, or Shield building them
+	// differently, would otherwise fill a country's recent changes with
+	// renames and push the real ones out. A title that changes along with
+	// something else is still recorded.
+	if _, renamed := changes["title"]; renamed && len(changes) == 1 {
+		return nil
+	}
 	return changes
 }
 

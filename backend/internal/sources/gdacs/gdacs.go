@@ -27,6 +27,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -167,7 +168,7 @@ type Item struct {
 	Code      string // GDACS event type code: TC, FL, DR, WF, VO
 	EventID   string
 	EpisodeID string
-	Level     severity.Level
+	Alert     severity.Level // GDACS's own impact alert, before any physical floor
 }
 
 // Parse normalizes the GDACS RSS feed. Items of unknown or skipped types,
@@ -194,10 +195,11 @@ func normalize(it *item) (Item, bool) {
 	if !ok || eventID == "" {
 		return Item{}, false
 	}
-	level, ok := severity.GDACSAlert(it.AlertLevel)
+	alert, ok := severity.GDACSAlert(it.AlertLevel)
 	if !ok {
 		return Item{}, false
 	}
+	level, basis := physicalFloor(typ, alert, it.Severity)
 	lat, errLat := strconv.ParseFloat(strings.TrimSpace(it.Point.Lat), 64)
 	lon, errLon := strconv.ParseFloat(strings.TrimSpace(it.Point.Long), 64)
 	if errLat != nil || errLon != nil {
@@ -231,6 +233,7 @@ func normalize(it *item) (Item, bool) {
 	if v, err := strconv.ParseFloat(strings.TrimSpace(it.AlertScore), 64); err == nil {
 		attrs["alertScore"] = v
 	}
+	attrs["severityBasis"] = basis
 	if t := strings.TrimSpace(it.Severity.Text); t != "" {
 		attrs["severityText"] = t
 	}
@@ -258,7 +261,7 @@ func normalize(it *item) (Item, bool) {
 	}
 
 	sourceSeverity := strings.TrimSpace(it.AlertLevel) + " alert"
-	if t := strings.TrimSpace(it.Severity.Text); t != "" {
+	if t := strings.TrimSpace(it.Severity.Text); t != "" && !noMagnitude.MatchString(t) {
 		sourceSeverity += ", " + t
 	}
 
@@ -270,7 +273,7 @@ func normalize(it *item) (Item, bool) {
 		Severity:       level.String(),
 		SourceSeverity: sourceSeverity,
 		Title:          title(typ, strings.TrimSpace(it.EventName), countries),
-		Summary:        strings.TrimSpace(it.Description),
+		Summary:        tidy(it.Description),
 		Geometry:       domain.PointGeometry(lon, lat),
 		StartedAt:      started,
 		ObservedAt:     observed,
@@ -279,7 +282,7 @@ func normalize(it *item) (Item, bool) {
 		URL:            httpsURL(strings.TrimSpace(it.Link)),
 		Attrs:          attrs,
 	}
-	return Item{Event: event, Code: code, EventID: eventID, EpisodeID: strings.TrimSpace(it.EpisodeID), Level: level}, true
+	return Item{Event: event, Code: code, EventID: eventID, EpisodeID: strings.TrimSpace(it.EpisodeID), Alert: alert}, true
 }
 
 var labels = map[domain.EventType]string{
@@ -351,4 +354,46 @@ func httpsURL(s string) string {
 		return "https://" + strings.TrimPrefix(s, "http://")
 	}
 	return s
+}
+
+// physicalFloor lifts the impact alert to the event's physical size where
+// GDACS reports one (owner, 2026-11-19; docs/severity.md): a cyclone's wind
+// on the Saffir-Simpson bands, a wildfire's burned area on the same table
+// as every other fire source. basis names what decided: "alert", "wind" or
+// "area".
+func physicalFloor(typ domain.EventType, alert severity.Level, sv valueText) (severity.Level, string) {
+	v, err := strconv.ParseFloat(strings.TrimSpace(sv.Value), 64)
+	if err != nil {
+		return alert, "alert"
+	}
+	var floor severity.Level
+	basis := ""
+	switch unit := strings.ToLower(strings.TrimSpace(sv.Unit)); {
+	case typ == domain.TypeTropicalCyclone && unit == "km/h":
+		floor, basis = severity.CycloneWindKmh(v), "wind"
+	case typ == domain.TypeWildfire && unit == "ha":
+		floor, basis = severity.WildfireAcres(v*severity.AcresPerHectare), "area"
+	default:
+		return alert, "alert"
+	}
+	if floor > alert {
+		return floor, basis
+	}
+	return alert, "alert"
+}
+
+// noMagnitude is GDACS's placeholder severity text for floods and
+// droughts, which have no magnitude: "Magnitude 0".
+var noMagnitude = regexp.MustCompile(`^Magnitude 0\s*$`)
+
+var (
+	spaces        = regexp.MustCompile(`[ \t]{2,}`)
+	spaceBeforePu = regexp.MustCompile(` +([.,;:])`)
+)
+
+// tidy cleans GDACS's templated descriptions ("started in Australia,  until
+// 15/11/2026." or "1219 displaced .") without changing their words.
+func tidy(s string) string {
+	s = spaces.ReplaceAllString(strings.TrimSpace(s), " ")
+	return spaceBeforePu.ReplaceAllString(s, "$1")
 }

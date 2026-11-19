@@ -33,12 +33,28 @@ The highest of three signals wins.
 | Red | extreme | high impact; international assistance likely needed |
 
 - GDACS alerts estimate humanitarian impact (hazard × exposed people × vulnerability), not physical size.
-  A 176 km/h tropical storm over open ocean is Green, so it shows as minor. Its wind speed is still shown
-  in `sourceSeverity`.
-- GDACS has no level between Green and Orange, so it never yields moderate.
+- **Physical size floors the alert** (owner, 2026-11-19), as magnitude does for earthquakes: the level is the
+  higher of the alert and the size GDACS reports in `gdacs:severity`. Without this, a Category 4 hurricane
+  over open ocean (Green) showed as minor next to an Orange 65 km/h storm near the coast shown as severe.
+  - **Tropical cyclones**, maximum wind (km/h) on the Saffir-Simpson bands:
+
+    | Wind | Floor |
+    |---|---|
+    | < 119 (below hurricane force) | none: the alert decides |
+    | 119–177 (Category 1–2) | moderate |
+    | 178–251 (Category 3–4) | severe |
+    | ≥ 252 (Category 5) | extreme |
+
+    The value is GDACS's structured one; its label can disagree ("Tropical Storm (maximum wind speed of
+    176 km/h)"), and the number wins.
+  - **Wildfires**, burned area (ha) on the wildfire table below, shared with every fire source.
+  - Floods, droughts and volcanoes have no size field and follow the alert alone.
+- `attrs.severityBasis` says what decided: `alert`, `wind` or `area`.
+- Footprints (S1.3b) are still fetched only for Orange and Red alerts, not for events lifted by a floor.
+- The placeholder "Magnitude 0" that GDACS sends for floods is dropped from `sourceSeverity` ("Green alert").
 - GDACS earthquakes are not ingested; USGS (above) owns earthquakes.
 
-## Wildfires without an alert level (EONET: IRWIN, BC Wildfire, ...)
+## Wildfires: one burned-area table (EONET's IRWIN and BC Wildfire; floor under GDACS)
 
 | Burned area | Shield |
 |---|---|
@@ -49,6 +65,10 @@ The highest of three signals wins.
 
 Hectares convert at 2.471 acres/ha. `sourceSeverity` reads "2,379 acres burned" / "5,000 ha burned". Every EONET event carries `severityProvisional: true` (attrs now; a top-level API field from S2.1). **Provisional:** area says nothing about the people nearby. Other EONET
 categories (volcanoes, landslides, dust, snow) carry no severity and show as minor.
+
+- **Prescribed burns** (IRWIN titles "Prescribed Fire … RX") stay on the map so someone who sees smoke can find
+  the cause, but are always **minor**, with `attrs.prescribed: true` (owner, 2026-11-19): a planned, controlled
+  fire is not a hazard of its size. On 2026-11-19 they were 16 of 24 active EONET wildfires.
 
 ## FIRMS
 

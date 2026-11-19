@@ -164,6 +164,10 @@ func Parse(body []byte) ([]domain.Event, error) {
 		}
 
 		level, sourceSeverity := classify(typ, latest)
+		prescribed := typ == domain.TypeWildfire && isPrescribed(e.Title)
+		if prescribed {
+			level = severity.Minor
+		}
 		status, ended := domain.StatusActive, (*time.Time)(nil)
 		if e.Closed != nil {
 			closed := e.Closed.UTC()
@@ -182,6 +186,9 @@ func Parse(body []byte) ([]domain.Event, error) {
 			ids = append(ids, u.ID)
 		}
 		attrs["upstream"] = ids
+		if prescribed {
+			attrs["prescribed"] = true
+		}
 		if latest.Magnitude != nil && latest.Unit != nil {
 			attrs["magnitudeValue"] = *latest.Magnitude
 			attrs["magnitudeUnit"] = *latest.Unit
@@ -259,4 +266,14 @@ func formatNumber(v float64) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// isPrescribed reports a planned burn: IRWIN names them "Prescribed Fire
+// ... RX". They stay on the map, so someone who sees smoke can find the
+// cause, but always as minor and flagged (owner, 2026-11-19): a fire set
+// on purpose and under control is not a hazard of its size.
+func isPrescribed(title string) bool {
+	t := strings.ToLower(strings.TrimSpace(title))
+	return strings.HasPrefix(t, "prescribed fire") || strings.HasPrefix(t, "prescribed burn") ||
+		strings.HasSuffix(t, " rx") || strings.Contains(t, " rx ")
 }

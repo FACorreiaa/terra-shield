@@ -34,10 +34,11 @@ func read(t *testing.T, name string) []byte {
 // feed (English and German blocks kept): one per awareness type, plus the
 // red and orange ones.
 func TestParseRecordedFeed(t *testing.T) {
-	warnings, _, err := Parse(read(t, "feeds-germany.json"), recordedAt)
+	feed, err := Parse(read(t, "feeds-germany.json"), recordedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
+	warnings := feed.Warnings
 	if len(warnings) != 8 {
 		t.Fatalf("%d warnings, want 8", len(warnings))
 	}
@@ -64,7 +65,7 @@ func TestParseRecordedFeed(t *testing.T) {
 
 	red := warnings[0]
 	if red.Type != domain.TypeHeavyRain || red.Severity != "extreme" || red.SourceSeverity != "Red warning" ||
-		red.Title != "Official SEVERE WEATHER WARNING of HEAVY PERSISTENT RAIN" || len(red.Areas) != 12 {
+		red.Title != "Official SEVERE WEATHER WARNING of HEAVY PERSISTENT RAIN · Kreis Rastatt +11" || len(red.Areas) != 12 {
 		t.Errorf("red rain %+v areas %d", red.Event, len(red.Areas))
 	}
 	if warnings[1].Severity != "severe" || len(warnings[1].Supersedes) == 0 {
@@ -76,6 +77,10 @@ const edgeCases = `{"warnings": [
  {"alert": {"identifier": "cancel-1", "status": "Actual", "msgType": "Cancel", "sent": "2026-11-16T10:00:00Z",
    "references": "sender,old-1,2026-11-15T10:00:00Z sender,old-2,2026-11-15T11:00:00Z", "info": []}},
  {"alert": {"identifier": "green", "status": "Actual", "msgType": "Alert", "sent": "2026-11-16T10:00:00Z", "info": [
+   {"language": "en", "expires": "2026-11-17T00:00:00Z", "parameter": [{"valueName": "awareness_level", "value": "1; green; Minor"}],
+    "area": [{"areaDesc": "A", "geocode": [{"valueName": "EMMA_ID", "value": "PT001"}]}]}]}},
+ {"alert": {"identifier": "green-update", "status": "Actual", "msgType": "Update", "sent": "2026-11-16T12:00:00Z",
+   "references": "sender,yellow-1,2026-11-16T09:00:00Z", "info": [
    {"language": "en", "expires": "2026-11-17T00:00:00Z", "parameter": [{"valueName": "awareness_level", "value": "1; green; Minor"}],
     "area": [{"areaDesc": "A", "geocode": [{"valueName": "EMMA_ID", "value": "PT001"}]}]}]}},
  {"alert": {"identifier": "exercise", "status": "Exercise", "msgType": "Alert", "sent": "2026-11-16T10:00:00Z", "info": []}},
@@ -94,23 +99,33 @@ const edgeCases = `{"warnings": [
 ]}`
 
 func TestParseEdgeCases(t *testing.T) {
-	warnings, skipped, err := Parse([]byte(edgeCases), recordedAt)
+	feed, err := Parse([]byte(edgeCases), recordedAt)
 	if err != nil {
 		t.Fatal(err)
+	}
+	warnings, skipped := feed.Warnings, feed.Skipped
+	// Every identifier counts as listed, stored or not (green, exercise).
+	if !feed.Listed["green"] || !feed.Listed["exercise"] || !feed.Listed["pt-heat"] || feed.Listed["old-1"] {
+		t.Errorf("listed %v", feed.Listed)
 	}
 	// green is dropped by design and uncounted; the exercise is not a warning.
 	if len(skipped) != 1 || skipped[SkipNoArea] != 1 {
 		t.Errorf("skipped %v, want only no-areas as %s", skipped, SkipNoArea)
 	}
-	if len(warnings) != 3 {
-		t.Fatalf("kept %d, want cancel-1, pt-heat, odd-type", len(warnings))
+	if len(warnings) != 4 {
+		t.Fatalf("kept %d, want cancel-1, green-update, pt-heat, odd-type", len(warnings))
 	}
+	// Lowered to green: nothing to store, but the yellow it replaces goes.
+	if g := warnings[1]; !g.Cancel || strings.Join(g.Supersedes, ",") != "yellow-1" {
+		t.Errorf("green update %+v", g)
+	}
+	warnings = append(warnings[:1], warnings[2:]...)
 	if c := warnings[0]; !c.Cancel || strings.Join(c.Supersedes, ",") != "old-1,old-2" {
 		t.Errorf("cancel %+v", c)
 	}
 	heat := warnings[1]
 	if heat.Type != domain.TypeHeat || heat.Severity != "severe" || heat.SourceSeverity != "Awareness level 3" ||
-		heat.Title != "Tempo quente" || heat.Summary != "Calor.\n\nBeba água." || heat.URL != "https://meteoalarm.org/" ||
+		heat.Title != "Tempo quente · Lisboa +1" || heat.Summary != "Calor.\n\nBeba água." || heat.URL != "https://meteoalarm.org/" ||
 		len(heat.Areas) != 2 || fmt.Sprint(heat.Attrs["emmaIds"]) != "[PT011]" || !heat.StartedAt.Equal(time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)) {
 		t.Errorf("non-English heat %+v areas %v", heat.Event, heat.Areas)
 	}
@@ -188,7 +203,15 @@ type fakeStore struct {
 	upserted []domain.Event
 	calls    int // Upsert calls: one per country that answered
 	deleted  []string
-	order    []string // "upsert" and "delete", in call order
+	order    []string            // "upsert" and "delete", in call order
+	active   map[string][]string // country → active ids, for ActiveIDsWithAttr
+}
+
+func (f *fakeStore) ActiveIDsWithAttr(_ context.Context, _, key, value string) ([]string, error) {
+	if key != "country" {
+		return nil, fmt.Errorf("unexpected attr %q", key)
+	}
+	return f.active[value], nil
 }
 
 func (f *fakeStore) Upsert(_ context.Context, _ string, events []domain.Event) (int, error) {
@@ -273,5 +296,83 @@ func TestInfoCoverage(t *testing.T) {
 	info := New(nil, nil, nil, nil).Info()
 	if !info.OfficialWarnings || len(info.Coverage) != len(Countries) || info.Coverage[0] != "AT" || info.License != "CC BY 4.0" {
 		t.Fatalf("%+v", info)
+	}
+}
+
+// TestWarningTitle covers how members write headlines (2026-11-19 feeds).
+func TestWarningTitle(t *testing.T) {
+	ro := "Local și temporar vântul va avea intensificări cu viteze la rafală de 50...70 km/h, iar la munte"
+	cases := []struct {
+		name, headline, event string
+		level, typ            int
+		areas                 []string
+		want                  string
+		used                  bool
+	}{
+		{
+			name: "area inside a word is not a match", headline: "Moderate rain-flood warning", level: 2, typ: 12,
+			areas: []string{"Calvados", "Ain"}, want: "Moderate rain-flood warning · Calvados +1", used: true,
+		},
+		{"short headline, place added", "Strong rainfall", "Strong rainfall", 2, 10, []string{"Genève"}, "Strong rainfall · Genève", true},
+		{
+			"place already named", "Yellow Strong wind warning for Poland - Opolskie Province Nyski County", "Yellow Wind warning", 2, 1,
+			[]string{"Opolskie Province Nyski County"},
+			"Yellow Wind warning · Opolskie Province Nyski County", false,
+		},
+		{
+			"sentence headline, event name", "Gale, yellow level, North Cape - Slettnes lighthouse, 2026-11-14T12:00:00+00:00, 2026-11-15", "Gale", 2, 1,
+			[]string{"North Cape - Slettnes lighthouse"},
+			"Gale · North Cape - Slettnes lighthouse", false,
+		},
+		{"Romanian headline, junk event", ro, "awareness_type=1, awareness_level=2", 2, 1, []string{"Alba", "Arad", "Argeș"}, "Yellow wind warning · Alba +2", false},
+		{
+			"long area cut", "Status Yellow - Marine Gale warning from Wicklow Head to Valentia to Fair Head, on the Irish Sea", "Yellow Gale", 2, 1,
+			[]string{"From Wicklow Head to Valentia to Fair Head, on the Irish Sea South of Anglesey"},
+			"Yellow Gale · From Wicklow Head to Valentia to Fair…", false,
+		},
+		{"no areas", "Snowfall", "", 3, 2, nil, "Snowfall", true},
+		{"unknown type", "", "", 4, 99, []string{"X"}, "Red weather warning · X", false},
+	}
+	for _, c := range cases {
+		got, used := warningTitle(c.headline, c.event, c.level, c.typ, c.areas)
+		if got != c.want || used != c.used {
+			t.Errorf("%s: %q used=%v, want %q used=%v", c.name, got, used, c.want, c.used)
+		}
+	}
+}
+
+// TestPollReconcilesSnapshot: an active warning the country's feed no
+// longer lists is removed; a replaced one the feed still lists is not
+// stored again; an empty feed removes nothing.
+func TestPollReconcilesSnapshot(t *testing.T) {
+	replacedStillListed := `{"warnings": [
+ {"alert": {"identifier": "old-yellow", "status": "Actual", "msgType": "Alert", "sent": "2026-11-16T09:00:00Z", "info": [
+   {"language": "en", "headline": "Wind", "expires": "2026-11-17T00:00:00Z", "parameter": [{"valueName": "awareness_level", "value": "2; yellow; Moderate"}],
+    "area": [{"areaDesc": "A", "geocode": [{"valueName": "EMMA_ID", "value": "PT001"}]}]}]}},
+ {"alert": {"identifier": "new-orange", "status": "Actual", "msgType": "Update", "sent": "2026-11-16T10:00:00Z",
+   "references": "sender,old-yellow,2026-11-16T09:00:00Z", "info": [
+   {"language": "en", "headline": "Wind", "expires": "2026-11-17T00:00:00Z", "parameter": [{"valueName": "awareness_level", "value": "3; orange; Severe"}],
+    "area": [{"areaDesc": "A", "geocode": [{"valueName": "EMMA_ID", "value": "PT001"}]}]}]}}
+]}`
+	s, store := newTestSource(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/feeds-portugal":
+			_, _ = w.Write([]byte(replacedStillListed))
+		case "/feeds-spain":
+			_, _ = w.Write([]byte(`{"warnings": []}`))
+		}
+	}, Country{"PT", "portugal"}, Country{"ES", "spain"})
+	store.active = map[string][]string{
+		"PT": {"new-orange", "old-yellow", "vanished"},
+		"ES": {"es-1"},
+	}
+	if _, err := s.Poll(t.Context(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.upserted) != 1 || store.upserted[0].SourceEventID != "new-orange" {
+		t.Fatalf("upserted %v, want only new-orange", store.upserted)
+	}
+	if got := fmt.Sprint(store.deleted); got != "[old-yellow vanished]" {
+		t.Fatalf("deleted %s, want the replaced and the vanished PT warnings, nothing from the empty ES feed", got)
 	}
 }
