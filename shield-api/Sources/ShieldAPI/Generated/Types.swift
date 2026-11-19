@@ -2431,10 +2431,10 @@ public enum Operations {
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/kind`.
                 public var kind: Swift.String?
-                /// Defaults to active.
+                /// Comma-separated statuses (active, resolved). Defaults to active; `active,resolved` includes both.
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/status`.
-                public var status: Components.Schemas.EventStatus?
+                public var status: Swift.String?
                 /// Comma-separated source ids.
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/source`.
@@ -2461,7 +2461,7 @@ public enum Operations {
                 ///   - _type: Comma-separated event types.
                 ///   - severity: Comma-separated severities.
                 ///   - kind: Comma-separated kinds.
-                ///   - status: Defaults to active.
+                ///   - status: Comma-separated statuses (active, resolved). Defaults to active; `active,resolved` includes both.
                 ///   - source: Comma-separated source ids.
                 ///   - country: ISO 3166-1 alpha-2; matches events within the country or nearby offshore.
                 ///   - since: Only events updated at or after this time.
@@ -2473,7 +2473,7 @@ public enum Operations {
                     _type: Swift.String? = nil,
                     severity: Swift.String? = nil,
                     kind: Swift.String? = nil,
-                    status: Components.Schemas.EventStatus? = nil,
+                    status: Swift.String? = nil,
                     source: Swift.String? = nil,
                     country: Swift.String? = nil,
                     since: Foundation.Date? = nil,
