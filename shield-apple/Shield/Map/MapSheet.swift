@@ -2,20 +2,29 @@
 import ShieldCore
 import SwiftUI
 
-/// What the iOS bottom sheet shows (DESIGN.md §10 shells). Peek: the `StatStrip`. Medium: the
-/// event list, or the selected event. Large: the selected event with room for the full detail
-/// (S3.5), or the whole list.
+/// What the iOS bottom sheet shows (DESIGN.md §10 shells). Peek: the search field over a
+/// one-line stat strip (owner, 2026-11-19). Medium: the full strip and the event list, or the
+/// selected event. Large: the same with room for the full detail (S3.5). While searching, the
+/// results replace the list.
 struct MapSheet: View {
     @Bindable var model: LiveMapModel
+    @Bindable var search: MapSearch
+    /// The sheet sits on its peek detent.
+    var isPeek: Bool
     var zoomOut: () -> Void
-    /// The height the peek detent needs to show the stat strip, which grows with Dynamic Type.
+    /// A search result was chosen: an event (select it) or a place (move the map there).
+    var selectEvent: (HazardEvent) -> Void
+    var selectPlace: (MapSearch.Place) -> Void
+    /// The height the peek needs for the search field and compact strip; grows with Dynamic Type.
     var peekHeightChanged: (CGFloat) -> Void
     /// The height of the sheet's content as it is dragged or settles.
     var heightChanged: (CGFloat) -> Void
 
+    @FocusState private var searchFocused: Bool
+
     var body: some View {
         VStack(spacing: 0) {
-            if let event = model.selectedEvent {
+            if let event = model.selectedEvent, !search.isActive {
                 ScrollView {
                     SelectedEventSummary(
                         event: event,
@@ -30,20 +39,21 @@ struct MapSheet: View {
                 }
                 .transition(.opacity)
             } else {
-                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot),
-                          isSample: model.provider.isSampleData)
-                    .padding(.horizontal, ShieldSpace.s5)
-                    .padding(.top, ShieldSpace.s5)
-                    .padding(.bottom, ShieldSpace.s3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { peekHeightChanged($0) }
+                header
                 Rectangle()
                     .fill(Color.ink.opacity(ShieldAlpha.hairline))
                     .frame(height: 1)
-                // An overlay, so at peek the list is cut off below the strip instead of pushing
-                // the strip out of the sheet.
+                // An overlay, so at peek the content is cut off below the header instead of
+                // pushing the header out of the sheet.
                 Color.clear
-                    .overlay(alignment: .top) { EventList(model: model, zoomOut: zoomOut) }
+                    .overlay(alignment: .top) {
+                        if search.isActive {
+                            MapSearchResults(search: search, model: model,
+                                             selectEvent: choose, selectPlace: choose)
+                        } else {
+                            EventList(model: model, zoomOut: zoomOut)
+                        }
+                    }
                     .clipped()
                     .transition(.opacity)
             }
@@ -51,6 +61,37 @@ struct MapSheet: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heightChanged($0) }
         .animation(ShieldMotion.spring, value: model.selectedEventID)
+        .animation(ShieldMotion.standard, value: search.isActive)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: ShieldSpace.s3) {
+            MapSearchField(search: search, focused: $searchFocused)
+            // Compact at peek, where the map needs the room; the big numbers above it. Gone
+            // while searching: the results need the room.
+            if !search.isActive || isPeek {
+                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot), style: isPeek ? .compact : .full)
+            }
+        }
+        .padding(.horizontal, ShieldSpace.s5)
+        .padding(.top, ShieldSpace.s4)
+        .padding(.bottom, ShieldSpace.s3)
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            // Only the peek layout sets the peek detent; the full strip is taller.
+            if isPeek { peekHeightChanged(height) }
+        }
+    }
+
+    private func choose(_ event: HazardEvent) {
+        searchFocused = false
+        search.end()
+        selectEvent(event)
+    }
+
+    private func choose(_ place: MapSearch.Place) {
+        searchFocused = false
+        selectPlace(place)
     }
 }
 

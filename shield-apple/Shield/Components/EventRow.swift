@@ -14,7 +14,7 @@ struct EventRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: ShieldSpace.s3) {
             HazardMarker(type: event.type, severity: event.severity, kind: event.kind,
-                         isStale: isStale, baseSize: 22)
+                         isStale: isStale, baseSize: 22, pulses: false)
                 .frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: ShieldSpace.s1) {
                 Text(event.title)
