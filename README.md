@@ -5,7 +5,7 @@ What's happening on Earth right now, how serious is it, and where?
 Shield is a global natural-hazard map: earthquakes, wildfires, floods, storms, volcanoes and official weather warnings, normalized from GDACS, USGS, NASA EONET, NASA FIRMS and Meteoalarm. Every record shows its source, the source's own severity next to Shield's derived one, and how fresh it is. Shield does not replace national emergency services.
 
 - **Plan:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/DECISIONS.md](docs/DECISIONS.md), [docs/BACKLOG.md](docs/BACKLOG.md)
-- **Platforms:** iOS + macOS (SwiftUI) first, then web (SvelteKit), then Android.
+- **Platforms:** web (React + TypeScript on Vite+, launches first, ADR 22), iOS + macOS (SwiftUI) in parallel, then Android.
 - **Deploys** from `platform/infra` (LuminaVaultInfra) to the `maat` cluster, namespace `horus`. Merging this repo deploys nothing.
 
 ## Layout
@@ -16,7 +16,8 @@ Shield is a global natural-hazard map: earthquakes, wildfires, floods, storms, v
 | `backend/api/openapi.yaml` | API contract; Swift and TS clients are generated from it |
 | `docs/` | Architecture, decisions, backlog |
 | `shield-apple/`, `shield-api/`, `shield-core/` | Apple app and Swift packages (M3) |
-| `web/`, `android/` | Phase 2 and Phase 4 |
+| `shield-app-web/` | Web app: React + TypeScript on Vite+, MapLibre (ADR 19, 22) |
+| `android/` | Phase 4 |
 
 ## Backend quick start
 
