@@ -94,24 +94,27 @@ final class EventMarkerView: SwiftUIAnnotationView {
         let side = 28 * event.severity.markerScale
         // Room for the extreme pulse (1.9×) and the selection ring; others stay tight to the
         // marker so neighbouring hit areas don't overlap.
-        let frameSide = event.severity.pulses && !isStale ? side * 2 : side + 10
+        let frameSide = event.severity.pulses && !isStale && !event.isResolved ? side * 2 : side + 10
         render(
             HazardMarker(type: event.type, severity: event.severity, kind: event.kind,
-                         isStale: isStale, isSelected: isSelected),
+                         isStale: isStale, isResolved: event.isResolved, isSelected: isSelected),
             size: CGSize(width: frameSide, height: frameSide)
         )
-        clusteringIdentifier = localClustering ? Self.clusteringID : nil
+        // Resolved events never join a local cluster: its count and ring would mix them with
+        // what is happening. They give way to every active marker, and sit under them.
+        clusteringIdentifier = localClustering && !event.isResolved ? Self.clusteringID : nil
         collisionMode = .circle
-        displayPriority = event.severity.displayPriority
-        zPriority = isSelected ? .max : MKAnnotationViewZPriority(rawValue: Float(event.severity.rank) * 10)
+        displayPriority = event.isResolved ? MKFeatureDisplayPriority(rawValue: 100) : event.severity.displayPriority
+        zPriority = isSelected ? .max
+            : MKAnnotationViewZPriority(rawValue: Float(event.severity.rank) * 10 + (event.isResolved ? 0 : 100))
         speak(Self.spoken(event, isStale: isStale))
     }
 
     /// "Severe earthquake, observed, M 6.1 - 38 km W of Coquimbo, updated 12 min ago" (DESIGN.md §14).
     static func spoken(_ e: HazardEvent, isStale: Bool) -> String {
         var parts = ["\(e.severity.label) \(e.type.label.lowercased())", e.kind.label.lowercased(), e.title,
-                     "updated \(Freshness.relative(e.updatedAt))"]
-        if isStale { parts.append("stale") }
+                     e.resolvedWords()?.lowercased() ?? "updated \(Freshness.relative(e.updatedAt))"]
+        if isStale, !e.isResolved { parts.append("stale") }
         return parts.joined(separator: ", ")
     }
 }

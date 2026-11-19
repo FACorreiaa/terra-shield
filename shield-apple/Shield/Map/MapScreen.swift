@@ -1,3 +1,4 @@
+import MapKit
 import ShieldCore
 import SwiftUI
 
@@ -15,6 +16,8 @@ struct MapScreen: View {
     @State private var showsFilters = false
     /// Where a chosen place moves the map.
     @State private var focus: MapFocus?
+    /// The country whose overview is open (S3.4).
+    @State private var country: CountryOverview?
     /// The sidebar holds the list and its notices; the map repeats them only when it's hidden.
     @State private var columnVisibility = NavigationSplitViewVisibility.automatic
     @FocusState private var sidebarSearchFocused: Bool
@@ -31,6 +34,40 @@ struct MapScreen: View {
         shell
             .background(Color.canvas)
             .task { await model.keepFresh() }
+            .task { await loadCountries() }
+            // Opening a country loads it; one that crosses ±180° is framed by its events once
+            // they arrive (`Country.mapBox(for:)`).
+            // Keyed on the instance: choosing the open country again makes a new overview, which
+            // must load too.
+            .task(id: country.map(ObjectIdentifier.init)) {
+                guard let country else { return }
+                let opened = ContinuousClock.now
+                await country.load()
+                // Once the sheet has settled, so the map frames the country above it.
+                try? await Task.sleep(until: opened + .milliseconds(450))
+                guard !Task.isCancelled, let box = country.summary.map({ $0.country.mapBox(for: $0.events) })
+                        ?? country.country?.mapBox(for: []) else { return }
+                focus = MapFocus(region: MKCoordinateRegion(box))
+            }
+            // The map refreshed (poll or stream): an overview older than a minute follows it.
+            .onChange(of: model.snapshot?.generatedAt) {
+                Task { await country?.refresh(ifOlderThan: 60) }
+            }
+            // The list arrives late or failed: try again when someone starts typing.
+            .onChange(of: search.isActive) { _, active in
+                if active, search.countries.isEmpty { Task { await loadCountries() } }
+            }
+            #if DEBUG
+            // Screenshot automation: `SHIELD_COUNTRY=PT` opens Portugal's overview.
+            .task {
+                guard let code = ProcessInfo.processInfo.environment["SHIELD_COUNTRY"] else { return }
+                let known = (try? await model.provider.countries())?.first { $0.iso2 == code.uppercased() }
+                open(known, iso2: code)
+                #if os(iOS)
+                if ProcessInfo.processInfo.environment["SHIELD_SHEET"] == "large" { detent = .large }
+                #endif
+            }
+            #endif
             #if os(macOS)
             .onKeyPress(.escape) {
                 if search.isActive {
@@ -38,8 +75,12 @@ struct MapScreen: View {
                     sidebarSearchFocused = false
                     return .handled
                 }
-                guard model.selectedEventID != nil else { return .ignored }
-                model.selectedEventID = nil
+                if model.selectedEventID != nil {
+                    model.selectedEventID = nil
+                    return .handled
+                }
+                guard country != nil else { return .ignored }
+                closeCountry()
                 return .handled
             }
             #endif
@@ -70,18 +111,27 @@ struct MapScreen: View {
                             .accessibilityHidden(true)
                     }
                 // The sample badge is the map's own (always in view), not repeated here. The
-                // strip steps aside while searching.
-                if !search.isActive {
-                    StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot),
+                // strip steps aside while searching, and for a country's overview.
+                if let country, !search.isActive {
+                    Rectangle()
+                        .fill(Color.ink.opacity(ShieldAlpha.hairline))
+                        .frame(height: 1)
+                        .padding(.top, ShieldSpace.s3)
+                    CountryView(overview: country, model: model, close: closeCountry,
+                                selectEvent: { model.select($0) })
+                } else if !search.isActive {
+                    StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot, includesResolved: model.query.includeResolved),
                               query: model.query, tap: { model.query = model.query.toggling($0) })
                         .padding(.horizontal, ShieldSpace.s4)
                         .padding(.vertical, ShieldSpace.s3)
                 } else {
                     Spacer().frame(height: ShieldSpace.s3)
                 }
-                Rectangle()
-                    .fill(Color.ink.opacity(ShieldAlpha.hairline))
-                    .frame(height: 1)
+                if country == nil || search.isActive {
+                    Rectangle()
+                        .fill(Color.ink.opacity(ShieldAlpha.hairline))
+                        .frame(height: 1)
+                }
                 if search.isActive {
                     MapSearchResults(search: search, model: model,
                                      selectEvent: { event in
@@ -92,8 +142,12 @@ struct MapScreen: View {
                                      selectPlace: { place in
                                          sidebarSearchFocused = false
                                          Task { await go(to: place) }
+                                     },
+                                     selectCountry: { country in
+                                         sidebarSearchFocused = false
+                                         open(country)
                                      })
-                } else {
+                } else if country == nil {
                     EventList(model: model, zoomOut: fitWorld)
                 }
             }
@@ -127,14 +181,16 @@ struct MapScreen: View {
                  bottomCover: detent == .medium ? max(sheetHeight, peekHeight) : peekHeight)
             .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: peekHeight) }
             .sheet(isPresented: .constant(true)) {
-                MapSheet(model: model, search: search, showsFilters: $showsFilters,
+                MapSheet(model: model, search: search, country: country, showsFilters: $showsFilters,
                          isPeek: detent == .height(peekHeight),
                          zoomOut: fitWorld,
                          selectEvent: { event in
-                             model.selectedEventID = event.id
+                             model.select(event)
                              withAnimation(ShieldMotion.spring) { detent = .medium }
                          },
                          selectPlace: { place in Task { await go(to: place) } },
+                         selectCountry: { open($0) },
+                         closeCountry: closeCountry,
                          peekHeightChanged: setPeekHeight,
                          heightChanged: { sheetHeight = $0.rounded(.up) })
                     .presentationDetents([.height(peekHeight), .medium, .large], selection: $detent)
@@ -157,7 +213,7 @@ struct MapScreen: View {
             .onChange(of: search.isActive) { _, active in
                 guard !active, let previous = detentBeforeSearch else { return }
                 detentBeforeSearch = nil
-                guard detent == .large, model.selectedEventID == nil else { return }
+                guard detent == .large, model.selectedEventID == nil, country == nil else { return }
                 withAnimation(ShieldMotion.spring) { detent = previous }
             }
             // A marker tapped while the sheet peeks: open far enough to show the event and
@@ -186,7 +242,16 @@ struct MapScreen: View {
             .onChange(of: search.places.first?.id) { _, first in
                 guard ProcessInfo.processInfo.environment["SHIELD_SEARCH_GO"] == "1",
                       first != nil, let place = search.places.first else { return }
-                Task { await go(to: place) }
+                // A matching country wins, as a tap on the first result would.
+                if let match = search.countryMatches.first { open(match) } else { Task { await go(to: place) } }
+            }
+            // `SHIELD_CELL=wind:moderate` picks a matrix cell once the overview loads.
+            .onChange(of: country?.summary?.generatedAt) {
+                guard let raw = ProcessInfo.processInfo.environment["SHIELD_CELL"], country?.cell == nil else { return }
+                let parts = raw.split(separator: ":").map(String.init)
+                guard parts.count == 2, let type = HazardType(rawValue: parts[0]),
+                      let severity = Severity(rawValue: parts[1]) else { return }
+                country?.cell = MatrixCell(type: type, severity: severity)
             }
             #endif
     }
@@ -209,14 +274,44 @@ struct MapScreen: View {
                     remove: { model.query = model.query.removing($0) })
     }
 
+    /// Loads the country list for search. A failure leaves search with places and events only.
+    private func loadCountries() async {
+        guard search.countries.isEmpty, let list = try? await model.provider.countries() else { return }
+        search.countries = list
+    }
+
+    /// Opens a country's overview and frames it on the map (DESIGN.md §10.2). The map's filters
+    /// and its own list stay as they were, ready for when the overview closes.
+    private func open(_ known: Country?, iso2: String? = nil) {
+        guard let overview = CountryOverview(iso2: iso2 ?? known?.iso2 ?? "", known: known,
+                                             provider: model.provider) else { return }
+        model.selectedEventID = nil
+        search.end()
+        country = overview
+        #if os(iOS)
+        // Medium, not large: the country stays in view above its overview (owner to confirm;
+        // DESIGN.md §10.2 says large).
+        withAnimation(ShieldMotion.spring) { detent = .medium }
+        #endif
+    }
+
+    private func open(_ country: Country) { open(country, iso2: nil) }
+
+    private func closeCountry() {
+        model.selectedEventID = nil
+        country = nil
+    }
+
     /// Moves the map to a chosen place and puts the search away, so the map is in view.
     private func go(to place: MapSearch.Place) async {
         guard let region = await search.region(for: place) else { return }
-        focus = MapFocus(region: region)
         search.end()
         #if os(iOS)
+        // The sheet goes down first, so the place is framed in the map it leaves in view.
         withAnimation(ShieldMotion.spring) { detent = .height(peekHeight) }
+        try? await Task.sleep(for: .milliseconds(400))
         #endif
+        focus = MapFocus(region: region)
     }
 
     // MARK: Map
@@ -592,11 +687,13 @@ struct SelectedEventSummary: View {
                 KindChip(kind: event.kind)
                 if let source { SourceBadge(source: source, url: event.url) }
             }
-            if let source {
+            if event.isResolved {
+                ResolvedLabel(event: event)
+            } else if let source {
                 FreshnessLabel(updatedAt: event.updatedAt, fetchedAt: event.fetchedAt,
                                pollInterval: source.pollInterval, observedAt: event.observedAt)
             }
-            if isStale, source == nil {
+            if isStale, source == nil, !event.isResolved {
                 // FreshnessLabel says it when the source is known; say it here otherwise.
                 Text("Stale · this source hasn’t updated recently")
                     .font(ShieldFont.meta)

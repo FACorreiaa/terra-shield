@@ -178,8 +178,25 @@ extension Sequence where Element == HazardEvent {
     /// Display order everywhere (DESIGN.md §4): most severe first, then most recently updated.
     public func sortedForDisplay() -> [HazardEvent] {
         sorted { a, b in
+            // Resolved events (shown only when asked for) follow every active one: a resolved
+            // severe event matters less now than an active moderate one.
+            if a.isResolved != b.isResolved { return !a.isResolved }
             if a.severity != b.severity { return a.severity > b.severity }
             return a.updatedAt > b.updatedAt
         }
+    }
+}
+
+// MARK: - Resolved (DESIGN.md §5, §10.6)
+
+extension HazardEvent {
+    public var isResolved: Bool { status == .resolved }
+
+    /// "Resolved · ended 3 h ago". The end time when the source gave one that has passed, else
+    /// the last update ("Resolved · updated 20 min ago"); nil for an active event.
+    public func resolvedWords(now: Date = .now) -> String? {
+        guard isResolved else { return nil }
+        if let endedAt, endedAt <= now { return "Resolved · ended \(Freshness.relative(endedAt, now: now))" }
+        return "Resolved · updated \(Freshness.relative(updatedAt, now: now))"
     }
 }

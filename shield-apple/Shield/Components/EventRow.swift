@@ -3,31 +3,44 @@ import SwiftUI
 
 /// One event in a list (VIEWS.md catalog; DESIGN.md §10.1): the type glyph in its severity
 /// shape, the title, then kind, source and freshness. A stale row fades like its marker and
-/// says so in words.
+/// says so in words; a resolved one says "Resolved · ended 3 h ago" instead of its freshness.
 struct EventRow: View {
     let event: HazardEvent
     /// From `/v1/sources`; `nil` until they load, and the row then shows the source id.
     var source: Source?
     var isStale = false
     var isSelected = false
+    /// Where it is, when the list around it doesn't say: "Near Chile, 38 km offshore" in Chile's
+    /// overview (ADR 4).
+    var place: String? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: ShieldSpace.s3) {
             HazardMarker(type: event.type, severity: event.severity, kind: event.kind,
-                         isStale: isStale, baseSize: 22, pulses: false)
+                         isStale: isStale, isResolved: event.isResolved, baseSize: 22, pulses: false)
                 .frame(width: 32, height: 32)
             VStack(alignment: .leading, spacing: ShieldSpace.s1) {
                 Text(event.title)
                     .font(ShieldFont.headline)
-                    .foregroundStyle(isStale ? Color.muted : Color.ink)
+                    .foregroundStyle(isStale || event.isResolved ? Color.muted : Color.ink)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                if let place {
+                    Label(place, systemImage: "location")
+                        .font(ShieldFont.meta)
+                        .foregroundStyle(Color.muted)
+                        .labelStyle(.titleAndIcon)
+                }
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: ShieldSpace.s2) { kindAndSource }
                     VStack(alignment: .leading, spacing: ShieldSpace.s1) { kindAndSource }
                 }
-                FreshnessLabel(updatedAt: event.updatedAt, fetchedAt: lastFetch,
-                               pollInterval: pollInterval, observedAt: event.observedAt)
+                if event.isResolved {
+                    ResolvedLabel(event: event)
+                } else {
+                    FreshnessLabel(updatedAt: event.updatedAt, fetchedAt: lastFetch,
+                                   pollInterval: pollInterval, observedAt: event.observedAt)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -60,10 +73,12 @@ struct EventRow: View {
         var parts = [
             "\(event.severity.label) \(event.type.label.lowercased())",
             event.kind.label.lowercased(),
-            isStale ? "stale, last update \(Freshness.relative(lastFetch))"
-                    : "updated \(Freshness.relative(event.updatedAt))",
+            event.resolvedWords()?.lowercased()
+                ?? (isStale ? "stale, last update \(Freshness.relative(lastFetch))"
+                            : "updated \(Freshness.relative(event.updatedAt))"),
         ]
         parts.append("source \(source?.name ?? event.source)")
+        if let place { parts.insert(place, at: 0) }
         return "\(event.title). " + parts.joined(separator: ", ")
     }
 }

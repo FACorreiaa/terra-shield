@@ -132,3 +132,32 @@ private func freshStore(_ name: String = #function) -> FilterStore {
         #expect(store.load().query.window == 3600)
     }
 }
+
+@Suite struct ResolvedFilterTests {
+    @Test func statusIsAChipWithItsOwnReset() {
+        let q = EventQuery(includeResolved: true)
+        #expect(q.activeFilters == [.status])
+        #expect(q.label(for: .status) == "With resolved")
+        #expect(q.removing(.status).isDefault)
+    }
+
+    @Test func includeResolvedIsSaved() {
+        let store = FilterStore(suiteName: "resolved-\(UUID())")
+        store.save(SavedFilters(query: EventQuery(includeResolved: true)))
+        #expect(store.load().query.includeResolved)
+        store.clear()
+    }
+
+    @Test func aVersion1BlobWithoutStatusKeepsItsOtherFilters() {
+        let store = FilterStore(suiteName: "resolved-old-\(UUID())")
+        let defaults = UserDefaults(suiteName: store.suiteName)!
+        defaults.set(Data(#"{"version":1,"excludedTypes":["flood"],"minimumSeverity":"severe","excludedKinds":[],"window":3600,"showsDetections":true}"#.utf8), forKey: store.key)
+        let loaded = store.load()
+        #expect(!loaded.query.includeResolved)
+        #expect(!loaded.query.types.contains(.flood))
+        #expect(loaded.query.minimumSeverity == .severe)
+        #expect(loaded.query.window == 3600)
+        #expect(loaded.showsDetections)
+        store.clear()
+    }
+}

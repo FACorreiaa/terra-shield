@@ -112,7 +112,19 @@ public final class LiveMapModel {
 
     public var selectedEvent: HazardEvent? {
         guard let selectedEventID else { return nil }
-        return snapshot?.events.first { $0.id == selectedEventID }
+        if let shown = snapshot?.events.first(where: { $0.id == selectedEventID }) { return shown }
+        return chosenEvent?.id == selectedEventID ? chosenEvent : nil
+    }
+
+    /// An event chosen outside the map's own list (a country's overview), kept so it can be shown
+    /// when a cluster or the map's filters leave it out of the snapshot. The map's copy wins
+    /// whenever there is one, since it is the fresher.
+    private var chosenEvent: HazardEvent?
+
+    /// Selects `event` even if the map doesn't show it.
+    public func select(_ event: HazardEvent) {
+        chosenEvent = event
+        selectedEventID = event.id
     }
 
     private let debounce: Duration

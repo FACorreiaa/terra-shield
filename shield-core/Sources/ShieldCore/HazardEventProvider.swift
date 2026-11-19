@@ -49,6 +49,10 @@ public protocol HazardEventProvider: Sendable {
     /// The event with its full geometry, for drawing its area when selected.
     func detail(id: UUID) async throws -> EventDetail?
     func sources() async throws -> [Source]
+    /// Every country with its count of active events, by name (S3.4).
+    func countries() async throws -> [Country]
+    /// One country's overview; nil when the server has no boundary for `iso2` (404).
+    func countrySummary(iso2: String) async throws -> CountrySummary?
     /// Satellite thermal detections in view: grid cells below zoom 6, points from zoom 6.
     func detections(in viewport: MapViewport) async throws -> DetectionLayer
     /// Whether `changes(after:)` streams anything (S3.6). Defaults to false.

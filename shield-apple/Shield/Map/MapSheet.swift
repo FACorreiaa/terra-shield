@@ -5,10 +5,13 @@ import SwiftUI
 /// What the iOS bottom sheet shows (DESIGN.md §10 shells). Peek: the search field over a
 /// one-line stat strip (owner, 2026-11-19). Medium: the full strip and the event list, or the
 /// selected event. Large: the same with room for the full detail (S3.5). While searching, the
-/// results replace the list.
+/// results replace the list. A country's overview (S3.4) replaces the strip and list until
+/// closed; an event opened from it goes back to it.
 struct MapSheet: View {
     @Bindable var model: LiveMapModel
     @Bindable var search: MapSearch
+    /// The open country, if any.
+    var country: CountryOverview?
     /// The filter sheet, presented from here: a second sheet from the map screen would fail
     /// while this one is up.
     @Binding var showsFilters: Bool
@@ -18,6 +21,8 @@ struct MapSheet: View {
     /// A search result was chosen: an event (select it) or a place (move the map there).
     var selectEvent: (HazardEvent) -> Void
     var selectPlace: (MapSearch.Place) -> Void
+    var selectCountry: (Country) -> Void
+    var closeCountry: () -> Void
     /// The height the peek needs for the search field and compact strip; grows with Dynamic Type.
     var peekHeightChanged: (CGFloat) -> Void
     /// The height of the sheet's content as it is dragged or settles.
@@ -41,6 +46,9 @@ struct MapSheet: View {
                     .padding(.bottom, ShieldSpace.s4)
                 }
                 .transition(.opacity)
+            } else if let country, !search.isActive {
+                CountryView(overview: country, model: model, close: closeCountry, selectEvent: selectEvent)
+                    .transition(.opacity)
             } else {
                 header
                 Rectangle()
@@ -52,7 +60,8 @@ struct MapSheet: View {
                     .overlay(alignment: .top) {
                         if search.isActive {
                             MapSearchResults(search: search, model: model,
-                                             selectEvent: choose, selectPlace: choose)
+                                             selectEvent: choose, selectPlace: choose,
+                                             selectCountry: choose)
                         } else {
                             EventList(model: model, zoomOut: zoomOut)
                         }
@@ -64,6 +73,7 @@ struct MapSheet: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heightChanged($0) }
         .animation(ShieldMotion.spring, value: model.selectedEventID)
+        .animation(ShieldMotion.standard, value: country?.iso2)
         .animation(ShieldMotion.standard, value: search.isActive)
         .sheet(isPresented: $showsFilters) {
             NavigationStack {
@@ -81,7 +91,7 @@ struct MapSheet: View {
             // Compact at peek, where the map needs the room; the big numbers above it. Gone
             // while searching: the results need the room.
             if !search.isActive || isPeek {
-                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot), style: isPeek ? .compact : .full,
+                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot, includesResolved: model.query.includeResolved), style: isPeek ? .compact : .full,
                           query: model.query, tap: { model.query = model.query.toggling($0) })
             }
         }
@@ -99,6 +109,11 @@ struct MapSheet: View {
         searchFocused = false
         search.end()
         selectEvent(event)
+    }
+
+    private func choose(_ country: Country) {
+        searchFocused = false
+        selectCountry(country)
     }
 
     private func choose(_ place: MapSearch.Place) {

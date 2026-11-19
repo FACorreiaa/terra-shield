@@ -194,7 +194,11 @@ extension StatStrip.Cell {
     /// zoom. A cluster carries a total and, usually, a count per severity, but nothing about
     /// kind. Where a cluster cannot say, the number is a lower bound ("12+"), or a dash when
     /// nothing at all is known. It is never a guess.
-    static func liveMap(_ snapshot: MapSnapshot?) -> [StatStrip.Cell] {
+    ///
+    /// The strip counts what is happening, so resolved events (shown when the filter includes
+    /// them) never count. Clusters can't say how many of theirs are resolved, so while resolved
+    /// events are included, the counts that need clusters show a dash.
+    static func liveMap(_ snapshot: MapSnapshot?, includesResolved: Bool = false) -> [StatStrip.Cell] {
         guard let snapshot else {
             return [
                 .init(value: nil, label: "Observed events", unit: units[0]),
@@ -203,9 +207,11 @@ extension StatStrip.Cell {
             ]
         }
 
-        var high = snapshot.events.count { $0.severity >= .severe }
+        let active = snapshot.events.filter { !$0.isResolved }
+        let clustersMixStatuses = includesResolved && !snapshot.clusters.isEmpty
+        var high = active.count { $0.severity >= .severe }
         var highIsLowerBound = false
-        for cluster in snapshot.clusters {
+        for cluster in snapshot.clusters where !clustersMixStatuses {
             if cluster.severities.isEmpty {
                 // No split from the server: all we know is whether its worst member is high.
                 if cluster.maxSeverity >= .severe {
@@ -217,14 +223,16 @@ extension StatStrip.Cell {
             }
         }
 
-        let warnings = snapshot.events.count { $0.kind == .warning }
+        let warnings = active.count { $0.kind == .warning }
         let clustered = !snapshot.clusters.isEmpty
         // More matched than the server sent, so every count is short.
         let short = snapshot.truncated
 
         return [
-            .init(value: snapshot.totalCount, isLowerBound: short, label: "Observed events", unit: units[0]),
-            .init(value: high, isLowerBound: highIsLowerBound || short, label: "High severity", unit: units[1],
+            .init(value: clustersMixStatuses ? nil : snapshot.totalCount - (snapshot.events.count - active.count),
+                  isLowerBound: short, label: "Observed events", unit: units[0]),
+            .init(value: clustersMixStatuses ? nil : high, isLowerBound: highIsLowerBound || short,
+                  label: "High severity", unit: units[1],
                   filter: .highSeverity),
             .init(value: clustered && warnings == 0 ? nil : warnings,
                   isLowerBound: clustered || short, label: "Official warnings", unit: units[2],

@@ -1,12 +1,9 @@
 import ShieldCore
 import SwiftUI
 
-/// The filter sheet (DESIGN.md §10.6): hazard types, minimum severity, kinds and time window.
-/// Changes apply as they are made, and the map reloads behind the sheet. "Reset" shows when
-/// anything differs from the default.
-///
-/// Status ("include resolved") waits for `/v1/events` to take more than one status
-/// (backend, queued after S1.5).
+/// The filter sheet (DESIGN.md §10.6): hazard types, minimum severity, kinds, time window and
+/// status. Changes apply as they are made, and the map reloads behind the sheet. "Reset" shows
+/// when anything differs from the default.
 struct FilterSheet: View {
     @Bindable var model: LiveMapModel
     var done: () -> Void
@@ -25,6 +22,7 @@ struct FilterSheet: View {
                 section("Minimum severity") { severityPicker }
                 section("Kind") { kindToggles }
                 section("Updated in the last") { windowPicker }
+                section("Status") { statusToggle }
             }
             .padding(ShieldSpace.s5)
         }
@@ -136,17 +134,37 @@ struct FilterSheet: View {
     }
 
     private func kindRow(_ kind: EventKind, isOn: Binding<Bool>, disabled: Bool) -> some View {
+        switchRow(kind.label, symbol: kind.sfSymbol, isOn: isOn, disabled: disabled)
+    }
+
+    // MARK: Status
+
+    /// Active events always show; this adds the resolved ones, faded with a checkmark. The
+    /// window applies to their last update, as it does to active events, not to when they ended.
+    private var statusToggle: some View {
+        VStack(alignment: .leading, spacing: ShieldSpace.s2) {
+            switchRow("Include resolved", symbol: "checkmark.circle", isOn: $model.query.includeResolved, disabled: false)
+                .padding(.horizontal, ShieldSpace.s3)
+                .background(Color.ink.opacity(ShieldAlpha.hairline / 2), in: RoundedRectangle(cornerRadius: ShieldRadius.md))
+            Text("Adds events that have ended or been cancelled, shown faded, if they were updated in the window.")
+                .font(ShieldFont.meta)
+                .foregroundStyle(Color.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func switchRow(_ label: String, symbol: String, isOn: Binding<Bool>, disabled: Bool) -> some View {
         // Label left, switch right on both platforms (the Mac's default is a centred checkbox,
         // and its switch hugs the label).
         HStack(spacing: ShieldSpace.s3) {
-            Image(systemName: kind.sfSymbol)
+            Image(systemName: symbol)
                 .foregroundStyle(Color.muted)
                 .frame(width: 22)
                 .accessibilityHidden(true)
-            Text(kind.label).font(ShieldFont.body).foregroundStyle(Color.ink)
+            Text(label).font(ShieldFont.body).foregroundStyle(Color.ink)
                 .accessibilityHidden(true) // the Toggle carries the name
             Spacer(minLength: ShieldSpace.s2)
-            Toggle(kind.label, isOn: isOn)
+            Toggle(label, isOn: isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .tint(Color.accent)

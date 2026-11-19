@@ -121,7 +121,11 @@ Kind changes the **form** of a mark. Colour stays with severity.
   shown as minor until an official source rates it." An empty `sourceSeverity` shows no source label.
 - **Stale** (older than 3× the source's poll interval, from `/v1/sources`): the marker drops to
   45% opacity and desaturates, a small clock badge appears, and rows show `warning` text "Stale · last update 3 h ago".
-- **Resolved** events leave the live map. In history and timelines they show `ok` "Resolved".
+- **Resolved** events leave the live map, unless the filter includes them (§10.6). Then they are
+  faded and desaturated like a stale marker, with a `muted` checkmark badge instead of the clock,
+  no pulse, and below every active marker. `ok` stays off the map. In lists, cards, history and
+  timelines they show `ok` "Resolved · ended 3 h ago", and they sort after every active event.
+  The stat strip never counts them.
 
 ---
 
@@ -353,7 +357,10 @@ Build after the gate, with APNs push. The spec is complete now.
 - Filters persist locally (S3.3). Active filters show as removable chips on the map. "Reset"
   appears when anything differs from the default.
 - The kind toggle "Satellite heat detection" is the FIRMS layer, the same switch as the map's
-  heat control (⌥⌘H). Status ships when `/v1/events` takes more than one status.
+  heat control (⌥⌘H). Status is one switch, "Include resolved", with the line "Adds events that
+  have ended or been cancelled, shown faded, if they were updated in the window."; its chip reads
+  "With resolved". The window applies to the last update, not to when an event ended.
+- Resolved markers never join a local cluster, and give way to active markers when they collide.
 
 ### 10.7 Sources & attribution
 - **Data:** `GET /v1/sources`.

@@ -28,6 +28,10 @@ struct HazardMapView {
         map.isRotateEnabled = false
         #if os(iOS)
         map.overrideUserInterfaceStyle = .dark
+        // MapKit frames its region inside the layout margins. Only the sheet's cover should count
+        // (`bottomCover`): with the safe area added too, a medium sheet left margins taller than
+        // the map and a region with no height, which loads no events (2026-11-19).
+        map.insetsLayoutMarginsFromSafeArea = false
         #else
         map.appearance = NSAppearance(named: .darkAqua)
         map.showsZoomControls = true
@@ -58,7 +62,16 @@ struct HazardMapView {
         }
         if let focus, focus.id != coordinator.focusID {
             coordinator.focusID = focus.id
-            coordinator.show(focus.region)
+            coordinator.lastFocus = (focus.region, .now, bottomCover)
+            coordinator.show(focus.region, bottomCover: bottomCover)
+        } else if let pending = coordinator.pendingFocus {
+            coordinator.show(pending.region, bottomCover: bottomCover)
+        } else if let last = coordinator.lastFocus, last.cover != bottomCover,
+                  Date.now.timeIntervalSince(last.at) < 1.5 {
+            // The sheet the focus framed around is still moving (opening a country takes it to
+            // medium): frame again as its height settles.
+            coordinator.lastFocus?.cover = bottomCover
+            coordinator.show(last.region, bottomCover: bottomCover)
         }
     }
 
@@ -200,14 +213,39 @@ struct HazardMapView {
         }
 
         var focusID: UUID?
+        /// The last focus, when it came and the cover it was framed for.
+        var lastFocus: (region: MKCoordinateRegion, at: Date, cover: CGFloat)?
+        /// A focus that came before the map had a size.
+        var pendingFocus: (region: MKCoordinateRegion, cover: CGFloat)?
 
-        /// A searched place. A point-sized region (a small town) still shows its surroundings.
-        func show(_ region: MKCoordinateRegion) {
+        /// A searched place or a country, framed in the part of the map nothing covers. The
+        /// sheet is the map's bottom layout margin (`bottomCover`), which MapKit leaves out by
+        /// itself; the padding keeps clear of the status capsule and the controls. A point-sized
+        /// region (a small town) still shows its surroundings. Works across ±180°, where the
+        /// rect simply runs past the world's edge.
+        func show(_ region: MKCoordinateRegion, bottomCover: CGFloat) {
             guard let map else { return }
-            var region = region
-            region.span.latitudeDelta = max(region.span.latitudeDelta * 1.2, 0.5)
-            region.span.longitudeDelta = max(region.span.longitudeDelta * 1.2, 0.5)
-            map.setRegion(map.regionThatFits(region), animated: true)
+            // Before the map has a real size (launch), keep the focus for the next update.
+            guard map.bounds.width > 120, map.bounds.height > 240 else {
+                pendingFocus = (region, bottomCover)
+                return
+            }
+            pendingFocus = nil
+            let latSpan = max(region.span.latitudeDelta, 0.5)
+            let lonSpan = max(region.span.longitudeDelta, 0.5)
+            let north = MKMapPoint(CLLocationCoordinate2D(latitude: min(region.center.latitude + latSpan / 2, 85),
+                                                          longitude: region.center.longitude))
+            let south = MKMapPoint(CLLocationCoordinate2D(latitude: max(region.center.latitude - latSpan / 2, -85),
+                                                          longitude: region.center.longitude))
+            let width = MKMapSize.world.width * lonSpan / 360
+            let center = MKMapPoint(region.center)
+            let rect = MKMapRect(x: center.x - width / 2, y: north.y, width: width, height: south.y - north.y)
+            #if os(iOS)
+            let padding = UIEdgeInsets(top: 104, left: 24, bottom: 24, right: 72)
+            #else
+            let padding = NSEdgeInsets(top: 72, left: 32, bottom: 56, right: 80)
+            #endif
+            map.setVisibleMapRect(rect, edgePadding: padding, animated: true)
         }
 
         /// Zooms to a server cluster's members. Co-located members have a zero-area box, so the
@@ -291,9 +329,12 @@ struct HazardMapView {
 extension HazardMapView: UIViewRepresentable {
     func makeUIView(context: Context) -> MKMapView { makeMap(context.coordinator) }
     func updateUIView(_ uiView: MKMapView, context: Context) {
-        // Lifts the attribution above whatever covers the map's bottom edge (the peeking sheet).
-        if uiView.directionalLayoutMargins.bottom != bottomCover {
-            uiView.directionalLayoutMargins.bottom = bottomCover
+        // Lifts the attribution above whatever covers the map's bottom edge (the peeking sheet),
+        // plus the home indicator's inset, which the sheet sits above. The window's inset, not
+        // the map's: the map's own safe area grows strangely under a medium sheet.
+        let cover = bottomCover + (uiView.window?.safeAreaInsets.bottom ?? 0)
+        if uiView.directionalLayoutMargins.bottom != cover {
+            uiView.directionalLayoutMargins.bottom = cover
         }
         update(context.coordinator)
     }

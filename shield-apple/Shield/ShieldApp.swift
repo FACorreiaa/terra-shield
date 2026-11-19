@@ -31,6 +31,8 @@ struct ShieldApp: App {
             q.window = 7 * 86400
             model.query = q
         }
+        // … and with resolved events included (`SHIELD_RESOLVED=1`).
+        if env["SHIELD_RESOLVED"] == "1" { model.query.includeResolved = true }
         #endif
         return model
     }()

@@ -30,8 +30,8 @@ public struct APIEventProvider: HazardEventProvider {
         switch try await unwrapping { try await client.listEvents(input) } {
         case .ok(let ok):
             let events = try ok.body.json.events.map(HazardEvent.init)
-            // The server filters by status (active only); resolved events need a second request,
-            // which no screen makes yet. Matching locally also keeps the window exact.
+            // The server filters by status (`includeResolved` asks for both); matching locally
+            // also keeps the window exact.
             return events.filter { query.matches($0, now: now()) }
         case .notModified:
             throw APIError.unexpectedNotModified
@@ -56,6 +56,7 @@ public struct APIEventProvider: HazardEventProvider {
             let events = try list.events.map(HazardEvent.init)
             return MapSnapshot(
                 // Matching locally keeps the time window exact; the server filters by status.
+                // Clusters carry no status, so with resolved included their counts hold both.
                 events: events.filter { query.matches($0, now: now()) },
                 clusters: list.clusters.compactMap(EventCluster.init),
                 truncated: list.truncated,
@@ -149,6 +150,45 @@ public struct APIEventProvider: HazardEventProvider {
     }
 }
 
+extension APIEventProvider {
+    public func countries() async throws -> [Country] {
+        switch try await unwrapping { try await client.listCountries() } {
+        case .ok(let ok):
+            return try ok.body.json.countries.map(Country.init)
+        case .notModified:
+            throw APIError.unexpectedNotModified
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
+        case .default(let status, let r):
+            throw APIError.server(status: status, try? r.body.json.reason)
+        }
+    }
+
+    public func countrySummary(iso2: String) async throws -> CountrySummary? {
+        // The API answers 400 to anything but two capitals; a code that can't be one has no
+        // boundary either.
+        guard let code = Country.normalizedCode(iso2) else { return nil }
+        switch try await unwrapping({ try await client.getCountrySummary(path: .init(iso2: code)) }) {
+        case .ok(let ok):
+            return try CountrySummary(ok.body.json)
+        case .notFound:
+            return nil
+        case .badRequest(let r):
+            throw APIError.server(status: 400, try? r.body.json.reason)
+        case .notModified:
+            throw APIError.unexpectedNotModified
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
+        case .default(let status, let r):
+            throw APIError.server(status: status, try? r.body.json.reason)
+        }
+    }
+}
+
 /// The generated client wraps transport and decoding failures in `ClientError`, whose
 /// description is a debug dump. The UI words failures from the underlying error (`URLError`
 /// for "offline" vs "server not responding"), so unwrap it here.
@@ -207,6 +247,8 @@ extension Operations.ListEvents.Input.Query {
             _type: csv(q.types, all: HazardType.allCases.count),
             severity: csv(severities, all: Severity.allCases.count),
             kind: csv(q.kinds, all: EventKind.allCases.count),
+            // Omitted for active only, the server's default.
+            status: q.includeResolved ? "active,resolved" : nil,
             country: q.country,
             since: q.window.map { now.addingTimeInterval(-$0) }
         )

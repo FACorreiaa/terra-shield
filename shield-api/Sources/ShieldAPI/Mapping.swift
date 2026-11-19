@@ -75,6 +75,37 @@ extension EventKind {
     init(_ k: Components.Schemas.EventKind) { self = EventKind(rawValue: k.rawValue) ?? .observed }
 }
 
+extension Country {
+    init(_ c: Components.Schemas.Country) {
+        // [minLon, minLat, maxLon, maxLat]; anything else frames the world rather than failing
+        // the whole list.
+        let b = c.bbox.count == 4 ? c.bbox : [-180, -85, 180, 85]
+        self.init(iso2: c.iso2, iso3: c.iso3, name: c.name, activeEvents: c.activeEvents,
+                  maxSeverity: c.maxSeverity.map(Severity.init),
+                  bbox: GeoBox(minLongitude: b[0], minLatitude: b[1], maxLongitude: b[2], maxLatitude: b[3]))
+    }
+}
+
+extension CountrySummary {
+    init(_ s: Components.Schemas.CountrySummary) throws {
+        self.init(
+            country: Country(s.country),
+            counts: s.counts.map { SeverityCount(type: HazardType($0._type), severity: Severity($0.severity), count: $0.count) },
+            coverage: Coverage(officialWarnings: s.coverage.officialWarnings, sources: s.coverage.sources),
+            events: try s.events.map(HazardEvent.init),
+            // A revision whose event id can't be read, or with nothing a person would notice, is
+            // left out rather than failing the overview.
+            recentChanges: s.recentChanges.compactMap { r in
+                guard let id = UUID(uuidString: r.eventId) else { return nil }
+                let changes = Change.parse((try? JSONValue.object(r.changes.additionalProperties)) ?? [:])
+                guard !changes.isEmpty else { return nil }
+                return RecentChange(eventID: id, title: r.title, at: r.at, changes: changes)
+            },
+            generatedAt: s.generatedAt
+        )
+    }
+}
+
 extension EventStatus {
     init(_ s: Components.Schemas.EventStatus) { self = s == .resolved ? .resolved : .active }
 }
