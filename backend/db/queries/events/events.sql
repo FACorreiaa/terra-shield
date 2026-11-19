@@ -152,11 +152,37 @@ SELECT pg_advisory_xact_lock(7268329100);
 SELECT pg_notify('shield_events', '');
 
 -- name: LatestEventChange :one
--- The highest committed change cursor; 0 when nothing has changed yet.
+-- The highest committed change cursor; 0 when nothing has changed yet. The
+-- stream floor keeps it from moving back when pruned tombstones held it.
 SELECT GREATEST(
     COALESCE((SELECT max(change_seq) FROM events), 0),
-    COALESCE((SELECT max(seq) FROM event_tombstones), 0)
+    COALESCE((SELECT max(seq) FROM event_tombstones), 0),
+    (SELECT seq FROM event_stream_floor)
 )::bigint;
+
+-- name: ExpiredResolvedEventIDs :many
+-- Resolved events that ended before @before, oldest first (retention).
+SELECT id FROM events
+WHERE status = 'resolved' AND coalesce(ended_at, updated_at) < @before::timestamptz
+ORDER BY coalesce(ended_at, updated_at)
+LIMIT @max_rows;
+
+-- name: DeleteEventsByID :many
+DELETE FROM events WHERE id = ANY(@ids::uuid[]) RETURNING id;
+
+-- name: PruneEventTombstones :one
+-- Deletes tombstones written before @before and returns the highest seq
+-- removed (0 when none).
+WITH gone AS (
+    DELETE FROM event_tombstones WHERE removed_at < @before::timestamptz RETURNING seq
+)
+SELECT COALESCE(max(seq), 0)::bigint AS max_seq, count(*)::bigint AS removed FROM gone;
+
+-- name: RaiseStreamFloor :exec
+UPDATE event_stream_floor SET seq = GREATEST(seq, @seq::bigint);
+
+-- name: StreamFloor :one
+SELECT seq FROM event_stream_floor;
 
 -- name: EventSnapshot :one
 -- The fields a revision tracks (ADR 6), locked for the rest of the upsert

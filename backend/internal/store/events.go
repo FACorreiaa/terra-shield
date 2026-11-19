@@ -43,8 +43,9 @@ func (r *EventRepository) Upsert(ctx context.Context, sourceID string, events []
 	}
 
 	changed := 0
+	horizon := time.Now().Add(-domain.ResolvedRetention)
 	for i := range events {
-		ok, err := upsertOne(ctx, q, sourceID, &events[i])
+		ok, err := upsertOne(ctx, q, sourceID, &events[i], horizon)
 		if err != nil {
 			return 0, err
 		}
@@ -63,7 +64,10 @@ func (r *EventRepository) Upsert(ctx context.Context, sourceID string, events []
 	return changed, nil
 }
 
-func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *domain.Event) (bool, error) {
+// upsertOne writes one event. A new event already past retention (a
+// resolved event a feed still lists long after it ended) is not inserted:
+// the purge would delete it again within the hour, under a new id.
+func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *domain.Event, horizon time.Time) (bool, error) {
 	attrs := e.Attrs
 	if attrs == nil {
 		attrs = map[string]any{}
@@ -77,6 +81,9 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	existed := err == nil
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return false, fmt.Errorf("snapshot event %s/%s: %w", sourceID, e.SourceEventID, err)
+	}
+	if !existed && domain.PastRetention(e, horizon) {
+		return false, nil
 	}
 
 	id, err := q.UpsertEvent(ctx, eventsdb.UpsertEventParams{
@@ -227,6 +234,73 @@ func (r *EventRepository) Delete(ctx context.Context, sourceID string, sourceEve
 		return 0, err
 	}
 	return len(ids), nil
+}
+
+// PurgeResolved deletes up to limit resolved events that ended before
+// `before`, oldest first, with their revisions and countries. Each leaves
+// a tombstone, so stream clients holding one drop it. It returns how many
+// were deleted; fewer than limit means none are left.
+func (r *EventRepository) PurgeResolved(ctx context.Context, before time.Time, limit int) (int, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := eventsdb.New(tx)
+	if err := q.LockEventChanges(ctx); err != nil {
+		return 0, fmt.Errorf("lock event changes: %w", err)
+	}
+	ids, err := q.ExpiredResolvedEventIDs(ctx, eventsdb.ExpiredResolvedEventIDsParams{Before: before, MaxRows: int32(min(limit, 10_000))})
+	if err != nil {
+		return 0, fmt.Errorf("expired resolved events: %w", err)
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	if ids, err = q.DeleteEventsByID(ctx, ids); err != nil {
+		return 0, fmt.Errorf("delete events: %w", err)
+	}
+	if err := q.InsertEventTombstones(ctx, ids); err != nil {
+		return 0, fmt.Errorf("event tombstones: %w", err)
+	}
+	if err := q.NotifyEventChanges(ctx); err != nil {
+		return 0, fmt.Errorf("notify event changes: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return len(ids), nil
+}
+
+// PruneTombstones deletes tombstones written before `before` and raises
+// the stream floor to the newest one removed, in one transaction: a
+// cursor below the floor can no longer be resumed (it would miss a
+// removal) and is told to reload. Under the change lock, so a pruned
+// tombstone is always one every hub has already read past.
+func (r *EventRepository) PruneTombstones(ctx context.Context, before time.Time) (int, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := eventsdb.New(tx)
+	if err := q.LockEventChanges(ctx); err != nil {
+		return 0, fmt.Errorf("lock event changes: %w", err)
+	}
+	res, err := q.PruneEventTombstones(ctx, before)
+	if err != nil {
+		return 0, fmt.Errorf("prune tombstones: %w", err)
+	}
+	if res.Removed == 0 {
+		return 0, nil
+	}
+	if err := q.RaiseStreamFloor(ctx, res.MaxSeq); err != nil {
+		return 0, fmt.Errorf("raise stream floor: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return int(res.Removed), nil
 }
 
 // recordRevision writes what changed in an existing event, if a user

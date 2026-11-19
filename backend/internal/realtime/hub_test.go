@@ -21,6 +21,7 @@ type fakeSource struct {
 	log     []domain.StreamChange
 	wake    func()
 	failing bool
+	floor   int64 // cursors below it are domain.ErrCursorTooOld
 	ready   chan struct{}
 }
 
@@ -33,6 +34,9 @@ func (f *fakeSource) Changes(_ context.Context, after int64, limit int) ([]domai
 	defer f.mu.Unlock()
 	if f.failing {
 		return nil, false, errors.New("db down")
+	}
+	if after < f.floor {
+		return nil, false, domain.ErrCursorTooOld
 	}
 	var out []domain.StreamChange
 	for _, c := range f.log {
@@ -186,6 +190,16 @@ func TestHubCatchUpAndRetry(t *testing.T) {
 	if _, complete, _ := h.CatchUp(context.Background(), 0, 3, 2); complete {
 		t.Fatal("3 changes in a budget of 2 should be incomplete")
 	}
+	// Below the stream floor (pruned tombstones): incomplete, so reload.
+	src.mu.Lock()
+	src.floor = 1
+	src.mu.Unlock()
+	if got, complete, err := h.CatchUp(context.Background(), 0, 2, 10); err != nil || complete || got != nil {
+		t.Errorf("below floor: %v complete %v err %v", got, complete, err)
+	}
+	src.mu.Lock()
+	src.floor = 0
+	src.mu.Unlock()
 	if got, complete, _ := h.CatchUp(context.Background(), 0, 2, 2); !complete || len(got) != 2 {
 		t.Fatal("exactly the budget, ending at upTo, is complete")
 	}

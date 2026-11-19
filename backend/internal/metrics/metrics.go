@@ -93,6 +93,13 @@ var (
 		Name: "shield_stream_dropped_total",
 		Help: "Live-stream clients disconnected because their buffer filled.",
 	})
+
+	// RetentionDeleted counts rows the retention task removed, by kind
+	// (event, tombstone).
+	RetentionDeleted = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "shield_retention_deleted_total",
+		Help: "Rows removed by the retention task, by kind.",
+	}, []string{"kind"})
 )
 
 // Handler serves the default registry.

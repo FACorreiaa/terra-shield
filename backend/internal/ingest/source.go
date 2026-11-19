@@ -37,6 +37,15 @@ type Source interface {
 	Poll(ctx context.Context, v domain.Validators) (Result, error)
 }
 
+// Task is periodic maintenance that belongs to no source, such as the
+// retention purge. Run is one pass; the runner schedules it every
+// Interval, one at a time.
+type Task interface {
+	Name() string
+	Interval() time.Duration
+	Run(ctx context.Context) error
+}
+
 // Housekeeper is a Source with periodic cleanup, such as purging a rolling
 // window. Housekeep runs every HousekeepInterval.
 type Housekeeper interface {

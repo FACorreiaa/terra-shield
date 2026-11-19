@@ -240,13 +240,14 @@ paths:
       description: >
         Server-Sent Events. Each connection first sends `retry: 5000`, then,
         when `Last-Event-ID` is given, the changes missed since that cursor;
-        if the cursor is more than 1,000 changes behind (or unknown), it sends
+        if the cursor is more than 1,000 changes behind, older than the
+        retained change log (7 days), or unknown, it sends
         `event: reset` instead and the client reloads `/v1/events`. Then
         `event: ready`, whose `id` is the cursor the stream continues from.
         Live messages are `event.created`, `event.updated` and
         `event.resolved` (`data`: one `Event`, as in `/v1/events`, without
         geometry) and `event.removed` (`data`: `{"id": "..."}`; the source
-        retracted it). Changes are coalesced: after a reconnect, an event
+        retracted it, or retention deleted it 90 days after it ended). Changes are coalesced: after a reconnect, an event
         changed twice is sent once, in its latest state, so clients treat
         created and updated alike as an upsert. Every 20 s an `id`-only line
         (no event is dispatched) is the heartbeat; it also moves

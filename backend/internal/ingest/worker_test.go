@@ -155,6 +155,27 @@ func TestPeriodicJobs(t *testing.T) {
 	}
 }
 
+type fakeTask struct{ ran int }
+
+func (*fakeTask) Name() string                { return "retention" }
+func (*fakeTask) Interval() time.Duration     { return time.Hour }
+func (f *fakeTask) Run(context.Context) error { f.ran++; return nil }
+
+func TestTaskJobs(t *testing.T) {
+	ft := &fakeTask{}
+	if jobs := taskJobs([]Task{ft}); len(jobs) != 1 {
+		t.Fatalf("%d task jobs", len(jobs))
+	}
+	w := &TaskWorker{tasks: tasksByName([]Task{ft}), logger: slog.New(slog.DiscardHandler)}
+	if err := w.Work(context.Background(), &river.Job[TaskArgs]{Args: TaskArgs{Task: "retention"}}); err != nil || ft.ran != 1 {
+		t.Fatalf("task ran %d err %v", ft.ran, err)
+	}
+	var cancel *river.JobCancelError
+	if err := w.Work(context.Background(), &river.Job[TaskArgs]{Args: TaskArgs{Task: "gone"}}); !errors.As(err, &cancel) {
+		t.Fatalf("unknown task err %v", err)
+	}
+}
+
 func TestPollReportsSourceLag(t *testing.T) {
 	fixed := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC) // newWorker's clock
 	lag := func(id string) float64 { return promtest.ToFloat64(metrics.SourceLag.WithLabelValues(id)) }
