@@ -169,18 +169,22 @@ func (s *Source) Info() domain.SourceInfo {
 // Poll implements ingest.Source. A failing country is logged and skipped,
 // so one member's outage does not hide every other country's warnings;
 // the poll fails only when every country failed. Each country is stored
-// in its own transaction: all of Europe in one would hold the stream's
-// change lock long enough to delay every other source.
+// in its own transaction, and the warnings it supersedes are removed right
+// after, so an updated warning never sits beside its old version while the
+// other countries are read. All of Europe in one transaction would hold
+// the stream's change lock long enough to delay every other source.
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	now := s.now()
 	var (
-		superseded []string
 		failures   []error
 		unresolved int
-		upserted   int
+		changed    int
 	)
 	for _, c := range s.countries {
-		var events []domain.Event
+		var (
+			events     []domain.Event
+			superseded []string
+		)
 		warnings, err := s.country(ctx, c, now)
 		if err != nil {
 			s.logger.Warn("meteoalarm country failed", "country", c.ISO2, "error", err)
@@ -208,7 +212,11 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		if err != nil {
 			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
 		}
-		upserted += n
+		d, err := s.store.Delete(ctx, ID, superseded)
+		if err != nil {
+			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
+		}
+		changed += n + d
 	}
 	if len(failures) == len(s.countries) {
 		return ingest.Result{}, errors.Join(failures...)
@@ -217,12 +225,7 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		metrics.SourceSkipped.WithLabelValues(ID, "unknown_area").Add(float64(unresolved))
 		s.logger.Warn("meteoalarm warnings skipped: unknown area codes", "count", unresolved)
 	}
-
-	deleted, err := s.store.Delete(ctx, ID, superseded)
-	if err != nil {
-		return ingest.Result{}, err
-	}
-	return ingest.Result{Upserted: upserted + deleted}, nil
+	return ingest.Result{Upserted: changed}, nil
 }
 
 func (s *Source) country(ctx context.Context, c Country, now time.Time) ([]Warning, error) {

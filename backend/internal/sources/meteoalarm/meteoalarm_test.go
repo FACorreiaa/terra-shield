@@ -188,16 +188,19 @@ type fakeStore struct {
 	upserted []domain.Event
 	calls    int // Upsert calls: one per country that answered
 	deleted  []string
+	order    []string // "upsert" and "delete", in call order
 }
 
 func (f *fakeStore) Upsert(_ context.Context, _ string, events []domain.Event) (int, error) {
 	f.calls++
+	f.order = append(f.order, "upsert")
 	f.upserted = append(f.upserted, events...)
 	return len(events), nil
 }
 
 func (f *fakeStore) Delete(_ context.Context, _ string, ids []string) (int, error) {
-	f.deleted = ids
+	f.order = append(f.order, "delete")
+	f.deleted = append(f.deleted, ids...)
 	return 0, nil
 }
 
@@ -235,6 +238,10 @@ func TestPoll(t *testing.T) {
 	// 8 German + odd-type; the Portuguese heat warning has an unknown area.
 	if len(store.upserted) != 9 || res.Upserted != 9 || store.calls != 2 {
 		t.Fatalf("upserted %d in %d calls, result %+v", len(store.upserted), store.calls, res)
+	}
+	// Each country's superseded warnings go right after its own upsert.
+	if got := strings.Join(store.order, ","); got != "upsert,delete,upsert,delete" {
+		t.Fatalf("store calls %s", got)
 	}
 	if r := store.upserted[0].CountryRule; r.Issuer != "DE" || r.MinShare != NeighborShare {
 		t.Fatalf("country rule %+v", r)
