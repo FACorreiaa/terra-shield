@@ -32,6 +32,14 @@ type EventRecord struct {
 	Longitude float64
 	FetchedAt time.Time
 	Countries []EventCountry
+	// DistanceKm, with EventQuery.Near, is the distance from the point to
+	// the event's geometry: 0 inside a warning area or footprint.
+	DistanceKm *float64
+}
+
+// Near selects events within RadiusKm of a point, nearest first.
+type Near struct {
+	Lon, Lat, RadiusKm float64
 }
 
 // BBox is a lon/lat rectangle in WGS 84. MinLon > MaxLon crosses the
@@ -49,6 +57,7 @@ type EventQuery struct {
 	Sources    []string
 	Statuses   []Status
 	Country    string // ISO2
+	Near       *Near
 	Since      *time.Time
 	Until      *time.Time
 	Limit      int

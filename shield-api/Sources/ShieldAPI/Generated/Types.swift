@@ -38,7 +38,7 @@ public protocol APIProtocol: Sendable {
     func listSources(_ input: Operations.ListSources.Input) async throws -> Operations.ListSources.Output
     /// Events in a map view, filtered; clustered at low zoom.
     ///
-    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
+    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. With `near`, only events within `radiusKm` of the point are returned, nearest first, each with `distanceKm`; `near` cannot be combined with `zoom` below 6. Clients should round the point to two decimals (about 1 km): it is a query parameter, so proxies may log it. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
     ///
     ///
     /// - Remark: HTTP `GET /v1/events`.
@@ -116,7 +116,7 @@ extension APIProtocol {
     }
     /// Events in a map view, filtered; clustered at low zoom.
     ///
-    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
+    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. With `near`, only events within `radiusKm` of the point are returned, nearest first, each with `distanceKm`; `near` cannot be combined with `zoom` below 6. Clients should round the point to two decimals (about 1 km): it is a query parameter, so proxies may log it. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
     ///
     ///
     /// - Remark: HTTP `GET /v1/events`.
@@ -640,6 +640,11 @@ public enum Components {
             ///
             /// - Remark: Generated from `#/components/schemas/Event/attrs`.
             public var attrs: Components.Schemas.Event.AttrsPayload
+            /// Only on a `near` query: distance in km from the point to the event's geometry, to 0.1 km; 0 when the point is inside a warning area or footprint.
+            ///
+            ///
+            /// - Remark: Generated from `#/components/schemas/Event/distanceKm`.
+            public var distanceKm: Swift.Double?
             /// Creates a new `Event`.
             ///
             /// - Parameters:
@@ -662,6 +667,7 @@ public enum Components {
             ///   - fetchedAt: When Shield last fetched it.
             ///   - url: The official source page.
             ///   - attrs: Type- and source-specific attributes, documented in docs/attrs.md.
+            ///   - distanceKm: Only on a `near` query: distance in km from the point to the event's geometry, to 0.1 km; 0 when the point is inside a warning area or footprint.
             public init(
                 id: Swift.String,
                 source: Swift.String,
@@ -681,7 +687,8 @@ public enum Components {
                 endedAt: Foundation.Date? = nil,
                 fetchedAt: Foundation.Date,
                 url: Swift.String? = nil,
-                attrs: Components.Schemas.Event.AttrsPayload
+                attrs: Components.Schemas.Event.AttrsPayload,
+                distanceKm: Swift.Double? = nil
             ) {
                 self.id = id
                 self.source = source
@@ -702,6 +709,7 @@ public enum Components {
                 self.fetchedAt = fetchedAt
                 self.url = url
                 self.attrs = attrs
+                self.distanceKm = distanceKm
             }
             public enum CodingKeys: String, CodingKey {
                 case id
@@ -723,6 +731,7 @@ public enum Components {
                 case fetchedAt
                 case url
                 case attrs
+                case distanceKm
             }
         }
         /// - Remark: Generated from `#/components/schemas/Cluster`.
@@ -2460,7 +2469,7 @@ public enum Operations {
     }
     /// Events in a map view, filtered; clustered at low zoom.
     ///
-    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
+    /// Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. With `near`, only events within `radiusKm` of the point are returned, nearest first, each with `distanceKm`; `near` cannot be combined with `zoom` below 6. Clients should round the point to two decimals (about 1 km): it is a query parameter, so proxies may log it. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
     ///
     ///
     /// - Remark: HTTP `GET /v1/events`.
@@ -2503,6 +2512,14 @@ public enum Operations {
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/country`.
                 public var country: Swift.String?
+                /// lon,lat in WGS 84 (the order of bbox): only events within radiusKm of this point, nearest first, each with distanceKm. Round to two decimals.
+                ///
+                /// - Remark: Generated from `#/paths/v1/events/GET/query/near`.
+                public var near: Swift.String?
+                /// Radius for near, in km. Requires near.
+                ///
+                /// - Remark: Generated from `#/paths/v1/events/GET/query/radiusKm`.
+                public var radiusKm: Swift.Double?
                 /// Only events that last mattered at or after this time: the last update for an active event, the end (`endedAt`, else the last update) for a resolved one.
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/since`.
@@ -2524,6 +2541,8 @@ public enum Operations {
                 ///   - status: Comma-separated statuses (active, resolved). Defaults to active; `active,resolved` includes both.
                 ///   - source: Comma-separated source ids.
                 ///   - country: ISO 3166-1 alpha-2; matches events within the country or nearby offshore.
+                ///   - near: lon,lat in WGS 84 (the order of bbox): only events within radiusKm of this point, nearest first, each with distanceKm. Round to two decimals.
+                ///   - radiusKm: Radius for near, in km. Requires near.
                 ///   - since: Only events that last mattered at or after this time: the last update for an active event, the end (`endedAt`, else the last update) for a resolved one.
                 ///   - until: Only events that last mattered before this time, by the same rule as `since`.
                 ///   - limit:
@@ -2536,6 +2555,8 @@ public enum Operations {
                     status: Swift.String? = nil,
                     source: Swift.String? = nil,
                     country: Swift.String? = nil,
+                    near: Swift.String? = nil,
+                    radiusKm: Swift.Double? = nil,
                     since: Foundation.Date? = nil,
                     until: Foundation.Date? = nil,
                     limit: Swift.Int? = nil
@@ -2548,6 +2569,8 @@ public enum Operations {
                     self.status = status
                     self.source = source
                     self.country = country
+                    self.near = near
+                    self.radiusKm = radiusKm
                     self.since = since
                     self.until = until
                     self.limit = limit

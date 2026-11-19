@@ -98,7 +98,7 @@ export interface paths {
         };
         /**
          * Events in a map view, filtered; clustered at low zoom.
-         * @description Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*\/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
+         * @description Returns active events by default. With `zoom` below 6, events that would overlap on screen are merged into `clusters` (ADR 9); without `zoom`, nothing is clustered. Results are ordered by severity (extreme first), then `updatedAt` (newest first), and capped at `limit`; `truncated` says when more matched. With `near`, only events within `radiusKm` of the point are returned, nearest first, each with `distanceKm`; `near` cannot be combined with `zoom` below 6. Clients should round the point to two decimals (about 1 km): it is a query parameter, so proxies may log it. Send `Accept: application/geo+json` for a GeoJSON FeatureCollection with each event's geometry, simplified for `zoom`. Negotiation follows q-values; plain JSON wins a tie, `*\/*` and a missing Accept, so a client listing both types with equal weight gets JSON.
          */
         get: operations["listEvents"];
         put?: never;
@@ -322,6 +322,11 @@ export interface components {
             attrs: {
                 [key: string]: unknown;
             };
+            /**
+             * Format: double
+             * @description Only on a `near` query: distance in km from the point to the event's geometry, to 0.1 km; 0 when the point is inside a warning area or footprint.
+             */
+            distanceKm?: number;
         };
         Cluster: {
             centroid: components["schemas"]["Coordinate"];
@@ -685,6 +690,10 @@ export interface operations {
                 source?: string;
                 /** @description ISO 3166-1 alpha-2; matches events within the country or nearby offshore. */
                 country?: string;
+                /** @description lon,lat in WGS 84 (the order of bbox): only events within radiusKm of this point, nearest first, each with distanceKm. Round to two decimals. */
+                near?: string;
+                /** @description Radius for near, in km. Requires near. */
+                radiusKm?: number;
                 /** @description Only events that last mattered at or after this time: the last update for an active event, the end (`endedAt`, else the last update) for a resolved one. */
                 since?: string;
                 /** @description Only events that last mattered before this time, by the same rule as `since`. */

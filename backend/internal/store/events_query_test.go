@@ -183,3 +183,52 @@ func TestEventListRecord(t *testing.T) {
 		t.Fatal("zero limit accepted")
 	}
 }
+
+// near filters on geography: distances are on the ellipsoid, the order is
+// nearest first whatever the severity, the antimeridian is no edge, and a
+// point inside an area is 0 km from it.
+func TestEventListNear(t *testing.T) {
+	pool := testutil.DB(t)
+	repo := seedEvents(t, pool)
+	ctx := context.Background()
+	active := []domain.Status{domain.StatusActive}
+
+	cases := []struct {
+		name string
+		near domain.Near
+		want []string
+		km   []float64 // approximate, ±2 km
+	}{
+		{"nearest first, not most severe", domain.Near{Lon: -10.4, Lat: 38.5, RadiusKm: 250}, []string{"quake-off-pt", "quake-pt"}, []float64{8.7, 214}},
+		{"radius excludes", domain.Near{Lon: -10.4, Lat: 38.5, RadiusKm: 50}, []string{"quake-off-pt"}, []float64{8.7}},
+		{"across the antimeridian", domain.Near{Lon: 180, Lat: -17, RadiusKm: 100}, []string{"fiji-east", "fiji-west"}, []float64{53, 53}},
+		{"inside an area", domain.Near{Lon: -4.5, Lat: 40.5, RadiusKm: 10}, []string{"drought-es"}, []float64{0}},
+	}
+	for _, c := range cases {
+		recs, _, err := repo.List(ctx, domain.EventQuery{Statuses: active, Near: &c.near, Limit: 10})
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got := ids(recs); !slices.Equal(got, c.want) && !(c.name == "across the antimeridian" && slices.Equal(got, []string{"fiji-west", "fiji-east"})) {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+			continue
+		}
+		for i := range recs {
+			d := recs[i].DistanceKm
+			if d == nil || *d < c.km[i]-2 || *d > c.km[i]+2 {
+				t.Errorf("%s: %s distance %v, want about %v", c.name, recs[i].SourceEventID, d, c.km[i])
+			}
+		}
+	}
+
+	// Without near there is no distance.
+	recs, _, err := repo.List(ctx, domain.EventQuery{Statuses: active, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range recs {
+		if recs[i].DistanceKm != nil {
+			t.Errorf("%s has a distance without near", recs[i].SourceEventID)
+		}
+	}
+}

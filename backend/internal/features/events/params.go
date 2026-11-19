@@ -64,6 +64,14 @@ func parseListParams(v url.Values) (listParams, error) {
 	if q.Country, err = params.Country(v); err != nil {
 		return p, err
 	}
+	if q.Near, err = params.Near(v); err != nil {
+		return p, err
+	}
+	// near answers "what is around this point", a list nearest first;
+	// clusters have no distance, so the two do not mix.
+	if q.Near != nil && p.zoom != nil && *p.zoom < clusterBelowZoom {
+		return p, httpx.BadRequest("near cannot be combined with zoom below 6 (clustered views); omit zoom or use 6 or more")
+	}
 	if q.Since, err = params.Time(v, "since"); err != nil {
 		return p, err
 	}
