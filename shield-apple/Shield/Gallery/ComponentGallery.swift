@@ -36,6 +36,9 @@ struct ComponentGallery: View {
 
     private var componentColumn: some View {
         VStack(alignment: .leading, spacing: ShieldSpace.s6) {
+            section("Stat strip") {
+                StatStrip(cells: StatStrip.Cell.liveMap(snapshot), isSample: provider.isSampleData)
+            }
             section("Markers") { markerGrid }
             section("Severity") { severityList }
             section("Kind") { kindRow }
@@ -138,11 +141,17 @@ struct ComponentGallery: View {
                 if index > 0 {
                     Rectangle().fill(Color.ink.opacity(ShieldAlpha.hairline)).frame(height: 1)
                 }
-                GalleryEventRow(event: event, source: sources[event.source], isSelected: selected == event.id)
-                    .contentShape(Rectangle())
+                EventRow(event: event, source: sources[event.source],
+                         isStale: sources[event.source]?.isStale() ?? false, isSelected: selected == event.id)
+                    .padding(.vertical, ShieldSpace.s2)
                     .onTapGesture { selected = selected == event.id ? nil : event.id }
             }
         }
+    }
+
+    /// The loaded events as the map would receive them, for the stat strip.
+    private var snapshot: MapSnapshot? {
+        events.isEmpty ? nil : MapSnapshot(events: events, clusters: [], truncated: false, generatedAt: .now)
     }
 
     private func load() async {
@@ -152,45 +161,6 @@ struct ComponentGallery: View {
         } catch {
             events = []
         }
-    }
-}
-
-/// A stand-in for VIEWS.md `EventRow` (S3.4), only to show the components together.
-private struct GalleryEventRow: View {
-    let event: HazardEvent
-    let source: Source?
-    let isSelected: Bool
-
-    var body: some View {
-        HStack(alignment: .top, spacing: ShieldSpace.s3) {
-            HazardMarker(type: event.type, severity: event.severity, kind: event.kind,
-                         isStale: source?.isStale() ?? false, isSelected: isSelected, baseSize: 24)
-                .frame(width: 36, height: 36)
-            VStack(alignment: .leading, spacing: ShieldSpace.s1 + 2) {
-                Text(event.title)
-                    .font(ShieldFont.headline)
-                    .foregroundStyle(Color.ink)
-                if let place = placeText {
-                    Text(place).font(ShieldFont.meta).foregroundStyle(Color.muted)
-                }
-                SeverityBadge(severity: event.severity, sourceSeverity: event.sourceSeverity,
-                              isProvisional: event.severityProvisional, size: .compact)
-                HStack(spacing: ShieldSpace.s2) {
-                    KindChip(kind: event.kind)
-                    if let source { SourceBadge(source: source) }
-                }
-                FreshnessLabel(updatedAt: event.updatedAt, fetchedAt: source?.lastSuccessAt ?? event.fetchedAt,
-                               pollInterval: source?.pollInterval ?? 600, observedAt: event.observedAt)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, ShieldSpace.s3)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var placeText: String? {
-        let names = event.countries.map { $0.phrase(name: SampleData.countryNames[$0.iso2] ?? $0.iso2) }
-        return names.isEmpty ? nil : names.joined(separator: ", ")
     }
 }
 

@@ -1,16 +1,123 @@
 import ShieldCore
 import SwiftUI
 
-/// The global live map (DESIGN.md §10.1): the map always on screen, a status capsule on top,
-/// floating controls, and the selected event at the bottom. Every state keeps the map: loading
-/// shows a progress line, failures keep the last data and say how old it is.
+/// The global live map (DESIGN.md §10.1): the map always on screen, a status capsule on top and
+/// floating controls. Every state keeps the map: loading shows a progress line, failures keep
+/// the last data and say how old it is.
+///
+/// Two shells (DESIGN.md §10). Compact width (iPhone) is the full-screen map under a sheet with
+/// three detents. macOS and regular width (iPad) put the stat strip and the event list in a
+/// sidebar and show the selected event as a card on the map.
 struct MapScreen: View {
     @Bindable var model: LiveMapModel
     @State private var fitWorldRequest = 0
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var peekHeight = MapScreen.defaultPeekHeight
+    @State private var detent = PresentationDetent.height(MapScreen.defaultPeekHeight)
+    @State private var sheetHeight: CGFloat = 0
+    #endif
 
     var body: some View {
+        shell
+            .background(Color.canvas)
+            .task { await model.keepFresh() }
+            #if os(macOS)
+            .onKeyPress(.escape) {
+                guard model.selectedEventID != nil else { return .ignored }
+                model.selectedEventID = nil
+                return .handled
+            }
+            #endif
+    }
+
+    @ViewBuilder
+    private var shell: some View {
+        #if os(macOS)
+        splitShell
+        #else
+        if sizeClass == .regular { splitShell } else { sheetShell }
+        #endif
+    }
+
+    // MARK: Shells
+
+    private var splitShell: some View {
+        NavigationSplitView {
+            VStack(spacing: 0) {
+                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot),
+                          isSample: model.provider.isSampleData)
+                    .padding(.horizontal, ShieldSpace.s4)
+                    .padding(.vertical, ShieldSpace.s3)
+                Rectangle()
+                    .fill(Color.ink.opacity(ShieldAlpha.hairline))
+                    .frame(height: 1)
+                EventList(model: model, zoomOut: fitWorld)
+            }
+            .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
+        } detail: {
+            mapLayer(showsSelectedCard: true)
+                .toolbar(removing: .title)
+        }
+    }
+
+    #if os(iOS)
+    /// The stat strip's height before it has been measured.
+    private static let defaultPeekHeight: CGFloat = 116
+
+    private var sheetShell: some View {
+        // The map's attribution sits above the sheet wherever the map is still usable: at peek
+        // and at medium. The notices sit above the peek.
+        mapLayer(showsSelectedCard: false,
+                 bottomCover: detent == .medium ? max(sheetHeight, peekHeight) : peekHeight)
+            .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: peekHeight) }
+            .sheet(isPresented: .constant(true)) {
+                MapSheet(model: model, zoomOut: fitWorld, peekHeightChanged: setPeekHeight,
+                         heightChanged: { sheetHeight = $0.rounded(.up) })
+                    .presentationDetents([.height(peekHeight), .medium, .large], selection: $detent)
+                    // The map stays usable at peek and medium (DESIGN.md §10 shells).
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                    .presentationBackground { MapSheetBackground() }
+                    .presentationDragIndicator(.visible)
+                    .interactiveDismissDisabled()
+                    .preferredColorScheme(.dark)
+                    .tint(.accent)
+            }
+            // A marker tapped while the sheet peeks: open far enough to show the event and
+            // still leave the map in view.
+            .onChange(of: model.selectedEventID, initial: true) { _, selected in
+                guard selected != nil, detent == .height(peekHeight) else { return }
+                withAnimation(ShieldMotion.spring) { detent = .medium }
+            }
+            #if DEBUG
+            // Screenshot automation: `SHIELD_SHEET=peek|medium|large`.
+            .onAppear {
+                switch ProcessInfo.processInfo.environment["SHIELD_SHEET"] {
+                case "medium": detent = .medium
+                case "large": detent = .large
+                default: break
+                }
+            }
+            #endif
+    }
+
+    /// Keeps the peek detent as tall as the stat strip, and the sheet on it if it was there.
+    private func setPeekHeight(_ height: CGFloat) {
+        let height = height.rounded(.up)
+        guard height > 0, height != peekHeight else { return }
+        let wasPeeking = detent == .height(peekHeight)
+        peekHeight = height
+        if wasPeeking { detent = .height(height) }
+    }
+    #endif
+
+    private func fitWorld() { fitWorldRequest += 1 }
+
+    // MARK: Map
+
+    private func mapLayer(showsSelectedCard: Bool, bottomCover: CGFloat = 0) -> some View {
         ZStack {
-            HazardMapView(model: model, fitWorldRequest: fitWorldRequest)
+            HazardMapView(model: model, fitWorldRequest: fitWorldRequest, bottomCover: bottomCover)
                 .ignoresSafeArea()
 
             VStack(spacing: ShieldSpace.s2) {
@@ -20,7 +127,7 @@ struct MapScreen: View {
                     MapControls(
                         isRefreshing: model.phase == .loading,
                         showsDetections: $model.showsDetections,
-                        fitWorld: { fitWorldRequest += 1 },
+                        fitWorld: fitWorld,
                         refresh: { model.reload() }
                     )
                 }
@@ -40,7 +147,7 @@ struct MapScreen: View {
                     .transition(.opacity)
                 }
                 Spacer()
-                bottom
+                bottom(showsSelectedCard: showsSelectedCard)
                     // Clear of the map's attribution ("Maps · Legal"), which must stay
                     // visible (DECISIONS #11).
                     .padding(.bottom, ShieldSpace.s6)
@@ -50,20 +157,13 @@ struct MapScreen: View {
             .animation(ShieldMotion.spring, value: model.selectedEventID)
             .animation(ShieldMotion.standard, value: model.showsDetections)
         }
-        .background(Color.canvas)
-        .task { await model.keepFresh() }
-        #if os(macOS)
-        .onKeyPress(.escape) {
-            guard model.selectedEventID != nil else { return .ignored }
-            model.selectedEventID = nil
-            return .handled
-        }
-        #endif
     }
 
+    /// The selected event where there is no sheet to hold it, else the empty and truncated
+    /// notices, which the sheet's list repeats for when it covers them.
     @ViewBuilder
-    private var bottom: some View {
-        if let event = model.selectedEvent {
+    private func bottom(showsSelectedCard: Bool) -> some View {
+        if showsSelectedCard, let event = model.selectedEvent {
             SelectedEventCard(
                 event: event,
                 source: model.sources[event.source],
@@ -72,7 +172,7 @@ struct MapScreen: View {
             )
             .transition(.move(edge: .bottom).combined(with: .opacity))
         } else if let snapshot = model.snapshot, snapshot.totalCount == 0 {
-            EmptyViewNotice(zoomOut: { fitWorldRequest += 1 })
+            EmptyViewNotice(zoomOut: fitWorld)
         } else if model.snapshot?.truncated == true {
             Notice(text: "Showing the most severe events here. Zoom in to see them all.")
         }
@@ -331,11 +431,13 @@ private struct Notice: View {
 // MARK: - Selected event
 
 /// The tapped event, compact: title, both severities, kind, source and freshness. Full detail
-/// is S3.5.
-private struct SelectedEventCard: View {
+/// is S3.5. Hosted by the iOS sheet and by `SelectedEventCard`.
+struct SelectedEventSummary: View {
     let event: HazardEvent
     let source: Source?
     let isStale: Bool
+    /// The source's own summary text, where there is room for it.
+    var showsSummary = false
     var close: () -> Void
 
     var body: some View {
@@ -372,11 +474,31 @@ private struct SelectedEventCard: View {
                     .font(ShieldFont.meta)
                     .foregroundStyle(Color.warning)
             }
+            if showsSummary, let summary = event.summary, !summary.isEmpty {
+                Text(summary)
+                    .font(ShieldFont.body)
+                    .foregroundStyle(Color.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, ShieldSpace.s1)
+            }
         }
-        .padding(ShieldSpace.s4)
-        .frame(maxWidth: 560, alignment: .leading)
-        .background(Color.panel, in: RoundedRectangle(cornerRadius: ShieldRadius.lg))
-        .overlay(RoundedRectangle(cornerRadius: ShieldRadius.lg).strokeBorder(Color.ink.opacity(ShieldAlpha.hairline)))
-        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// `SelectedEventSummary` as a card on the map, for the shells without a sheet.
+private struct SelectedEventCard: View {
+    let event: HazardEvent
+    let source: Source?
+    let isStale: Bool
+    var close: () -> Void
+
+    var body: some View {
+        SelectedEventSummary(event: event, source: source, isStale: isStale, close: close)
+            .padding(ShieldSpace.s4)
+            .frame(maxWidth: 560, alignment: .leading)
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: ShieldRadius.lg))
+            .overlay(RoundedRectangle(cornerRadius: ShieldRadius.lg).strokeBorder(Color.ink.opacity(ShieldAlpha.hairline)))
+            .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
     }
 }
