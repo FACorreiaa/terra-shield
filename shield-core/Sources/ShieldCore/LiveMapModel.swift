@@ -31,6 +31,10 @@ public final class LiveMapModel {
     public private(set) var viewport: MapViewport = .world
     /// From `/v1/sources`, for per-source staleness (DESIGN.md §5). Kept from the last success.
     public private(set) var sources: [String: Source] = [:]
+    /// The same sources in the API's order, for the Sources screen (DESIGN.md §10.7).
+    public private(set) var sourceList: [Source] = []
+    /// The Sources screen's last refresh failed; the list above is the last one that loaded.
+    public private(set) var sourcesRefreshFailed = false
 
     /// Connected to `/v1/stream` and caught up (S3.6), and the stream has spoken recently.
     /// While live the data is current without a reload: the stream pushes every change and a
@@ -360,6 +364,22 @@ public final class LiveMapModel {
         return burstCount > Self.burstLimit
     }
 
+    /// The Sources screen asks on open and on pull-to-refresh, outside the map's load.
+    public func refreshSources() async {
+        do {
+            setSources(try await provider.sources())
+            sourcesRefreshFailed = false
+        } catch {
+            if LoadFailure.isCancellation(error) { return }
+            sourcesRefreshFailed = true
+        }
+    }
+
+    private func setSources(_ list: [Source]) {
+        sourceList = list
+        sources = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    }
+
     /// Waits for the current load, if any (tests, pull-to-refresh).
     public func settle() async {
         await loadTask?.value
@@ -395,9 +415,7 @@ public final class LiveMapModel {
             if LoadFailure.isCancellation(error) { return }
             phase = .failed(LoadFailure(error))
         }
-        if case .success(let list) = sourceResult {
-            sources = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        }
+        if case .success(let list) = sourceResult { setSources(list) }
         switch fireResult {
         case .success(let layer)?:
             detections = layer

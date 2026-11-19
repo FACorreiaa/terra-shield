@@ -14,6 +14,7 @@ struct MapScreen: View {
     @State private var fitWorldRequest = 0
     @State private var search = MapSearch()
     @State private var showsFilters = false
+    @State private var showsSources = false
     /// Where a chosen place moves the map.
     @State private var focus: MapFocus?
     /// The country whose overview is open (S3.4).
@@ -62,6 +63,13 @@ struct MapScreen: View {
                 if active, search.countries.isEmpty { Task { await loadCountries() } }
             }
             #if DEBUG
+            // Automation: `SHIELD_SHOW_SOURCES=1` opens the Sources screen.
+            .task {
+                if ProcessInfo.processInfo.environment["SHIELD_SHOW_SOURCES"] == "1" {
+                    try? await Task.sleep(for: .seconds(1))
+                    showsSources = true
+                }
+            }
             // Automation: `SHIELD_FAKE_ARRIVAL=1` sends a copy of an event in view, made severe
             // and new, through the stream path once it is live (the toast and the arrive fade).
             .task {
@@ -186,6 +194,20 @@ struct MapScreen: View {
                 } else if country == nil {
                     EventList(model: model, zoomOut: fitWorld)
                 }
+                Spacer(minLength: 0)
+                Rectangle().fill(Color.ink.opacity(ShieldAlpha.hairline)).frame(height: 1)
+                // Sources at the bottom of the sidebar (DESIGN.md §10); its own section with the
+                // health dot and ⌘5 come with the sidebar sections (S3.8).
+                Button { showsSources = true } label: {
+                    Label("Sources", systemImage: "antenna.radiowaves.left.and.right")
+                        .font(ShieldFont.body.weight(.semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, ShieldSpace.s4)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.ink)
             }
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 260) // DESIGN.md §10
         } detail: {
@@ -205,6 +227,7 @@ struct MapScreen: View {
                         .inspectorColumnWidth(min: 320, ideal: 350, max: 380)
                     }
                 }
+                .sheet(isPresented: $showsSources) { sourcesSheet }
                 .sheet(isPresented: $showsFilters) {
                     NavigationStack {
                         FilterSheet(model: model, done: { showsFilters = false })
@@ -232,6 +255,7 @@ struct MapScreen: View {
             .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: peekHeight) }
             .sheet(isPresented: .constant(true)) {
                 MapSheet(model: model, search: search, country: country, showsFilters: $showsFilters,
+                         showsSources: $showsSources,
                          isPeek: detent == .height(peekHeight),
                          zoomOut: fitWorld,
                          selectEvent: { event in
@@ -375,6 +399,20 @@ struct MapScreen: View {
             showOnMap: { showOnMap(event) },
             close: { model.selectedEventID = nil }
         )
+    }
+
+    /// Sources & attribution (DESIGN.md §10.7), as a sheet from either shell.
+    private var sourcesSheet: some View {
+        NavigationStack {
+            SourcesView(model: model, done: { showsSources = false })
+        }
+        #if os(iOS)
+        .presentationDetents([.large])
+        #else
+        .frame(minWidth: 460, idealWidth: 520, minHeight: 560, idealHeight: 720)
+        #endif
+        .presentationBackground(Color.panel)
+        .preferredColorScheme(.dark)
     }
 
     /// The name the country list gives, else the system's English name.
