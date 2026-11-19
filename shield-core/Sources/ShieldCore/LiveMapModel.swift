@@ -208,7 +208,7 @@ public final class LiveMapModel {
             let shown = snapshot.events.contains { $0.id == event.id }
             let inView = viewport.box.contains(event.centroid)
             guard shown || inView else { return }
-            guard canPatch(snapshot) else {
+            guard canPatch(snapshot), !inBurst() else {
                 schedule(after: debounce)
                 return
             }
@@ -219,7 +219,7 @@ public final class LiveMapModel {
             if id == selectedEventID { selectedEventID = nil }
             guard let snapshot else { return }
             let shown = snapshot.events.contains { $0.id == id }
-            if canPatch(snapshot) {
+            if canPatch(snapshot), !(shown && inBurst()) {
                 if shown { self.snapshot = snapshot.replacing(events: snapshot.events.filter { $0.id != id }) }
             } else if shown || !snapshot.clusters.isEmpty || snapshot.truncated {
                 // It may be a cluster member, or its removal lets a cut event in.
@@ -232,6 +232,27 @@ public final class LiveMapModel {
         viewport.zoom >= MapViewport.detailZoom && !snapshot.truncated
     }
 
+    /// More patches than this within a second is a burst: a source's first load (Meteoalarm's
+    /// sends ~3,900 at once) or a backlog after a reconnect. Each patch re-sorts the snapshot
+    /// and makes the map diff its annotations, so a burst would hold the main actor for
+    /// seconds; past the limit the changes fold into one debounced reload instead, which the
+    /// server answers with the same state in a single response.
+    static let burstLimit = 50
+
+    @ObservationIgnored private var burstStart = Date.distantPast
+    @ObservationIgnored private var burstCount = 0
+
+    /// Counts a patch about to happen; true once this second has seen more than `burstLimit`.
+    private func inBurst() -> Bool {
+        let t = now()
+        if t.timeIntervalSince(burstStart) > 1 {
+            burstStart = t
+            burstCount = 0
+        }
+        burstCount += 1
+        return burstCount > Self.burstLimit
+    }
+
     /// Waits for the current load, if any (tests, pull-to-refresh).
     public func settle() async {
         await loadTask?.value
@@ -242,10 +263,9 @@ public final class LiveMapModel {
         generation += 1
         let generation = generation
         loadTask = Task { [weak self] in
-            if delay > .zero {
-                try? await Task.sleep(for: delay)
-                if Task.isCancelled { return }
-            }
+            if delay > .zero { try? await Task.sleep(for: delay) }
+            // Replaced before it started (a later reload in the same turn): skip the request.
+            if Task.isCancelled { return }
             await self?.load(generation: generation)
         }
     }
