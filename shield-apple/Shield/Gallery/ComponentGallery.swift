@@ -20,6 +20,7 @@ struct ComponentGallery: View {
                 case "detail": section("Event detail states") { detailStates }
                 case "tsunami": section("Tsunami detail") { tsunamiDetails }
                 case "sources": section("Sources") { sourceStates }
+                case "empty": section("Empty states") { emptyStates }
                 default: EmptyView()
                 }
                 // Two columns when there is room (macOS, iPad landscape), one on iPhone.
@@ -55,6 +56,7 @@ struct ComponentGallery: View {
             section("Kind") { kindRow }
             section("Event detail states") { detailStates }
             section("Sources") { sourceStates }
+            section("Empty states") { emptyStates }
         }
     }
 
@@ -102,6 +104,30 @@ struct ComponentGallery: View {
             DisclaimerBanner(style: .inline)
             DisclaimerBanner(style: .footer)
             ForEach(rows) { SourceRow(source: $0, now: now) }
+        }
+        .padding(ShieldSpace.s4)
+        .frame(maxWidth: 420)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: ShieldRadius.md))
+    }
+
+    /// DESIGN.md §11: the Sentinel beside the words of an empty list or country.
+    private var emptyStates: some View {
+        VStack(alignment: .leading, spacing: ShieldSpace.s5) {
+            EmptyState {
+                EmptyViewWords(filtered: false)
+            } actions: {
+                Button("Zoom out") {}
+            }
+            EmptyState {
+                EmptyViewWords(filtered: true)
+            } actions: {
+                Button("Reset filters") {}
+                Button("Zoom out") {}
+            }
+            EmptyState {
+                Text("No active events in Iceland from covered sources.")
+                    .font(ShieldFont.body).foregroundStyle(Color.ink)
+            }
         }
         .padding(ShieldSpace.s4)
         .frame(maxWidth: 420)

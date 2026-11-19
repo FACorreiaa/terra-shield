@@ -218,6 +218,13 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - Dot rule, which §10.7 leaves open: last check failed = `warning`, stale = `danger`.
      - Disabled sources aren't listed ("every active source").
      - The interval says "Checked every 6 h" (our poll), like the detail's "Checked".
+   *Part 2 (2026-11-19): `OnboardingView`, `EmptyState` (mascot only; the radar art waits for the
+   loading skeleton).* Gallery: `SHIELD_GALLERY=empty`; cards: `SHIELD_ONBOARDING=1|2|3`.
+   - **Deviations for the owner:**
+     - Card 3 has a "Before you start" heading above the disclaimer.
+     - The cards replace the map until finished (the iPhone map's sheet can't sit under a modal).
+     - The empty-country line reads "No active events in Iceland from covered sources."
+     - The empty state on the map itself (sheet hidden) keeps words only: no mascot on the map (§11).
 8. **S3.8 macOS.** `NavigationSplitView` shell, inspector, keyboard shortcuts (DESIGN §10).
 9. **Phase 2 Web.** The same catalog in Svelte, plus the MapLibre style (DESIGN §9).
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
