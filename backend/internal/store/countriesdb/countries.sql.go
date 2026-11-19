@@ -26,7 +26,7 @@ func (q *Queries) CountCountries(ctx context.Context) (int64, error) {
 const countryCoverage = `-- name: CountryCoverage :many
 SELECT s.id, s.official_warnings
 FROM sources s
-WHERE s.enabled
+WHERE s.enabled AND s.hazards
   AND (NOT EXISTS (SELECT 1 FROM source_coverage sc WHERE sc.source_id = s.id)
        OR EXISTS (SELECT 1 FROM source_coverage sc WHERE sc.source_id = s.id AND sc.iso2 = $1::text))
 ORDER BY s.id
@@ -37,8 +37,9 @@ type CountryCoverageRow struct {
 	OfficialWarnings bool
 }
 
-// Enabled sources that cover the country: worldwide ones (no coverage
-// rows) and those listing it.
+// Enabled hazard sources that cover the country: worldwide ones (no
+// coverage rows) and those listing it. Conflict feeds are not coverage
+// (ADR 27).
 func (q *Queries) CountryCoverage(ctx context.Context, iso2 string) ([]CountryCoverageRow, error) {
 	rows, err := q.db.Query(ctx, countryCoverage, iso2)
 	if err != nil {

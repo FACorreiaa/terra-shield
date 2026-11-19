@@ -84,6 +84,7 @@ func (*Source) Info() domain.SourceInfo {
 		Attribution:  "Uppsala Conflict Data Program, UCDP Candidate Events Dataset (Hegre et al. 2020)",
 		PollInterval: PollInterval,
 		Enabled:      true,
+		NonHazard:    true,
 	}
 }
 
@@ -292,8 +293,11 @@ func event(f func(string) string) (e domain.Event, ok bool, err error) {
 		"expiresAt":         end.Add(Window).Format(time.RFC3339),
 	}
 	// Fatalities still being checked, a doubtful source, or an open
-	// question make the level, which rests on the count, provisional.
-	if s := strings.ToLower(status); strings.Contains(s, "deaths") || strings.Contains(s, "vague") || s == "check" {
+	// question make the level, which rests on the count, provisional; so
+	// does a date known only to the month or wider, which is a summary of
+	// many incidents (a cartel war over nine months) rather than one.
+	if s := strings.ToLower(status); strings.Contains(s, "deaths") || strings.Contains(s, "vague") || s == "check" ||
+		dp == "month" || dp == "months" {
 		attrs["severityProvisional"] = true
 	}
 	return domain.Event{

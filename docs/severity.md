@@ -80,7 +80,7 @@ categories (volcanoes, landslides, dust, snow) carry no severity and show as min
 | 25–99 | severe | 1.5% |
 | ≥ 100 | extreme | 0.5% |
 
-`sourceSeverity` reads "28 deaths (3–31)" (best, then UCDP's low–high range) or "7 deaths". The count is a research estimate and the whole basis of the level. `severityProvisional` is set when UCDP's `code_status` says the deaths are still being checked, the source is vague or biased, or another check is open (plain "Check"). Conflicts are not hazards: they never count toward a country's hazard severity.
+`sourceSeverity` reads "28 deaths (3–31)" (best, then UCDP's low–high range) or "7 deaths". The count is a research estimate and the whole basis of the level. `severityProvisional` is set when UCDP's `code_status` says the deaths are still being checked, the source is vague or biased, or another check is open (plain "Check"), and when the date is known only to the month or wider: such a row sums many incidents (a cartel war over nine months) rather than one. Conflicts are not hazards: they never count toward a country's hazard severity.
 
 ## FIRMS
 

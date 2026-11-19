@@ -132,6 +132,7 @@ type Source struct {
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	OfficialWarnings    bool
+	Hazards             bool
 }
 
 type SourceCoverage struct {

@@ -71,6 +71,9 @@ func TestParse(t *testing.T) {
 		!long.StartedAt.Equal(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)) || long.Attrs["severityProvisional"] != true {
 		t.Errorf("long event %+v", long)
 	}
+	if summary := m["645598"]; summary.Attrs["codeStatus"] != "Check type of violence" || summary.Attrs["severityProvisional"] != true {
+		t.Errorf("a nine-month summary is provisional: %+v", summary.Attrs)
+	}
 	if zero := m["639918"]; zero.Severity != "minor" || zero.SourceSeverity != "0 deaths (0–1)" {
 		t.Errorf("zero %+v", zero)
 	}
