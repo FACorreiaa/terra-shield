@@ -4,7 +4,7 @@ import SwiftUI
 
 /// What the iOS bottom sheet shows (DESIGN.md §10 shells). Peek: the search field over a
 /// one-line stat strip (owner, 2026-11-19). Medium: the full strip and the event list, or the
-/// selected event. Large: the same with room for the full detail (S3.5). While searching, the
+/// selected event's detail. Large: the same with room for all of it (S3.5). While searching, the
 /// results replace the list. A country's overview (S3.4) replaces the strip and list until
 /// closed; an event opened from it goes back to it.
 struct MapSheet: View {
@@ -23,6 +23,8 @@ struct MapSheet: View {
     var selectPlace: (MapSearch.Place) -> Void
     var selectCountry: (Country) -> Void
     var closeCountry: () -> Void
+    /// The selected event in full (DESIGN.md §10.3), built by the map screen.
+    var eventDetail: (HazardEvent) -> EventDetailView
     /// The height the peek needs for the search field and compact strip; grows with Dynamic Type.
     var peekHeightChanged: (CGFloat) -> Void
     /// The height of the sheet's content as it is dragged or settles.
@@ -34,13 +36,9 @@ struct MapSheet: View {
         VStack(spacing: 0) {
             if let event = model.selectedEvent, !search.isActive {
                 ScrollView {
-                    SelectedEventSummary(
-                        event: event,
-                        source: model.sources[event.source],
-                        isStale: model.isStale(event),
-                        showsSummary: true,
-                        close: { model.selectedEventID = nil }
-                    )
+                    // At medium its top (title, both severities, kind and times) is in view; the
+                    // rest scrolls, and fills the sheet at large.
+                    eventDetail(event)
                     .padding(.horizontal, ShieldSpace.s5)
                     .padding(.top, ShieldSpace.s5)
                     .padding(.bottom, ShieldSpace.s4)

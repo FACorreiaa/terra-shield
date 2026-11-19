@@ -281,13 +281,15 @@ private final class TestClock: @unchecked Sendable {
         #expect(m.snapshot?.events.contains { $0.id == sample(3).id } == false)
     }
 
-    @Test func removingTheSelectedEventClearsTheSelection() async throws {
+    @Test func removingTheSelectedEventKeepsItOpenAsGone() async throws {
+        // DESIGN.md §10.3: the detail says the source no longer publishes it.
         let p = StreamingProvider()
         let m = await loadedModel(p)
-        let id = try #require(m.snapshot?.events.first?.id)
-        m.selectedEventID = id
-        m.apply(.removed(id))
-        #expect(m.selectedEventID == nil)
+        let shown = try #require(m.snapshot?.events.first)
+        m.selectedEventID = shown.id
+        m.apply(.removed(shown.id))
+        #expect(m.selectedEventID == shown.id)
+        #expect(m.selectedDetail == .gone(shown))
     }
 
     @Test func readyMeansLiveAndReloadsSoNothingFallsBetween() async throws {

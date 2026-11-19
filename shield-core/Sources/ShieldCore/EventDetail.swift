@@ -38,15 +38,45 @@ extension EventGeometry {
     }
 }
 
-/// One event with what only the detail endpoint returns. S3.5 adds revisions here.
+/// One event with what only the detail endpoint returns (`GET /v1/events/{id}`).
 public struct EventDetail: Sendable, Hashable {
     public let event: HazardEvent
     public let geometry: EventGeometry
+    /// The source's record (`sourceInfo`); nil when it could not be read.
+    public let source: Source?
+    /// Newest first, at most 50 (the server's cap).
+    public let revisions: [EventRevision]
 
-    public init(event: HazardEvent, geometry: EventGeometry) {
+    public init(event: HazardEvent, geometry: EventGeometry, source: Source? = nil, revisions: [EventRevision] = []) {
         self.event = event
         self.geometry = geometry
+        self.source = source
+        self.revisions = revisions
     }
+
+    /// The revisions worth a line in the timeline (DESIGN.md §10.3 item 7). Rename-only ones are
+    /// left out, as in a country's recent changes: S1.5's area titles renamed whole feeds.
+    public var timeline: [EventRevision] {
+        revisions.filter { r in r.changes.contains { if case .title = $0 { false } else { true } } }
+    }
+}
+
+/// One change to an event, as the timeline words it.
+public struct EventRevision: Sendable, Hashable, Identifiable {
+    public var at: Date
+    /// Never empty for a revision worth showing.
+    public var changes: [Change]
+
+    public var id: Date { at }
+
+    public init(at: Date, changes: [Change]) {
+        self.at = at
+        self.changes = changes
+    }
+
+    /// "Severity Moderate → Severe · area updated". A timeline names both levels; a country's
+    /// recent changes say "Raised to Severe" (`RecentChange.words`).
+    public var words: String { Change.sentence(changes, style: .timeline) }
 }
 
 extension HazardEventProvider {
@@ -54,5 +84,37 @@ extension HazardEventProvider {
     /// so nothing is drawn beyond the marker.
     public func detail(id: UUID) async throws -> EventDetail? {
         try await event(id: id).map { EventDetail(event: $0, geometry: .point($0.centroid)) }
+    }
+}
+
+extension EventGeometry {
+    /// The box that frames this shape on the map ("Show on map"): its extent padded by a fifth
+    /// on each side, at least 2° across, one box even across ±180°. A point gets the minimum.
+    public func frame(around centroid: Coordinate, minimumSpan: Double = 2) -> GeoBox {
+        let rings: [[Coordinate]]
+        switch self {
+        case .point(let c): rings = [[c]]
+        case .lines(let lines): rings = lines
+        case .polygons(let polygons): rings = polygons.flatMap { $0 }
+        }
+        let points = rings.flatMap { Self.unwrapped($0, near: centroid.longitude) }
+        guard !points.isEmpty else { return Self.point(centroid).frame(around: centroid) }
+        func padded(_ values: [Double]) -> (Double, Double) {
+            let lo = values.min()!, hi = values.max()!
+            let span = max(hi - lo, minimumSpan / 1.4)
+            let mid = (lo + hi) / 2, half = span * 1.4 / 2
+            return (mid - half, mid + half)
+        }
+        let (minLon, maxLon) = padded(points.map(\.longitude))
+        let (minLat, maxLat) = padded(points.map(\.latitude))
+        func wrap(_ lon: Double) -> Double {
+            var l = lon
+            while l > 180 { l -= 360 }
+            while l < -180 { l += 360 }
+            return l
+        }
+        let limit = GeoBox.mercatorLatitudeLimit
+        return GeoBox(minLongitude: wrap(minLon), minLatitude: max(minLat, -limit),
+                      maxLongitude: wrap(maxLon), maxLatitude: min(maxLat, limit))
     }
 }

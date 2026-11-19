@@ -153,8 +153,19 @@ struct MapScreen: View {
             }
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 260) // DESIGN.md §10
         } detail: {
-            mapLayer(showsSelectedCard: true, showsNotices: columnVisibility == .detailOnly)
+            mapLayer(showsNotices: columnVisibility == .detailOnly)
                 .toolbar(removing: .title)
+                // DESIGN.md §10 (macOS): the selected event in the inspector, beside the map.
+                .inspector(isPresented: inspectorShown) {
+                    if let event = model.selectedEvent {
+                        ScrollView {
+                            eventDetail(event)
+                                .padding(ShieldSpace.s5)
+                        }
+                        .background(Color.panel)
+                        .inspectorColumnWidth(min: 320, ideal: 350, max: 380)
+                    }
+                }
                 .sheet(isPresented: $showsFilters) {
                     NavigationStack {
                         FilterSheet(model: model, done: { showsFilters = false })
@@ -177,7 +188,7 @@ struct MapScreen: View {
         // The map's attribution sits above the sheet wherever the map is still usable: at peek
         // and at medium. The notices sit above the peek.
         // Above medium the sheet's list shows the empty and truncated notices itself.
-        mapLayer(showsSelectedCard: false, showsNotices: detent == .height(peekHeight),
+        mapLayer(showsNotices: detent == .height(peekHeight),
                  bottomCover: detent == .medium ? max(sheetHeight, peekHeight) : peekHeight)
             .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: peekHeight) }
             .sheet(isPresented: .constant(true)) {
@@ -191,6 +202,7 @@ struct MapScreen: View {
                          selectPlace: { place in Task { await go(to: place) } },
                          selectCountry: { open($0) },
                          closeCountry: closeCountry,
+                         eventDetail: eventDetail,
                          peekHeightChanged: setPeekHeight,
                          heightChanged: { sheetHeight = $0.rounded(.up) })
                     .presentationDetents([.height(peekHeight), .medium, .large], selection: $detent)
@@ -302,6 +314,50 @@ struct MapScreen: View {
         country = nil
     }
 
+    // MARK: Event detail
+
+    /// The inspector is open while an event is selected and there is one to show.
+    private var inspectorShown: Binding<Bool> {
+        Binding(get: { model.selectedEventID != nil && model.selectedEvent != nil },
+                set: { if !$0 { model.selectedEventID = nil } })
+    }
+
+    /// The selected event in full (DESIGN.md §10.3), for the sheet and the inspector alike.
+    private func eventDetail(_ event: HazardEvent) -> EventDetailView {
+        var detailSource: Source?
+        if case .loaded(let detail) = model.selectedDetail { detailSource = detail.source }
+        return EventDetailView(
+            event: event,
+            state: model.selectedDetail,
+            source: model.sources[event.source] ?? detailSource,
+            isStale: model.isStale(event),
+            countryName: countryName,
+            openCountry: { iso2 in open(search.countries.first { $0.iso2 == iso2 }, iso2: iso2) },
+            showOnMap: { showOnMap(event) },
+            close: { model.selectedEventID = nil }
+        )
+    }
+
+    /// The name the country list gives, else the system's English name.
+    private func countryName(_ iso2: String) -> String {
+        search.countries.first { $0.iso2 == iso2 }?.name
+            ?? Locale(identifier: "en").localizedString(forRegionCode: iso2) ?? iso2
+    }
+
+    /// Frames the event's area (or its point) in the part of the map left in view.
+    private func showOnMap(_ event: HazardEvent) {
+        #if os(iOS)
+        if sizeClass != .regular { withAnimation(ShieldMotion.spring) { detent = .medium } }
+        #endif
+        let region = MKCoordinateRegion((model.selectedGeometry ?? .point(event.centroid)).frame(around: event.centroid))
+        Task {
+            #if os(iOS)
+            try? await Task.sleep(for: .milliseconds(400)) // after the sheet settles
+            #endif
+            focus = MapFocus(region: region)
+        }
+    }
+
     /// Moves the map to a chosen place and puts the search away, so the map is in view.
     private func go(to place: MapSearch.Place) async {
         guard let region = await search.region(for: place) else { return }
@@ -316,7 +372,7 @@ struct MapScreen: View {
 
     // MARK: Map
 
-    private func mapLayer(showsSelectedCard: Bool, showsNotices: Bool, bottomCover: CGFloat = 0) -> some View {
+    private func mapLayer(showsNotices: Bool, bottomCover: CGFloat = 0) -> some View {
         ZStack {
             HazardMapView(model: model, fitWorldRequest: fitWorldRequest, focus: focus, bottomCover: bottomCover)
                 .ignoresSafeArea()
@@ -359,7 +415,7 @@ struct MapScreen: View {
                     .transition(.opacity)
                 }
                 Spacer()
-                bottom(showsSelectedCard: showsSelectedCard, showsNotices: showsNotices)
+                bottom(showsNotices: showsNotices)
                     // Clear of the map's attribution ("Maps · Legal"), which must stay
                     // visible (DECISIONS #11).
                     .padding(.bottom, ShieldSpace.s6)
@@ -371,19 +427,10 @@ struct MapScreen: View {
         }
     }
 
-    /// The selected event where there is no sheet to hold it, else the empty and truncated
-    /// notices when no list is in view to show them.
+    /// The empty and truncated notices, when no list is in view to show them.
     @ViewBuilder
-    private func bottom(showsSelectedCard: Bool, showsNotices: Bool) -> some View {
-        if showsSelectedCard, let event = model.selectedEvent {
-            SelectedEventCard(
-                event: event,
-                source: model.sources[event.source],
-                isStale: model.isStale(event),
-                close: { model.selectedEventID = nil }
-            )
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-        } else if !showsNotices {
+    private func bottom(showsNotices: Bool) -> some View {
+        if !showsNotices {
             EmptyView()
         } else if let snapshot = model.snapshot, snapshot.totalCount == 0 {
             EmptyViewNotice(filtered: !model.query.isDefault, zoomOut: fitWorld,
@@ -648,82 +695,5 @@ private struct Notice: View {
             .padding(.horizontal, ShieldSpace.s3)
             .padding(.vertical, ShieldSpace.s2)
             .background(.ultraThinMaterial, in: Capsule())
-    }
-}
-
-// MARK: - Selected event
-
-/// The tapped event, compact: title, both severities, kind, source and freshness. Full detail
-/// is S3.5. Hosted by the iOS sheet and by `SelectedEventCard`.
-struct SelectedEventSummary: View {
-    let event: HazardEvent
-    let source: Source?
-    let isStale: Bool
-    /// The source's own summary text, where there is room for it.
-    var showsSummary = false
-    var close: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: ShieldSpace.s2) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(event.title)
-                    .font(ShieldFont.headline)
-                    .foregroundStyle(Color.ink)
-                    .lineLimit(2)
-                Spacer(minLength: ShieldSpace.s2)
-                Button(action: close) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color.muted)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
-            }
-            SeverityBadge(severity: event.severity, sourceSeverity: event.sourceSeverity,
-                          isProvisional: event.severityProvisional)
-            HStack(spacing: ShieldSpace.s2) {
-                KindChip(kind: event.kind)
-                if let source { SourceBadge(source: source, url: event.url) }
-            }
-            if event.isResolved {
-                ResolvedLabel(event: event)
-            } else if let source {
-                FreshnessLabel(updatedAt: event.updatedAt, fetchedAt: event.fetchedAt,
-                               pollInterval: source.pollInterval, observedAt: event.observedAt)
-            }
-            if isStale, source == nil, !event.isResolved {
-                // FreshnessLabel says it when the source is known; say it here otherwise.
-                Text("Stale · this source hasn’t updated recently")
-                    .font(ShieldFont.meta)
-                    .foregroundStyle(Color.warning)
-            }
-            if showsSummary, let summary = event.summary, !summary.isEmpty {
-                Text(summary)
-                    .font(ShieldFont.body)
-                    .foregroundStyle(Color.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, ShieldSpace.s1)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-/// `SelectedEventSummary` as a card on the map, for the shells without a sheet.
-private struct SelectedEventCard: View {
-    let event: HazardEvent
-    let source: Source?
-    let isStale: Bool
-    var close: () -> Void
-
-    var body: some View {
-        SelectedEventSummary(event: event, source: source, isStale: isStale, close: close)
-            .padding(ShieldSpace.s4)
-            .frame(maxWidth: 560, alignment: .leading)
-            .background(Color.panel, in: RoundedRectangle(cornerRadius: ShieldRadius.lg))
-            .overlay(RoundedRectangle(cornerRadius: ShieldRadius.lg).strokeBorder(Color.ink.opacity(ShieldAlpha.hairline)))
-            .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
     }
 }

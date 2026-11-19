@@ -240,11 +240,7 @@ public struct RecentChange: Sendable, Hashable, Identifiable {
     }
 
     /// "Raised to Severe · area updated".
-    public var words: String {
-        let parts = changes.sorted { $0.rank < $1.rank }.compactMap { $0.words(among: changes) }
-        guard let first = parts.first else { return "Updated" }
-        return ([first.capitalizedFirstLetter] + parts.dropFirst()).joined(separator: " · ")
-    }
+    public var words: String { Change.sentence(changes, style: .summary) }
 }
 
 /// One field of a revision. Values the server may add later are dropped, never guessed at.
@@ -288,6 +284,17 @@ public enum Change: Sendable, Hashable {
         return out
     }
 
+    /// How a change is worded: `summary` for a country's recent changes, `timeline` for one
+    /// event's history, which names both severity levels.
+    enum Style { case summary, timeline }
+
+    /// The changes as one line, most important first, capitalised: "Raised to Severe · area updated".
+    static func sentence(_ changes: [Change], style: Style) -> String {
+        let parts = changes.sorted { $0.rank < $1.rank }.compactMap { $0.words(among: changes, style: style) }
+        guard let first = parts.first else { return "Updated" }
+        return ([first.capitalizedFirstLetter] + parts.dropFirst()).joined(separator: " · ")
+    }
+
     private static func date(_ raw: String) -> Date? {
         (try? Date(raw, strategy: .iso8601))
             ?? (try? Date(raw, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
@@ -307,8 +314,11 @@ public enum Change: Sendable, Hashable {
 
     /// The words for this change, lower case; nil when another change in the same revision says it
     /// already (a status change covers its end time).
-    func words(among all: [Change]) -> String? {
+    func words(among all: [Change], style: Style = .summary) -> String? {
         switch self {
+        case .severity(let from, let to?) where style == .timeline:
+            guard let from, from != to else { return "severity now \(to.label)" }
+            return "severity \(from.label) → \(to.label)"
         case .severity(let from, let to?):
             guard let from, from != to else { return "now \(to.label)" }
             return to > from ? "raised to \(to.label)" : "lowered to \(to.label)"

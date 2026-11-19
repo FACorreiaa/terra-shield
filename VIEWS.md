@@ -41,7 +41,7 @@ and later once in Svelte with the same name and props. Props are named after API
 | `DetectionLayer` | `points, visible` | FIRMS, own layer, off by default. Heatmap at low zoom, dots at regional zoom (~155k points per 48 h). "Detected N h ago" | `GET /v1/fires` |
 | `SeverityBadge` | `severity, sourceSeverity?, isProvisional, size` | Shape + word + colour; "Provisional" when derived from a weak signal; source value verbatim in muted | events |
 | `KindChip` | `kind` | Fixed word + icon; dashed border for forecast | events |
-| `SourceBadge` | `source{name, attribution, license}, url?` | Who said so | events.source, sources |
+| `SourceBadge` | `source{name, attribution, license}, url?, style: compact\|full, checkedAt?` | Who said so; `full` adds attribution · licence, "Checked" (the source's last poll) and `OfficialSourceButton` (accent, ⌘L) | events.source, sources |
 | `FreshnessLabel` | `observedAt, updatedAt, fetchedAt, pollInterval` | "12 min ago · 14:02 UTC"; stale → warning + clock | events, sources |
 | `StatusCapsule` | `isLive, lastUpdate, isOffline` | iOS top capsule: nav mark, live dot, freshness | stream state |
 | `StatStrip` | `cells[{value?, isLowerBound, label, unit?, filter?}], style: full\|compact, query?, tap?, isSample` | Numbers-first summary; "12+" or "–" where clusters cannot say; compact is one line for the iPhone peek; in the full strip, tapping High severity or Official warnings toggles that filter | derived from current list / country summary |
@@ -50,9 +50,9 @@ and later once in Svelte with the same name and props. Props are named after API
 | `FilterSheet` | `model` | Type grid, min severity (shapes), kinds + the heat layer, time window; "Reset" when not default. Status waits for multi-value `status` on `/v1/events` (backend, after S1.5) | local (`FilterStore`) |
 | `EventRow` | `event, source?, isStale, isSelected, place?` | Glyph-in-shape, title, kind chip, source, freshness; `place` says "Near Chile, 38 km offshore" where the list around it is a country (ADR 4) | events, sources |
 | `EventList` | `model` | The viewport's `EventRow`s, severity then recency, with loading, empty and failed states; one view for the iOS sheet and the sidebar, because the list is the accessible alternative to the map (DESIGN §14) | events |
-| `EventSheet` / `EventInspector` | `eventId` | Event detail layout (DESIGN §10.3); one view, two hosts | `GET /v1/events/{id}` |
-| `KeyFigures` | `type, attrs` | Type-specific figures; render only those present | events.attrs |
-| `RevisionTimeline` | `revisions[]` | Changes in words + time, newest first | events/{id}.revisions |
+| `EventDetailView` (the catalog's `EventSheet` / `EventInspector`) | `event, state: LiveMapModel.DetailState?, source?, isStale, countryName, openCountry?, showOnMap?, close` | Event detail layout (DESIGN §10.3); one view, two hosts: the iPhone sheet (from medium) and the Mac/iPad `.inspector`. Loading, loaded, gone, failed; stale and resolved | `GET /v1/events/{id}` |
+| `KeyFigures` | `figures` (`HazardEvent.keyFigures`) | Type-specific figures; render only those present; the lead one large | events.attrs |
+| `RevisionTimeline` | `state` (`EventDetail.timeline`) | Changes in words + time, newest first; rename-only revisions left out | events/{id}.revisions |
 | `CountryView` | `overview, model, close, selectEvent` | The overview (built as one view, the catalog's `CountrySummaryCard` + `RecentChanges`): name, ISO code, freshness; Active · Severe+ · Official warnings; matrix; coverage; changes in the last 24 h; the events. Loading, not-found ("We have no boundary for this place"), failed, and failed-with-data states | countries summary |
 | `TypeSeverityMatrix` | `rows, selection` | Type × severity counts; columns show shape + name; a cell with events is tinted (`alpha.matrixTint`) and filters the list; one line per type where it fits, else name above cells (Mac sidebar, AX sizes) | countries summary |
 | `CoverageNotice` | `countryName, coverage, sources` | Official warnings yes/no, the sources by name, "Absence of data is not safety." Names no missing service: the API doesn't say which | countries summary, sources |
@@ -182,7 +182,24 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - The coverage notice names no missing service ("Not covered: national flood service"):
        nothing in the data says which one is missing.
 5. **S3.5 Detail.** `EventSheet`/`EventInspector`, `KeyFigures`, `RevisionTimeline`, and the
-   type backgrounds (DESIGN §12).
+   type backgrounds (DESIGN §12). *Built (2026-11-19), as `EventDetailView`:*
+   - Order per §10.3: header (glyph in shape, title, every country as a link to its overview),
+     `SEVERITY · AEGIS / SOURCE` with the source text wrapping beside the badge, the backend's
+     labels ("Rated by wind speed · 241 km/h", "Rated by burned area · 48,484 ha", "Prescribed
+     burn") and one line on why, kind + status + times, the source's summary, key figures,
+     Show on map, the source block, the timeline, the disclaimer and Share.
+   - `LiveMapModel.selectedDetail` drives it, so an event stays open when it leaves the
+     snapshot (panned away, joined a server cluster); a merge into a local MapKit cluster is unchecked. DEBUG: `SHIELD_SELECT=<id>`, `SHIELD_GALLERY=detail`.
+   - **Not built:** the map snippet (Show on map frames the main map instead), the §12 header
+     art, and a public share link (Share sends the source's record until the web app has one).
+   - **Deviations for the owner** (DESIGN §10.3):
+     - Mac/iPad show it in an `.inspector` (320–380 pt) rather than the old card on the map.
+     - A source's retraction keeps the detail open as gone instead of closing it.
+     - The timeline says "Area updated", not "Area grew": the API only flags a geometry change.
+     - The source block shows "Checked" (the source's last poll), not the event's fetched time:
+       `fetched_at` only moves when the record changes, so it read "Fetched 7 h ago" on a
+       source polled minutes before.
+     - Gone sends Open official source to the source's home page, not the event's dead page.
 6. **S3.6 Live.** `NewEventToast`, the arrive animation, and stale handling driven by SSE + sources.
 7. **S3.7 Sources.** `SourceRow`, `DisclaimerBanner`, onboarding, and `EmptyState` with the mascot.
 8. **S3.8 macOS.** `NavigationSplitView` shell, inspector, keyboard shortcuts (DESIGN §10).

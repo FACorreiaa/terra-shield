@@ -106,6 +106,15 @@ extension CountrySummary {
     }
 }
 
+extension EventRevision {
+    /// Nil for a revision with nothing a person would notice (only fields this build doesn't word).
+    init?(_ r: Components.Schemas.Revision) {
+        let changes = Change.parse((try? JSONValue.object(r.changes.additionalProperties)) ?? [:])
+        guard !changes.isEmpty else { return nil }
+        self.init(at: r.at, changes: changes)
+    }
+}
+
 extension EventStatus {
     init(_ s: Components.Schemas.EventStatus) { self = s == .resolved ? .resolved : .active }
 }

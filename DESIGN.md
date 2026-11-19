@@ -358,8 +358,9 @@ Build after the gate, with APNs push. The spec is complete now.
   appears when anything differs from the default.
 - The kind toggle "Satellite heat detection" is the FIRMS layer, the same switch as the map's
   heat control (⌥⌘H). Status is one switch, "Include resolved", with the line "Adds events that
-  have ended or been cancelled, shown faded, if they were updated in the window."; its chip reads
-  "With resolved". The window applies to the last update, not to when an event ended.
+  ended or were cancelled in the window, shown faded."; its chip reads "With resolved". The window
+  applies to when a resolved event ended (else its last update) and to an active event's last
+  update, as the server does (PR #23).
 - Resolved markers never join a local cluster, and give way to active markers when they collide.
 
 ### 10.7 Sources & attribution
