@@ -20,7 +20,7 @@ config when the apps go live.
 | `shield_source_lag_seconds{source}` | worker | our last fetch minus the source's own last update (`Last-Modified`; FIRMS uses its newest file). Exported for USGS, GDACS and FIRMS. EONET sends no `Last-Modified`, and MeteoAlarm's feeds send no validators, so neither has a series. MeteoAlarm drift shows as `shield_source_skipped_total{source="meteoalarm",reason="unknown_area"}` instead. The counter adds every skipped record on every poll, so a record the feed keeps sending is counted again each round: read it as a per-poll rate (`increase` over the 10 min interval), where a steady value is the same records and a step up is new drift |
 | `shield_source_polls_total{source,result}` | worker | polls by `ok`, `not_modified` or `error` |
 | `shield_event_publish_seconds` | api | event write (its transaction start) → stream fan-out |
-| `shield_stream_subscribers`, `shield_stream_dropped_total` | api | open streams; slow clients dropped |
+| `shield_stream_subscribers`, `shield_stream_dropped_total`, `shield_stream_lagged_total` | api | open streams; slow clients dropped |
 
 Measured on a live poll (2026-11-18): USGS 47 s, GDACS 594 s (2x its 5 min
 interval), FIRMS 33 min (2.2x its 15 min interval). That is normal upstream

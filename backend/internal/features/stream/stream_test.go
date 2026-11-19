@@ -4,16 +4,21 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
+
 	"shield/internal/config"
 	"shield/internal/domain"
+	"shield/internal/metrics"
 	"shield/internal/realtime"
 	"shield/internal/server"
 )
@@ -82,10 +87,14 @@ func change(seq int64, id string, typ domain.EventType, lon, lat float64) domain
 	}
 }
 
-func serve(t *testing.T, src *fakeLog, beat time.Duration) *httptest.Server {
+func serve(t *testing.T, src *fakeLog, beat time.Duration, opts ...realtime.Options) *httptest.Server {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	hub, err := realtime.Start(ctx, src, slog.New(slog.DiscardHandler), realtime.Options{})
+	var o realtime.Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	hub, err := realtime.Start(ctx, src, slog.New(slog.DiscardHandler), o)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,6 +199,33 @@ func TestStreamLive(t *testing.T) {
 	if m := next(); m.event != "event.removed" || m.id != "12" || m.data != `{"id":"gone"}` {
 		t.Fatalf("removal %+v", m)
 	}
+}
+
+// A burst overflowing the client's queue is replayed in place: every
+// change arrives once, in order, with no reset and no reconnect.
+func TestStreamReplaysBurst(t *testing.T) {
+	src := &fakeLog{up: make(chan struct{})}
+	ts := serve(t, src, time.Hour, realtime.Options{Buffer: 1})
+	_, _, next := open(t, ts, "", "")
+	next() // retry
+	if m := next(); m.event != "ready" {
+		t.Fatalf("ready %+v", m)
+	}
+	lagged := promtest.ToFloat64(metrics.StreamLagged)
+	burst := make([]domain.StreamChange, 300)
+	for i := range burst {
+		burst[i] = change(int64(i+1), fmt.Sprintf("e%d", i+1), domain.TypeEarthquake, 0, 0)
+	}
+	src.add(burst...)
+	for i := range burst {
+		m := next()
+		if m.event != "event.created" || m.id != strconv.Itoa(i+1) {
+			t.Fatalf("message %d: %+v", i+1, m)
+		}
+	}
+	// With a one-change queue the hub outruns the writer; the order check
+	// above is the contract either way.
+	t.Logf("lagged %v times", promtest.ToFloat64(metrics.StreamLagged)-lagged)
 }
 
 func TestStreamResume(t *testing.T) {

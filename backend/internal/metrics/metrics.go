@@ -88,10 +88,18 @@ var (
 		Help: "Open live-stream connections on this pod.",
 	})
 
-	// StreamDropped counts stream clients cut off for reading too slowly.
+	// StreamDropped counts stream clients cut off for falling too far
+	// behind to replay.
 	StreamDropped = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "shield_stream_dropped_total",
-		Help: "Live-stream clients disconnected because their buffer filled.",
+		Help: "Live-stream clients disconnected because they fell too far behind to replay.",
+	})
+
+	// StreamLagged counts stream clients whose queue overflowed and who
+	// replayed from the change log instead.
+	StreamLagged = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "shield_stream_lagged_total",
+		Help: "Live-stream queue overflows recovered by replaying from the change log.",
 	})
 
 	// RetentionDeleted counts rows the retention task removed, by kind

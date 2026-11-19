@@ -30,6 +30,7 @@ import (
 	"shield/internal/features/events"
 	"shield/internal/features/params"
 	"shield/internal/httpx"
+	"shield/internal/metrics"
 	"shield/internal/realtime"
 	"shield/internal/server"
 
@@ -146,7 +147,7 @@ func (f *Feature) stream(c *echo.Context) error {
 		f.logEnd(ctx, err)
 		return nil // headers are sent; nothing left to report to the client
 	}
-	f.logEnd(ctx, f.live(ctx, w, sub))
+	f.logEnd(ctx, f.live(ctx, w, sub, &filter))
 	return nil
 }
 
@@ -186,9 +187,11 @@ func (f *Feature) open(ctx context.Context, w *writer, sub *realtime.Subscriptio
 	return w.message("ready", sub.Start, []byte("{}"))
 }
 
-// live relays the subscription until the client leaves, the hub drops it,
-// or a write fails.
-func (f *Feature) live(ctx context.Context, w *writer, sub *realtime.Subscription) error {
+// live relays the subscription until the client leaves, the hub closes,
+// or a write fails. When the queue overflowed (a burst), it replays the
+// gap from the change log in place; only a gap too large to replay ends
+// the connection, and the client's reconnect then gets `reset`.
+func (f *Feature) live(ctx context.Context, w *writer, sub *realtime.Subscription, filter *realtime.Filter) error {
 	tick := time.NewTicker(f.heartbeat)
 	defer tick.Stop()
 	cursor := sub.Start
@@ -207,6 +210,25 @@ func (f *Feature) live(ctx context.Context, w *writer, sub *realtime.Subscriptio
 				return err
 			}
 			cursor = ch.Seq
+		case <-sub.Lag:
+			upTo := sub.Resume()
+			changes, complete, err := f.broker.CatchUp(ctx, cursor, upTo, maxCatchUp)
+			if err != nil {
+				return err
+			}
+			if !complete {
+				metrics.StreamDropped.Inc()
+				return errDropped
+			}
+			for i := range changes {
+				if changes[i].Seq <= cursor || !filter.Match(&changes[i]) {
+					continue
+				}
+				if err := w.change(&changes[i]); err != nil {
+					return err
+				}
+			}
+			cursor = upTo
 		case <-tick.C:
 			// Advance the client's cursor only when nothing is queued, so
 			// it never skips past an unsent change.
@@ -220,7 +242,7 @@ func (f *Feature) live(ctx context.Context, w *writer, sub *realtime.Subscriptio
 	}
 }
 
-var errDropped = errors.New("stream closed by the hub (slow client or shutdown)")
+var errDropped = errors.New("stream closed: shutdown, or too far behind to replay")
 
 func (f *Feature) logEnd(ctx context.Context, err error) {
 	if err != nil && ctx.Err() == nil {
