@@ -47,7 +47,8 @@ struct EventDetailView: View {
             }
             divider
             if let source {
-                SourceBadge(source: source, url: event.url, style: .full, checkedAt: source.lastSuccessAt)
+                // Gone: the event's own page is likely dead, so the button opens the source's home.
+                SourceBadge(source: source, url: isGone ? nil : event.url, style: .full, checkedAt: source.lastSuccessAt)
             } else if let url = event.url {
                 // The source list hasn't loaded: the official record still opens.
                 OfficialSourceButton(url: url)
@@ -369,14 +370,9 @@ private struct GoneBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: ShieldSpace.s2) {
-            Banner(icon: "questionmark.folder", text: "This event is no longer published by its source.", color: .muted)
-            if let source {
-                Link(destination: source.url) {
-                    Label("Open \(source.name)", systemImage: "arrow.up.right.square")
-                        .font(ShieldFont.meta.weight(.semibold))
-                }
-                .foregroundStyle(Color.accent)
-            }
+            Banner(icon: "questionmark.folder",
+                   text: "This event is no longer published by its source. Open official source goes to \(source?.name ?? "the source")’s home page.",
+                   color: .muted)
         }
     }
 }

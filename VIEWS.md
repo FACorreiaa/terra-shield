@@ -189,13 +189,17 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      burn") and one line on why, kind + status + times, the source's summary, key figures,
      Show on map, the source block, the timeline, the disclaimer and Share.
    - `LiveMapModel.selectedDetail` drives it, so an event stays open when it leaves the
-     snapshot (panned away, clustered). DEBUG: `SHIELD_SELECT=<id>`, `SHIELD_GALLERY=detail`.
+     snapshot (panned away, joined a server cluster); a merge into a local MapKit cluster is unchecked. DEBUG: `SHIELD_SELECT=<id>`, `SHIELD_GALLERY=detail`.
    - **Not built:** the map snippet (Show on map frames the main map instead), the §12 header
      art, and a public share link (Share sends the source's record until the web app has one).
    - **Deviations for the owner** (DESIGN §10.3):
      - Mac/iPad show it in an `.inspector` (320–380 pt) rather than the old card on the map.
      - A source's retraction keeps the detail open as gone instead of closing it.
      - The timeline says "Area updated", not "Area grew": the API only flags a geometry change.
+     - The source block shows "Checked" (the source's last poll), not the event's fetched time:
+       `fetched_at` only moves when the record changes, so it read "Fetched 7 h ago" on a
+       source polled minutes before.
+     - Gone sends Open official source to the source's home page, not the event's dead page.
 6. **S3.6 Live.** `NewEventToast`, the arrive animation, and stale handling driven by SSE + sources.
 7. **S3.7 Sources.** `SourceRow`, `DisclaimerBanner`, onboarding, and `EmptyState` with the mascot.
 8. **S3.8 macOS.** `NavigationSplitView` shell, inspector, keyboard shortcuts (DESIGN §10).
