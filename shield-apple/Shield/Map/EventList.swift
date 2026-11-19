@@ -15,16 +15,16 @@ struct EventList: View {
         if let snapshot = model.snapshot {
             if snapshot.totalCount == 0 {
                 message {
-                    Text("No active events in this view from covered sources.")
-                        .font(ShieldFont.body)
-                        .foregroundStyle(Color.ink)
-                    Text("Absence of data is not safety. Official warnings come from national services.")
-                        .font(ShieldFont.meta)
-                        .foregroundStyle(Color.muted)
-                    Button("Zoom out", action: zoomOut)
-                        .font(ShieldFont.body.weight(.semibold))
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Color.accent)
+                    EmptyViewWords(filtered: !model.query.isDefault)
+                    HStack(spacing: ShieldSpace.s5) {
+                        if !model.query.isDefault {
+                            Button("Reset filters") { model.query = EventQuery(country: model.query.country) }
+                        }
+                        Button("Zoom out", action: zoomOut)
+                    }
+                    .font(ShieldFont.body.weight(.semibold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.accent)
                 }
             } else {
                 list(snapshot)
@@ -114,5 +114,21 @@ struct EventList: View {
             .padding(.horizontal, ShieldSpace.s5)
             .padding(.vertical, ShieldSpace.s4)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// What an empty view says. With filters on it says so first: the filters, not the sources, may
+/// be what hides events here (DESIGN.md §15, data honesty).
+struct EmptyViewWords: View {
+    var filtered: Bool
+
+    var body: some View {
+        Text(filtered ? "No events in this view match your filters."
+                      : "No active events in this view from covered sources.")
+            .font(ShieldFont.body)
+            .foregroundStyle(Color.ink)
+        Text("Absence of data is not safety. Official warnings come from national services.")
+            .font(ShieldFont.meta)
+            .foregroundStyle(Color.muted)
     }
 }

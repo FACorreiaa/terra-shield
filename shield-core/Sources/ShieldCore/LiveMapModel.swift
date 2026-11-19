@@ -60,15 +60,28 @@ public final class LiveMapModel {
     /// How often the map reloads while visible. 60 s is the shortest source poll interval.
     public static let refreshInterval: Duration = .seconds(60)
 
+    /// The filters (DESIGN.md §10.6), saved across launches when the model has a store.
+    /// A query that shows nothing (no type or no kind) is refused: the API reads an empty list as
+    /// "all", and the sheet never offers one. Heat detections stay out of `kinds`; they are
+    /// `showsDetections`.
     public var query = EventQuery() {
-        didSet { if query != oldValue { reload() } }
+        didSet {
+            var q = query
+            q.kinds.remove(.detection)
+            if q.types.isEmpty || q.kinds.isEmpty { q = oldValue }
+            if q != query { query = q } // no observer re-entry: didSet doesn't fire for this
+            guard query != oldValue, !restoring else { return }
+            save()
+            reload()
+        }
     }
 
-    /// The FIRMS layer; off by default (DESIGN.md §5).
+    /// The FIRMS layer; off by default (DESIGN.md §5). Saved with the filters.
     public var showsDetections = false {
         didSet {
-            guard showsDetections != oldValue else { return }
+            guard showsDetections != oldValue, !restoring else { return }
             if !showsDetections { detections = .empty; detectionsFailed = false }
+            save()
             reload()
         }
     }
@@ -108,14 +121,32 @@ public final class LiveMapModel {
     private var areaTask: Task<Void, Never>?
     private var generation = 0
 
+    /// `filters`: where the person's filters are kept; `nil` keeps them for this run only.
     public init(
         provider: any HazardEventProvider,
+        filters: FilterStore? = nil,
         debounce: Duration = .milliseconds(350),
         now: @escaping @Sendable () -> Date = { .now }
     ) {
         self.provider = provider
+        self.filterStore = filters
         self.debounce = debounce
         self.now = now
+        // @Observable runs observers even in init, so `restoring` keeps this from saving back
+        // or loading before the map has reported a viewport.
+        if let saved = filters?.load() {
+            restoring = true
+            query = saved.query
+            showsDetections = saved.showsDetections
+            restoring = false
+        }
+    }
+
+    private let filterStore: FilterStore?
+    @ObservationIgnored private var restoring = false
+
+    private func save() {
+        filterStore?.save(SavedFilters(query: query, showsDetections: showsDetections))
     }
 
     /// The map settled on a new region. Loads after `debounce` unless another change follows.

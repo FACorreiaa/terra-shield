@@ -352,6 +352,8 @@ Build after the gate, with APNs push. The spec is complete now.
   6 h · 24 h · 7 d), and status (Active / include resolved).
 - Filters persist locally (S3.3). Active filters show as removable chips on the map. "Reset"
   appears when anything differs from the default.
+- The kind toggle "Satellite heat detection" is the FIRMS layer, the same switch as the map's
+  heat control (⌥⌘H). Status ships when `/v1/events` takes more than one status.
 
 ### 10.7 Sources & attribution
 - **Data:** `GET /v1/sources`.

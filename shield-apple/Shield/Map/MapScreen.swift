@@ -12,6 +12,7 @@ struct MapScreen: View {
     @Bindable var model: LiveMapModel
     @State private var fitWorldRequest = 0
     @State private var search = MapSearch()
+    @State private var showsFilters = false
     /// Where a chosen place moves the map.
     @State private var focus: MapFocus?
     /// The sidebar holds the list and its notices; the map repeats them only when it's hidden.
@@ -71,7 +72,8 @@ struct MapScreen: View {
                 // The sample badge is the map's own (always in view), not repeated here. The
                 // strip steps aside while searching.
                 if !search.isActive {
-                    StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot))
+                    StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot),
+                              query: model.query, tap: { model.query = model.query.toggling($0) })
                         .padding(.horizontal, ShieldSpace.s4)
                         .padding(.vertical, ShieldSpace.s3)
                 } else {
@@ -99,6 +101,17 @@ struct MapScreen: View {
         } detail: {
             mapLayer(showsSelectedCard: true, showsNotices: columnVisibility == .detailOnly)
                 .toolbar(removing: .title)
+                .sheet(isPresented: $showsFilters) {
+                    NavigationStack {
+                        FilterSheet(model: model, done: { showsFilters = false })
+                    }
+                    .frame(minWidth: 440, idealWidth: 480, minHeight: 600)
+                }
+                #if DEBUG
+                .onAppear {
+                    if ProcessInfo.processInfo.environment["SHIELD_SHOW_FILTERS"] == "1" { showsFilters = true }
+                }
+                #endif
         }
     }
 
@@ -114,7 +127,8 @@ struct MapScreen: View {
                  bottomCover: detent == .medium ? max(sheetHeight, peekHeight) : peekHeight)
             .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: peekHeight) }
             .sheet(isPresented: .constant(true)) {
-                MapSheet(model: model, search: search, isPeek: detent == .height(peekHeight),
+                MapSheet(model: model, search: search, showsFilters: $showsFilters,
+                         isPeek: detent == .height(peekHeight),
                          zoomOut: fitWorld,
                          selectEvent: { event in
                              model.selectedEventID = event.id
@@ -163,6 +177,7 @@ struct MapScreen: View {
                 }
                 // `SHIELD_SEARCH=<text>` types into search; `SHIELD_SEARCH_GO=1` also picks the
                 // first place once it arrives.
+                if env["SHIELD_SHOW_FILTERS"] == "1" { showsFilters = true }
                 if let text = env["SHIELD_SEARCH"] {
                     search.text = text
                     detent = .large
@@ -188,6 +203,12 @@ struct MapScreen: View {
 
     private func fitWorld() { fitWorldRequest += 1 }
 
+    private var filterChips: some View {
+        FilterChips(query: model.query,
+                    openFilters: { showsFilters = true },
+                    remove: { model.query = model.query.removing($0) })
+    }
+
     /// Moves the map to a chosen place and puts the search away, so the map is in view.
     private func go(to place: MapSearch.Place) async {
         guard let region = await search.region(for: place) else { return }
@@ -207,8 +228,19 @@ struct MapScreen: View {
 
             VStack(spacing: ShieldSpace.s2) {
                 HStack(alignment: .top) {
-                    StatusCapsule(model: model)
+                    // iPhone: the chips sit under the capsule, left of the controls (DESIGN.md
+                    // §10 shells); the Mac puts them top-centre.
+                    VStack(alignment: .leading, spacing: ShieldSpace.s2) {
+                        StatusCapsule(model: model)
+                        #if os(iOS)
+                        filterChips
+                        #endif
+                    }
                     Spacer(minLength: ShieldSpace.s2)
+                    #if os(macOS)
+                    filterChips.fixedSize()
+                    Spacer(minLength: ShieldSpace.s2)
+                    #endif
                     MapControls(
                         isRefreshing: model.phase == .loading,
                         showsDetections: $model.showsDetections,
@@ -259,7 +291,8 @@ struct MapScreen: View {
         } else if !showsNotices {
             EmptyView()
         } else if let snapshot = model.snapshot, snapshot.totalCount == 0 {
-            EmptyViewNotice(zoomOut: fitWorld)
+            EmptyViewNotice(filtered: !model.query.isDefault, zoomOut: fitWorld,
+                            resetFilters: { model.query = EventQuery(country: model.query.country) })
         } else if model.snapshot?.truncated == true {
             Notice(text: "Showing the most severe events here. Zoom in to see them all.")
         }
@@ -485,20 +518,23 @@ private struct ErrorBanner: View {
 
 /// *Empty view:* says what isn't covered instead of implying safety (DECISIONS #7).
 private struct EmptyViewNotice: View {
+    /// Filters are on: they, not the sources, may be what hides the events (DESIGN.md §15).
+    var filtered: Bool
     var zoomOut: () -> Void
+    var resetFilters: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: ShieldSpace.s2) {
-            Text("No active events in this view from covered sources.")
-                .font(ShieldFont.body)
-                .foregroundStyle(Color.ink)
-            Text("Absence of data is not safety. Official warnings come from national services.")
-                .font(ShieldFont.meta)
-                .foregroundStyle(Color.muted)
-            Button("Zoom out", action: zoomOut)
-                .font(ShieldFont.body.weight(.semibold))
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.accent)
+            EmptyViewWords(filtered: filtered)
+            HStack(spacing: ShieldSpace.s5) {
+                if filtered {
+                    Button("Reset filters", action: resetFilters)
+                }
+                Button("Zoom out", action: zoomOut)
+            }
+            .font(ShieldFont.body.weight(.semibold))
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accent)
         }
         .padding(ShieldSpace.s4)
         .frame(maxWidth: 560, alignment: .leading)

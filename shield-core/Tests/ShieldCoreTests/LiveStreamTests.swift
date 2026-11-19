@@ -316,6 +316,17 @@ private final class TestClock: @unchecked Sendable {
         #expect(m.snapshot?.events.contains { $0.id == second.id } == false)
     }
 
+    @Test func aChangeBelowTheSeverityFilterIsNotPatchedIn() async throws {
+        let p = StreamingProvider()
+        let m = await loadedModel(p)
+        m.query.minimumSeverity = .severe
+        await m.settle()
+        var minor = moved(sample(3), to: Coordinate(latitude: 10, longitude: 10), now: now)
+        minor.severity = .minor
+        m.apply(.upsert(minor))
+        #expect(m.snapshot?.events.contains { $0.id == minor.id } == false)
+    }
+
     @Test func aShownEventThatMovesOutOfViewIsRemoved() async throws {
         let p = StreamingProvider()
         let europe = GeoBox(minLongitude: -25, minLatitude: 34, maxLongitude: 45, maxLatitude: 72)

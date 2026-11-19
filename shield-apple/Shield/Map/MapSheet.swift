@@ -9,6 +9,9 @@ import SwiftUI
 struct MapSheet: View {
     @Bindable var model: LiveMapModel
     @Bindable var search: MapSearch
+    /// The filter sheet, presented from here: a second sheet from the map screen would fail
+    /// while this one is up.
+    @Binding var showsFilters: Bool
     /// The sheet sits on its peek detent.
     var isPeek: Bool
     var zoomOut: () -> Void
@@ -62,6 +65,14 @@ struct MapSheet: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heightChanged($0) }
         .animation(ShieldMotion.spring, value: model.selectedEventID)
         .animation(ShieldMotion.standard, value: search.isActive)
+        .sheet(isPresented: $showsFilters) {
+            NavigationStack {
+                FilterSheet(model: model, done: { showsFilters = false })
+            }
+            .presentationDetents([.large])
+            .presentationBackground(Color.panel)
+            .preferredColorScheme(.dark)
+        }
     }
 
     private var header: some View {
@@ -70,7 +81,8 @@ struct MapSheet: View {
             // Compact at peek, where the map needs the room; the big numbers above it. Gone
             // while searching: the results need the room.
             if !search.isActive || isPeek {
-                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot), style: isPeek ? .compact : .full)
+                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot), style: isPeek ? .compact : .full,
+                          query: model.query, tap: { model.query = model.query.toggling($0) })
             }
         }
         .padding(.horizontal, ShieldSpace.s5)

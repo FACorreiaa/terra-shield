@@ -4,7 +4,7 @@ import Testing
 
 /// A provider whose answers the test controls: each viewport gets the events it was told to
 /// return, optionally after a delay, or an error.
-private final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
+final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
     // @unchecked: test-only; `lock` guards the mutable state.
     private let lock = NSLock()
     private var _requests: [MapViewport] = []
