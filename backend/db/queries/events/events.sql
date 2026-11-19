@@ -48,6 +48,13 @@ WHERE (events.type, events.kind, events.status, events.severity, events.source_s
    OR NOT ST_Equals(events.geom::geometry, EXCLUDED.geom::geometry)
 RETURNING id;
 
+-- name: AssignListedEventCountries :exec
+-- The countries a source names for an event (CountryRule.Listed), instead
+-- of those its geometry touches.
+INSERT INTO event_countries (event_id, iso2, relation, distance_km)
+SELECT @event_id::uuid, c.iso2, 'within', 0
+FROM countries c WHERE c.iso2 = ANY(@iso2s::text[]);
+
 -- name: ClearEventCountries :exec
 DELETE FROM event_countries WHERE event_id = @event_id;
 

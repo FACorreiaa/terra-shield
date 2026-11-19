@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>PHEB-3-25210002</identifier>
+  <sender>ntwc@noaa.gov</sender>
+  <sent>2025-07-30T00:56:32-00:00</sent>
+  <status>Actual</status>
+  <msgType>Update</msgType>
+  <source>PTWC</source>
+  <scope>Public</scope>
+  <code>IPAWSv1.0</code>
+  <references>ntwc@noaa.gov,PHEB-1-25210002,2025-07-29T23:35:13-00:00 ntwc@noaa.gov,PHEB-2-25210002,2025-07-30T00:19:25-00:00</references>
+  <incidents>25210002</incidents>
+  <info>
+    <category>Geo</category>
+    <event>Tsunami Advisory</event>
+    <responseType>Prepare</responseType>
+    <urgency>Immediate</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <onset>2025-07-30T00:56:32-00:00</onset>
+    <expires>2025-07-30T03:56:32-00:00</expires>
+    <senderName>NWS PACIFIC TSUNAMI WARNING CENTER HONOLULU HI</senderName>
+    <headline>  </headline>
+    <description>   - Event details: Preliminary magnitude 8.7 (Mwp) earthquake / Lat: 52.209, Lon: 159.979 at 2025-07-29T23:24:52Z </description>
+    <instruction>  N/A </instruction>
+    <web>http://www.tsunami.gov/events/PHEB/2025/07/29/25210002/3/WEGM40/WEGM40.txt</web>
+    <parameter>
+      <valueName>EventLocationName</valueName>
+      <value>OFF THE EAST COAST OF KAMCHATKA  RUSSIA</value>
+    </parameter>
+    <parameter>
+      <valueName>EventPreliminaryMagnitude</valueName>
+      <value>8.7</value>
+    </parameter>
+    <parameter>
+      <valueName>EventPreliminaryMagnitudeType</valueName>
+      <value>Mwp</value>
+    </parameter>
+    <parameter>
+      <valueName>EventOriginTime</valueName>
+      <value>2025-07-29T23:24:52-00:00</value>
+    </parameter>
+    <parameter>
+      <valueName>EventDepth</valueName>
+      <value>74 kilometers</value>
+    </parameter>
+    <parameter>
+      <valueName>EventLatLon</valueName>
+      <value>52.209,159.979 0.000</value>
+    </parameter>
+    <parameter>
+      <valueName>VTEC</valueName>
+      <value>/O.NEW.PHEB.TS.Y.0001.250730T0056Z-000000T0000Z/</value>
+    </parameter>
+    <parameter>
+      <valueName>NWSUGC</valueName>
+      <value>GUZ001&gt;004-300256-</value>
+    </parameter>
+    <parameter>
+      <valueName>ProductDefinition</valueName>
+      <value/>
+    </parameter>
+    <parameter>
+      <valueName>EAS-ORG</valueName>
+      <value>WXR</value>
+    </parameter>
+    <resource>
+      <resourceDesc>Energy Map</resourceDesc>
+      <mimeType>image/jpeg</mimeType>
+      <uri>http://www.tsunami.gov/events/PHEB/2025/07/29/25210002/3/WEGM40/ </uri>
+    </resource>
+    <resource>
+      <resourceDesc>Event Data as a JSON document</resourceDesc>
+      <mimeType>application/json</mimeType>
+      <uri>http://www.tsunami.gov/events/PHEB/2025/07/29/25210002/3/WEGM40/PHEB.json</uri>
+    </resource>
+    <area>
+      <areaDesc>Guam and CNMI</areaDesc>
+      <geocode>
+        <valueName>UGC</valueName>
+        <value>GUZ001</value>
+      </geocode>
+      <geocode>
+        <valueName>UGC</valueName>
+        <value>GUZ002</value>
+      </geocode>
+      <geocode>
+        <valueName>UGC</valueName>
+        <value>GUZ003</value>
+      </geocode>
+      <geocode>
+        <valueName>UGC</valueName>
+        <value>GUZ004</value>
+      </geocode>
+    </area>
+  </info>
+<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#dsa-sha1"/><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><DigestValue>MNZxOgMAIITbI9CgLrQ8518Gp1A=</DigestValue></Reference></SignedInfo><SignatureValue>brpV8AAnmqzwhBHjAmCVcMTKxgZ8CLkmQi2dDZ6caslxFgLnh2NbrQ==</SignatureValue><KeyInfo><KeyValue><DSAKeyValue><P>/X9TgR11EilS30qcLuzk5/YRt1I870QAwx4/gLZRJmlFXUAiUftZPY1Y+r/F9bow9subVWzXgTuA&#13;
+HTRv8mZgt2uZUKWkn5/oBHsQIsJPu6nX/rfGG/g7V+fGqKYVDwT7g/bTxR7DAjVUE1oWkTL2dfOu&#13;
+K2HXKu/yIgMZndFIAcc=</P><Q>l2BQjxUjC8yykrmCouuEC/BYHPU=</Q><G>9+GghdabPd7LvKtcNrhXuXmUr7v6OuqC+VdMCz0HgmdRWVeOutRZT+ZxBxCBgLRJFnEj6EwoFhO3&#13;
+zwkyjMim4TwWeotUfI0o4KOuHiuzpnWRbqN/C/ohNWLx+2J6ASQ7zKTxvqhRkImog9/hWuWfBpKL&#13;
+Zl6Ae1UlZAFMO/7PSSo=</G><Y>XonR3Yg1PO+Hpheh7NMm5UHT3amv+Z0OpCibPuHTwnyyfTUJQLaX249PGVvgM/CPS8MTN24lqbYx&#13;
+NI9dXJLAvIb16cW6eJx+kivl9ObemdndlUkM15quv7dN94sP5GF9RtppDXuq9BD/4lv3ya/TGxjX&#13;
+iMTf93pJwabei82X7Fs=</Y></DSAKeyValue></KeyValue></KeyInfo></Signature></alert>

@@ -104,6 +104,24 @@ func (q *Queries) AssignEventCountries(ctx context.Context, arg AssignEventCount
 	return err
 }
 
+const assignListedEventCountries = `-- name: AssignListedEventCountries :exec
+INSERT INTO event_countries (event_id, iso2, relation, distance_km)
+SELECT $1::uuid, c.iso2, 'within', 0
+FROM countries c WHERE c.iso2 = ANY($2::text[])
+`
+
+type AssignListedEventCountriesParams struct {
+	EventID uuid.UUID
+	Iso2s   []string
+}
+
+// The countries a source names for an event (CountryRule.Listed), instead
+// of those its geometry touches.
+func (q *Queries) AssignListedEventCountries(ctx context.Context, arg AssignListedEventCountriesParams) error {
+	_, err := q.db.Exec(ctx, assignListedEventCountries, arg.EventID, arg.Iso2s)
+	return err
+}
+
 const clearEventCountries = `-- name: ClearEventCountries :exec
 DELETE FROM event_countries WHERE event_id = $1
 `
