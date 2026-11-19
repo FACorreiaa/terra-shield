@@ -38,7 +38,7 @@ jobs:
     name: Tokens and colour guard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -58,7 +58,7 @@ jobs:
     name: shield-core tests
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
@@ -69,7 +69,7 @@ jobs:
     name: shield-api (generated client is current, tests)
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
@@ -102,7 +102,7 @@ jobs:
       run:
         working-directory: shield-apple
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
