@@ -108,6 +108,116 @@ private let cycloneDetail = #"""
 }
 """#
 
+
+/// A real `/v1/events/{id}` answer with revisions (local API, 2026-11-19): XAVIER, lifted from
+/// minor to severe by its wind (S1 severity floors). Geometry cut to its point.
+private let xavierDetail = #"""
+{
+ "id": "78b0fc21-319f-4829-9cad-7781e8800f09",
+ "source": "gdacs",
+ "type": "tropical_cyclone",
+ "kind": "observed",
+ "status": "active",
+ "severity": "severe",
+ "sourceSeverity": "Green alert, Hurricane/Typhoon > 74 mph (maximum wind speed of 194 km/h)",
+ "title": "Tropical cyclone XAVIER-26",
+ "summary": "From 15/11/2026 to 19/11/2026, a Hurricane/Typhoon > 74 mph ",
+ "centroid": {
+  "latitude": -10.6,
+  "longitude": -163.2
+ },
+ "countries": [],
+ "startedAt": "2026-11-15T06:00:00Z",
+ "observedAt": "2026-11-19T06:00:00Z",
+ "updatedAt": "2026-11-19T14:35:04Z",
+ "fetchedAt": "2026-11-19T15:06:02.299845Z",
+ "url": "https://www.gdacs.org/report.aspx?eventtype=TC&eventid=1001350",
+ "attrs": {
+  "alertLevel": "Green",
+  "alertScore": 1,
+  "bbox": [
+   -176.788227054715,
+   -23.7429502872371,
+   -150.788227054715,
+   2.25704971276293
+  ],
+  "capUrl": "https://www.gdacs.org/contentdata/resources/TC/1001350/cap_1001350.xml",
+  "countries": [
+   "Cook Islands",
+   "American Samoa"
+  ],
+  "episodeId": "9",
+  "eventId": "1001350",
+  "eventName": "XAVIER-26",
+  "point": [
+   -163.2,
+   -10.6
+  ],
+  "populationText": "Population affected by Category 1 (120 km/h) wind speeds or higher is 0 (43522 in Tropical Storm)",
+  "severityBasis": "wind",
+  "severityText": "Hurricane/Typhoon > 74 mph (maximum wind speed of 194 km/h)",
+  "severityUnit": "km/h",
+  "severityValue": 240.7392,
+  "vulnerability": "Medium"
+ },
+ "geometry": {
+  "type": "Point",
+  "coordinates": [
+   -163.2,
+   -10.6
+  ]
+ },
+ "sourceInfo": {
+  "id": "gdacs",
+  "name": "GDACS (Global Disaster Alert and Coordination System)",
+  "url": "https://www.gdacs.org/",
+  "license": "CC BY 4.0 (European Union)",
+  "attribution": "GDACS, a cooperation framework of the United Nations and the European Commission",
+  "pollIntervalSeconds": 300,
+  "enabled": true,
+  "lastSuccessAt": "2026-11-19T15:36:07.796395Z",
+  "stale": false
+ },
+ "revisions": [
+  {
+   "at": "2026-11-19T12:04:16.832124Z",
+   "changes": {
+    "severity": {
+     "from": "minor",
+     "to": "severe"
+    }
+   }
+  },
+  {
+   "at": "2026-11-19T10:09:07.189239Z",
+   "changes": {
+    "geometry": {
+     "changed": true
+    },
+    "sourceSeverity": {
+     "from": "Green alert, Hurricane/Typhoon > 74 mph (maximum wind speed of 185 km/h)",
+     "to": "Green alert, Hurricane/Typhoon > 74 mph (maximum wind speed of 194 km/h)"
+    }
+   }
+  },
+  {
+   "at": "2026-11-19T08:07:59.09055Z",
+   "changes": {
+    "geometry": {
+     "changed": true
+    },
+    "sourceSeverity": {
+     "from": "Green alert, Hurricane/Typhoon > 74 mph (maximum wind speed of 213 km/h)",
+     "to": "Green alert, Hurricane/Typhoon > 74 mph (maximum wind speed of 185 km/h)"
+    }
+   }
+  }
+ ]
+}
+"""#
+
+private let xavierID = "78b0fc21-319f-4829-9cad-7781e8800f09"
+
 private let base = URL(string: "http://shield.test")!
 
 private let cycloneID = "a230e8b1-0bd8-44b5-94d1-a55a9450efe1"
@@ -159,5 +269,32 @@ private func detail(withGeometry geometry: String) -> String {
     @Test func aMissingEventIsNil() async throws {
         let notFound = #"{"error":true,"code":"not_found","reason":"no such event"}"#
         #expect(try await provider(notFound, status: .notFound).detail(id: id) == nil)
+    }
+
+    @Test func readsTheSourceAndRevisionsNewestFirst() async throws {
+        let t = StubTransport(["/v1/events/\(xavierID)": (.ok, xavierDetail)])
+        let p = APIEventProvider(client: .shield(baseURL: base, transport: t))
+        let d = try #require(try await p.detail(id: UUID(uuidString: xavierID)!))
+        #expect(d.source?.id == "gdacs")
+        #expect(d.source?.license == "CC BY 4.0 (European Union)")
+        #expect(d.revisions.count == 3)
+        #expect(d.timeline.first?.words == "Severity Minor → Severe")
+        #expect(abs((d.timeline.first?.at.timeIntervalSince1970 ?? 0) - 1_795_089_856.832) < 0.001)
+        #expect(d.timeline[1].words.hasSuffix("· area updated"))
+        #expect(d.event.severityRating == "Rated by wind speed · 241 km/h")
+    }
+
+    @Test func anUnreadableSourceOrRevisionDoesNotFailTheDetail() async throws {
+        var object = try JSONSerialization.jsonObject(with: Data(xavierDetail.utf8)) as! [String: Any]
+        var info = object["sourceInfo"] as! [String: Any]
+        info["url"] = ""
+        object["sourceInfo"] = info
+        object["revisions"] = [["at": "2026-11-19T12:04:16Z", "changes": ["population": ["from": 1, "to": 2]]]]
+        let body = String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+        let t = StubTransport(["/v1/events/\(xavierID)": (.ok, body)])
+        let p = APIEventProvider(client: .shield(baseURL: base, transport: t))
+        let d = try #require(try await p.detail(id: UUID(uuidString: xavierID)!))
+        #expect(d.source == nil)
+        #expect(d.revisions.isEmpty)
     }
 }

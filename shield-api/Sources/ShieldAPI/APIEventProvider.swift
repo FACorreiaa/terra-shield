@@ -119,8 +119,15 @@ public struct APIEventProvider: HazardEventProvider {
         case .ok(let ok):
             let body = try ok.body.json
             let event = try HazardEvent(body.value1)
-            // Unreadable geometry falls back to the centroid: the marker still shows.
-            return EventDetail(event: event, geometry: body.value2.geometry.eventGeometry ?? .point(event.centroid))
+            let extra = body.value2
+            // Unreadable geometry falls back to the centroid: the marker still shows. An
+            // unreadable source or revision is left out rather than failing the detail.
+            return EventDetail(
+                event: event,
+                geometry: extra.geometry.eventGeometry ?? .point(event.centroid),
+                source: try? Source(extra.sourceInfo),
+                revisions: extra.revisions.compactMap(EventRevision.init)
+            )
         case .notFound:
             return nil
         case .badRequest(let r):

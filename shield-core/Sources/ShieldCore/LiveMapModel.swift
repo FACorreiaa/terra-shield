@@ -93,10 +93,26 @@ public final class LiveMapModel {
         }
     }
 
+    /// What the event detail (DESIGN.md §10.3) shows for the selection; nil with nothing selected.
+    public enum DetailState: Sendable, Hashable {
+        case loading
+        case loaded(EventDetail)
+        /// The source no longer publishes it: a 404, or retracted on the stream. Carries the
+        /// event as last seen, if it was, so the detail can still say what it was.
+        case gone(HazardEvent?)
+        /// The first load failed. A failed refresh keeps the last detail instead.
+        case failed
+    }
+
+    public private(set) var selectedDetail: DetailState?
+
     /// The selected event's footprint, drawn under the markers (DESIGN.md §5). `nil` while
     /// loading, for a plain point, or if the detail could not be loaded: the marker and card
     /// still show, so a failure here is not worth a banner.
-    public private(set) var selectedGeometry: EventGeometry?
+    public var selectedGeometry: EventGeometry? {
+        guard case .loaded(let detail) = selectedDetail, detail.geometry.hasShape else { return nil }
+        return detail.geometry
+    }
 
     /// The event's source has missed three polls (DECISIONS #8): fade it, don't hide it.
     public func isStale(_ event: HazardEvent) -> Bool {
@@ -113,7 +129,14 @@ public final class LiveMapModel {
     public var selectedEvent: HazardEvent? {
         guard let selectedEventID else { return nil }
         if let shown = snapshot?.events.first(where: { $0.id == selectedEventID }) { return shown }
-        return chosenEvent?.id == selectedEventID ? chosenEvent : nil
+        if chosenEvent?.id == selectedEventID { return chosenEvent }
+        // Out of the snapshot (panned away, joined a cluster, opened by id, or gone): the detail's
+        // copy keeps it on screen.
+        switch selectedDetail {
+        case .loaded(let detail): return detail.event
+        case .gone(let last?): return last
+        default: return nil
+        }
     }
 
     /// An event chosen outside the map's own list (a country's overview), kept so it can be shown
@@ -259,7 +282,12 @@ public final class LiveMapModel {
             if inView, query.matches(event, now: now()) { events.append(event) }
             self.snapshot = snapshot.replacing(events: events.sortedForDisplay())
         case .removed(let id):
-            if id == selectedEventID { selectedEventID = nil }
+            // An open detail stays open and says so (DESIGN.md §10.3 "Gone"); closing it under
+            // the reader would hide why the marker went.
+            if id == selectedEventID {
+                areaTask?.cancel()
+                selectedDetail = .gone(selectedEvent)
+            }
             guard let snapshot else { return }
             let shown = snapshot.events.contains { $0.id == id }
             if canPatch(snapshot), !(shown && inBurst()) {
@@ -351,20 +379,35 @@ public final class LiveMapModel {
         do { return .success(try await body()) } catch { return .failure(error) }
     }
 
-    /// Fetches the selected event's geometry. A newer selection cancels the older fetch, and a
+    /// Fetches the selected event's detail. A newer selection cancels the older fetch, and a
     /// late answer for an event no longer selected is dropped.
     private func loadSelectedArea(keepingCurrent: Bool = false) {
         areaTask?.cancel()
-        // A refetch for the same event (a live update) keeps the drawn area until the new one
-        // arrives, so the overlay doesn't flicker; a new selection clears it at once.
-        if !keepingCurrent { selectedGeometry = nil }
-        guard let id = selectedEventID else { return }
+        guard let id = selectedEventID else {
+            selectedDetail = nil
+            return
+        }
+        // A refetch for the same event (a live update) keeps what is shown until the new answer
+        // arrives, so nothing flickers; a new selection starts from loading.
+        if !keepingCurrent || selectedDetail == nil { selectedDetail = .loading }
         let provider = provider
         areaTask = Task { [weak self] in
             let result = await Self.capture { try await provider.detail(id: id) }
             guard let self, !Task.isCancelled, self.selectedEventID == id else { return }
-            if case .success(let detail?) = result, detail.geometry.hasShape {
-                self.selectedGeometry = detail.geometry
+            switch result {
+            case .success(let detail?):
+                self.selectedDetail = .loaded(detail)
+            case .success(nil):
+                // Gone needs the event as last seen to say what it was; an id never seen (a
+                // stale link) has nothing to show, so the selection goes.
+                if let last = self.selectedEvent {
+                    self.selectedDetail = .gone(last)
+                } else {
+                    self.selectedEventID = nil
+                }
+            case .failure:
+                if case .loaded = self.selectedDetail { return }
+                self.selectedDetail = .failed
             }
         }
     }
