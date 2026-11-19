@@ -19,6 +19,9 @@ type SourceInfo struct {
 	// OfficialWarnings marks feeds of official national warnings
 	// (MeteoAlarm), as opposed to global observation feeds.
 	OfficialWarnings bool
+	// NonHazard marks a source whose events are not hazards (UCDP's
+	// conflicts, ADR 27): it is not counted as a country's coverage.
+	NonHazard bool
 }
 
 // Validators are HTTP cache validators from the last good fetch, sent back

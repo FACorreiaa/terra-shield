@@ -167,8 +167,8 @@ func (q *Queries) RecordSourceSuccess(ctx context.Context, arg RecordSourceSucce
 }
 
 const upsertSource = `-- name: UpsertSource :exec
-INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled, official_warnings)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO sources (id, name, url, license, attribution, poll_interval_seconds, enabled, official_warnings, hazards)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (id) DO UPDATE SET
     name                  = EXCLUDED.name,
     url                   = EXCLUDED.url,
@@ -177,6 +177,7 @@ ON CONFLICT (id) DO UPDATE SET
     poll_interval_seconds = EXCLUDED.poll_interval_seconds,
     enabled               = EXCLUDED.enabled,
     official_warnings     = EXCLUDED.official_warnings,
+    hazards               = EXCLUDED.hazards,
     updated_at            = now()
 `
 
@@ -189,6 +190,7 @@ type UpsertSourceParams struct {
 	PollIntervalSeconds int32
 	Enabled             bool
 	OfficialWarnings    bool
+	Hazards             bool
 }
 
 func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) error {
@@ -201,6 +203,7 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) erro
 		arg.PollIntervalSeconds,
 		arg.Enabled,
 		arg.OfficialWarnings,
+		arg.Hazards,
 	)
 	return err
 }

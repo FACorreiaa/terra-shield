@@ -126,6 +126,16 @@ func TestCountryStatsLeaveOutConflicts(t *testing.T) {
 	if !slices.Equal(after.Counts, before.Counts) || !slices.Equal(ids(after.Events), ids(before.Events)) || len(after.RecentChanges) != len(before.RecentChanges) {
 		t.Errorf("summary changed: %+v / %v / %d changes", after.Counts, ids(after.Events), len(after.RecentChanges))
 	}
+	// A worldwide conflicts feed is not coverage.
+	if err := store.NewSourceRepository(pool).Register(ctx, domain.SourceInfo{
+		ID: "wars", Name: "Wars", URL: "https://example.org", License: "CC BY", Attribution: "Wars",
+		PollInterval: time.Hour, Enabled: true, NonHazard: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if s, err := countries.Summary(ctx, "PT", listNow); err != nil || slices.Contains(s.Coverage.Sources, "wars") || !slices.Contains(s.Coverage.Sources, "test") {
+		t.Errorf("coverage %v %v", s.Coverage.Sources, err)
+	}
 	recs, _, err := events.List(ctx, domain.EventQuery{Types: []domain.EventType{domain.TypeConflict}, Country: "PT", Limit: 10})
 	if err != nil || !slices.Equal(ids(recs), []string{"clash-pt"}) {
 		t.Errorf("conflict list %v %v", ids(recs), err)

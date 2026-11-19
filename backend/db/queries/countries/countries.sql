@@ -18,11 +18,12 @@ GROUP BY e.type, e.severity
 ORDER BY array_position(ARRAY['minor', 'moderate', 'severe', 'extreme'], e.severity) DESC, events DESC, e.type;
 
 -- name: CountryCoverage :many
--- Enabled sources that cover the country: worldwide ones (no coverage
--- rows) and those listing it.
+-- Enabled hazard sources that cover the country: worldwide ones (no
+-- coverage rows) and those listing it. Conflict feeds are not coverage
+-- (ADR 27).
 SELECT s.id, s.official_warnings
 FROM sources s
-WHERE s.enabled
+WHERE s.enabled AND s.hazards
   AND (NOT EXISTS (SELECT 1 FROM source_coverage sc WHERE sc.source_id = s.id)
        OR EXISTS (SELECT 1 FROM source_coverage sc WHERE sc.source_id = s.id AND sc.iso2 = @iso2::text))
 ORDER BY s.id;

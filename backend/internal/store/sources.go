@@ -41,6 +41,7 @@ func (r *SourceRepository) Register(ctx context.Context, info domain.SourceInfo)
 		PollIntervalSeconds: int32(info.PollInterval / time.Second), //nolint:gosec // poll intervals are minutes, far below int32
 		Enabled:             info.Enabled,
 		OfficialWarnings:    info.OfficialWarnings,
+		Hazards:             !info.NonHazard,
 	})
 	if err != nil {
 		return fmt.Errorf("register source %s: %w", info.ID, err)
