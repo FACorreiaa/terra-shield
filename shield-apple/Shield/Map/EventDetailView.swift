@@ -47,7 +47,7 @@ struct EventDetailView: View {
             }
             divider
             if let source {
-                SourceBadge(source: source, url: event.url, style: .full, fetchedAt: event.fetchedAt)
+                SourceBadge(source: source, url: event.url, style: .full, checkedAt: source.lastSuccessAt)
             } else if let url = event.url {
                 // The source list hasn't loaded: the official record still opens.
                 OfficialSourceButton(url: url)
@@ -73,7 +73,10 @@ struct EventDetailView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: ShieldSpace.s3) {
             HazardMarker(type: event.type, severity: event.severity, kind: event.kind,
-                         isStale: isStale, isResolved: event.isResolved || isGone, baseSize: 30, pulses: false)
+                         isStale: isStale && !isGone, isResolved: event.isResolved, baseSize: 30, pulses: false)
+                // Gone fades without a badge: neither resolved (checkmark) nor waiting on its source.
+                .saturation(isGone ? 0 : 1)
+                .opacity(isGone ? ShieldAlpha.stale : 1)
                 .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: ShieldSpace.s1) {
                 Text(event.title)
@@ -98,28 +101,40 @@ struct EventDetailView: View {
     }
 
     /// "Portugal, Spain" or "Off the coast of Chile, 38 km" (DESIGN.md §15): every country, none
-    /// picked. Each opens its overview.
+    /// picked. One text, so a long list wraps; each name is a link that opens its overview.
     @ViewBuilder private var places: some View {
         if !event.countries.isEmpty {
-            HStack(spacing: ShieldSpace.s1) {
-                Image(systemName: "location")
-                    .foregroundStyle(Color.muted)
-                    .accessibilityHidden(true)
-                ForEach(Array(event.countries.enumerated()), id: \.element.iso2) { index, country in
-                    let words = country.phrase(name: countryName(country.iso2)) + (index < event.countries.count - 1 ? "," : "")
-                    if let openCountry {
-                        Button(words) { openCountry(country.iso2) }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(Color.accent)
-                            .accessibilityHint("Opens the country overview")
-                    } else {
-                        Text(words).foregroundStyle(Color.muted)
-                    }
-                }
+            Label {
+                Text(placesText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .environment(\.openURL, OpenURLAction { url in
+                        guard url.scheme == Self.countryScheme, let iso2 = url.host() else { return .systemAction }
+                        openCountry?(iso2.uppercased())
+                        return .handled
+                    })
+            } icon: {
+                Image(systemName: "location").foregroundStyle(Color.muted)
             }
+            .labelStyle(.titleAndIcon)
             .font(ShieldFont.meta)
-            .lineLimit(2)
+            .foregroundStyle(Color.muted)
         }
+    }
+
+    private static let countryScheme = "aegis-country"
+
+    private var placesText: AttributedString {
+        var text = AttributedString()
+        for (index, country) in event.countries.enumerated() {
+            if index > 0 { text += AttributedString(", ") }
+            var name = AttributedString(country.phrase(name: countryName(country.iso2)))
+            if openCountry != nil, let url = URL(string: "\(Self.countryScheme)://\(country.iso2.lowercased())") {
+                name.link = url
+                name.foregroundColor = .accent
+            }
+            text += name
+        }
+        return text
     }
 
     // MARK: Kind, status, times

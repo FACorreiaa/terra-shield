@@ -10,8 +10,9 @@ struct SourceBadge: View {
     /// The event's own page at the source, if any; falls back to the source's home page.
     var url: URL? = nil
     var style: Style = .compact
-    /// When Shield last pulled this record (`full` only): "Fetched 2 min ago · 14:02 UTC".
-    var fetchedAt: Date? = nil
+    /// When Shield last polled the source (`full` only): "Checked 2 min ago · 14:02 UTC". Not
+    /// the event's `fetchedAt`, which only moves when the record changes.
+    var checkedAt: Date? = nil
 
     var body: some View {
         switch style {
@@ -35,9 +36,9 @@ struct SourceBadge: View {
                     .font(ShieldFont.meta)
                     .foregroundStyle(Color.muted)
                     .fixedSize(horizontal: false, vertical: true)
-                if let fetchedAt {
+                if let checkedAt {
                     TimelineView(.periodic(from: .now, by: 30)) { context in
-                        Text("Fetched \(Freshness.stamp(fetchedAt, now: context.date))")
+                        Text("Checked \(Freshness.stamp(checkedAt, now: context.date))")
                             .font(ShieldFont.meta)
                             .foregroundStyle(Color.muted)
                             .monospacedDigit()

@@ -263,6 +263,19 @@ private final class DetailProvider: HazardEventProvider, @unchecked Sendable {
         #expect(m.selectedDetail == nil)
     }
 
+    @Test func anEventChosenElsewhereFollowsItsLiveUpdates() async throws {
+        // Opened from a country's overview, outside the map's snapshot, then resolved (PR #23:
+        // MeteoAlarm warnings a feed drops arrive as resolved).
+        let p = DetailProvider(events: [])
+        let m = LiveMapModel(provider: p, debounce: .zero)
+        m.select(e)
+        var resolved = e
+        resolved.status = .resolved
+        resolved.endedAt = at
+        m.apply(.upsert(resolved))
+        #expect(m.selectedEvent?.status == .resolved)
+    }
+
     @Test func aFailedRefreshKeepsTheLastDetail() async throws {
         let p = DetailProvider(events: [e])
         let d = EventDetail(event: e, geometry: .point(e.centroid))

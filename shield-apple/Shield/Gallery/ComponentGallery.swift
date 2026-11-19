@@ -14,6 +14,10 @@ struct ComponentGallery: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ShieldSpace.s6) {
                 header
+                // Screenshot automation: `SHIELD_GALLERY=detail` puts the detail states first.
+                if ProcessInfo.processInfo.environment["SHIELD_GALLERY"] == "detail" {
+                    section("Event detail states") { detailStates }
+                }
                 // Two columns when there is room (macOS, iPad landscape), one on iPhone.
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: ShieldSpace.s6) {
@@ -45,6 +49,37 @@ struct ComponentGallery: View {
             section("Markers") { markerGrid }
             section("Severity") { severityList }
             section("Kind") { kindRow }
+            section("Event detail states") { detailStates }
+        }
+    }
+
+    /// The detail's states that live data rarely shows (DESIGN.md §10.3): gone, loading and
+    /// failed, on an event across three countries and offshore of a fourth, so the place line wraps.
+    @ViewBuilder private var detailStates: some View {
+        if var event = events.first {
+            let _ = event.countries = [
+                EventCountry(iso2: "PT", relation: .within), EventCountry(iso2: "ES", relation: .within),
+                EventCountry(iso2: "FR", relation: .within), EventCountry(iso2: "MA", relation: .nearby, distanceKm: 38),
+            ]
+            let states: [(String, LiveMapModel.DetailState)] = [("Gone", .gone(event)), ("Loading", .loading), ("Failed", .failed)]
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: ShieldSpace.s4) { detailCards(event, states) }
+                VStack(alignment: .leading, spacing: ShieldSpace.s4) { detailCards(event, states) }
+            }
+        }
+    }
+
+    private func detailCards(_ event: HazardEvent, _ states: [(String, LiveMapModel.DetailState)]) -> some View {
+        ForEach(states, id: \.0) { label, state in
+            VStack(alignment: .leading, spacing: ShieldSpace.s2) {
+                columnLabel(label)
+                EventDetailView(event: event, state: state, source: sources[event.source], isStale: false,
+                                countryName: { Locale(identifier: "en").localizedString(forRegionCode: $0) ?? $0 },
+                                openCountry: { _ in }, close: {})
+                    .padding(ShieldSpace.s4)
+                    .frame(width: 320)
+                    .background(Color.panel, in: RoundedRectangle(cornerRadius: ShieldRadius.md))
+            }
         }
     }
 

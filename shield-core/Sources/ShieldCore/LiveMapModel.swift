@@ -269,6 +269,8 @@ public final class LiveMapModel {
         case .reset:
             reload()
         case .upsert(let event):
+            // An event chosen outside the map's list keeps up too: it may never be in the snapshot.
+            if chosenEvent?.id == event.id { chosenEvent = event }
             if event.id == selectedEventID { loadSelectedArea(keepingCurrent: true) }
             guard let snapshot else { return }
             let shown = snapshot.events.contains { $0.id == event.id }
@@ -396,6 +398,7 @@ public final class LiveMapModel {
             guard let self, !Task.isCancelled, self.selectedEventID == id else { return }
             switch result {
             case .success(let detail?):
+                if self.chosenEvent?.id == id { self.chosenEvent = detail.event }
                 self.selectedDetail = .loaded(detail)
             case .success(nil):
                 // Gone needs the event as last seen to say what it was; an id never seen (a

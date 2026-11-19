@@ -39,9 +39,20 @@ struct ShieldApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MapScreen(model: model)
-                .preferredColorScheme(.dark)
-                .tint(.accent)
+            Group {
+                #if DEBUG
+                // Screenshot automation: `SHIELD_GALLERY=1` (or `=detail`) opens the component gallery instead.
+                if ProcessInfo.processInfo.environment["SHIELD_GALLERY"] != nil {
+                    ComponentGallery(provider: SampleEventProvider())
+                } else {
+                    MapScreen(model: model)
+                }
+                #else
+                MapScreen(model: model)
+                #endif
+            }
+            .preferredColorScheme(.dark)
+            .tint(.accent)
         }
         #if os(macOS)
         .defaultSize(width: 1200, height: 800)
