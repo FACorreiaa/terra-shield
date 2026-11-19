@@ -16,11 +16,13 @@ struct StatStrip: View {
         var label: String
         /// The words in the compact strip, after the number: singular and plural.
         var unit: (one: String, many: String)? = nil
+        /// Tapping the cell (full strip only) filters the map to its set (DESIGN.md §10.1).
+        var filter: QuickFilter? = nil
 
         var id: String { label }
 
         static func == (a: Self, b: Self) -> Bool {
-            a.value == b.value && a.isLowerBound == b.isLowerBound && a.label == b.label
+            a.value == b.value && a.isLowerBound == b.isLowerBound && a.label == b.label && a.filter == b.filter
         }
 
         func hash(into hasher: inout Hasher) {
@@ -54,6 +56,10 @@ struct StatStrip: View {
 
     var cells: [Cell]
     var style: Style = .full
+    /// The current filters, to show which cell's filter is on; with `tap`, cells with a
+    /// `filter` become buttons.
+    var query: EventQuery? = nil
+    var tap: ((QuickFilter) -> Void)? = nil
     /// The numbers are not live, so they carry the badge (DESIGN.md §15).
     var isSample = false
 
@@ -109,30 +115,56 @@ struct StatStrip: View {
                 // first, and nothing is truncated (DESIGN.md §14).
                 VStack(alignment: .leading, spacing: ShieldSpace.s1) {
                     ForEach(cells) { cell in
-                        HStack(alignment: .firstTextBaseline, spacing: ShieldSpace.s3) {
-                            number(cell)
-                            words(cell)
+                        tappable(cell) {
+                            HStack(alignment: .firstTextBaseline, spacing: ShieldSpace.s3) {
+                                number(cell)
+                                words(cell)
+                            }
                         }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(cell.accessibilityText)
                     }
                 }
             } else {
                 HStack(alignment: .top, spacing: ShieldSpace.s3) {
                     ForEach(cells) { cell in
-                        VStack(alignment: .leading, spacing: 0) {
-                            number(cell)
-                            words(cell)
+                        tappable(cell) {
+                            VStack(alignment: .leading, spacing: 0) {
+                                number(cell)
+                                words(cell)
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(cell.accessibilityText)
                     }
                 }
             }
             if isSample { SampleDataBadge() }
         }
         .animation(ShieldMotion.standard, value: cells)
+    }
+
+    /// A cell with a filter is a button when the strip can filter; the filter that is on gets an
+    /// accent underline (shape, not only colour) and the selected trait.
+    @ViewBuilder
+    private func tappable(_ cell: Cell, @ViewBuilder content: () -> some View) -> some View {
+        if let filter = cell.filter, let tap {
+            let on = query?.isOn(filter) ?? false
+            Button { tap(filter) } label: {
+                content()
+                    .padding(.bottom, ShieldSpace.s1)
+                    .overlay(alignment: .bottomLeading) {
+                        Capsule().fill(Color.accent).frame(width: 24, height: 2).opacity(on ? 1 : 0)
+                    }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(cell.accessibilityText)
+            .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+            .accessibilityHint(on ? "Shows every event again" : "Filters the map to these")
+        } else {
+            content()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(cell.accessibilityText)
+        }
     }
 
     /// Never truncated or scaled down (DESIGN.md §14); the words wrap instead.
@@ -192,9 +224,11 @@ extension StatStrip.Cell {
 
         return [
             .init(value: snapshot.totalCount, isLowerBound: short, label: "Observed events", unit: units[0]),
-            .init(value: high, isLowerBound: highIsLowerBound || short, label: "High severity", unit: units[1]),
+            .init(value: high, isLowerBound: highIsLowerBound || short, label: "High severity", unit: units[1],
+                  filter: .highSeverity),
             .init(value: clustered && warnings == 0 ? nil : warnings,
-                  isLowerBound: clustered || short, label: "Official warnings", unit: units[2]),
+                  isLowerBound: clustered || short, label: "Official warnings", unit: units[2],
+                  filter: .warnings),
         ]
     }
 

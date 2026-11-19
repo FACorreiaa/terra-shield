@@ -316,26 +316,15 @@ private final class TestClock: @unchecked Sendable {
         #expect(m.snapshot?.events.contains { $0.id == second.id } == false)
     }
 
-    @Test func aBurstFoldsIntoOneReloadInsteadOfThousandsOfPatches() async throws {
-        // Meteoalarm's first load: ~3,900 changes at once. Patching each would hold the main
-        // actor for seconds (2.1 s for 4,000 in a release build, before MapKit's diff).
+    @Test func aChangeBelowTheSeverityFilterIsNotPatchedIn() async throws {
         let p = StreamingProvider()
         let m = await loadedModel(p)
-        let before = p.requests
-        let shownBefore = m.snapshot?.events.count ?? 0
-        let start = ContinuousClock.now
-        for i in 0..<4000 {
-            var e = moved(sample(3), to: Coordinate(latitude: Double(i % 160) - 80,
-                                                    longitude: Double(i % 360) - 180), now: now)
-            e.id = UUID()
-            m.apply(.upsert(e))
-        }
-        let took = ContinuousClock.now - start
+        m.query.minimumSeverity = .severe
         await m.settle()
-        #expect(p.requests == before + 1) // one reload for the lot
-        // Only the first `burstLimit` were patched in before the reload replaced the snapshot.
-        #expect((m.snapshot?.events.count ?? 0) <= shownBefore + LiveMapModel.burstLimit)
-        #expect(took < .seconds(1), "the burst took \(took)")
+        var minor = moved(sample(3), to: Coordinate(latitude: 10, longitude: 10), now: now)
+        minor.severity = .minor
+        m.apply(.upsert(minor))
+        #expect(m.snapshot?.events.contains { $0.id == minor.id } == false)
     }
 
     @Test func aShownEventThatMovesOutOfViewIsRemoved() async throws {

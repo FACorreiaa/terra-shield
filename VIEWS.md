@@ -44,10 +44,10 @@ and later once in Svelte with the same name and props. Props are named after API
 | `SourceBadge` | `source{name, attribution, license}, url?` | Who said so | events.source, sources |
 | `FreshnessLabel` | `observedAt, updatedAt, fetchedAt, pollInterval` | "12 min ago · 14:02 UTC"; stale → warning + clock | events, sources |
 | `StatusCapsule` | `isLive, lastUpdate, isOffline` | iOS top capsule: nav mark, live dot, freshness | stream state |
-| `StatStrip` | `cells[{value?, isLowerBound, label, unit?}], style: full\|compact, isSample` (`filter?` per cell with S3.3) | Numbers-first summary; "12+" or "–" where clusters cannot say; compact is one line for the iPhone peek; tap filters (S3.3) | derived from current list / country summary |
+| `StatStrip` | `cells[{value?, isLowerBound, label, unit?, filter?}], style: full\|compact, query?, tap?, isSample` | Numbers-first summary; "12+" or "–" where clusters cannot say; compact is one line for the iPhone peek; in the full strip, tapping High severity or Official warnings toggles that filter | derived from current list / country summary |
 | `MapSearchField` + `MapSearchResults` | `search: MapSearch`, `model` | Search places (MapKit completer, moves the map) and events in view (title); iPhone peek and macOS sidebar (⌘F) | MapKit; events in view |
-| `FilterChips` | `filters, onRemove` | Active filters as removable chips | local |
-| `FilterSheet` | `filters` | Type grid, min severity, kinds, time window, status | local |
+| `FilterChips` | `query, openFilters, remove` | A Filters button (count when on), then one removable chip per filter that differs from the default; iPhone under the capsule, Mac top-centre | local |
+| `FilterSheet` | `model` | Type grid, min severity (shapes), kinds + the heat layer, time window; "Reset" when not default. Status waits for multi-value `status` on `/v1/events` (backend, after S1.5) | local (`FilterStore`) |
 | `EventRow` | `event, source?, isStale, isSelected` | Glyph-in-shape, title, kind chip, source, freshness | events, sources |
 | `EventList` | `model` | The viewport's `EventRow`s, severity then recency, with loading, empty and failed states; one view for the iOS sheet and the sidebar, because the list is the accessible alternative to the map (DESIGN §14) | events |
 | `EventSheet` / `EventInspector` | `eventId` | Event detail layout (DESIGN §10.3); one view, two hosts | `GET /v1/events/{id}` |
@@ -129,7 +129,17 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
 
    DEBUG launch env for screenshots: `SHIELD_DETECTIONS=1`, `SHIELD_REGION=lat,lon,latSpan,lonSpan`,
    `SHIELD_SELECT=<event id>`, `SHIELD_SHEET=peek|medium|large`.
-3. **S3.3 Filters.** `FilterChips`, `FilterSheet`, persisted.
+3. **S3.3 Filters.** `FilterChips`, `FilterSheet`, persisted. **Built** (2026-11-19), except status:
+   - `EventQuery` filters live in shield-core with the chip words (`activeFilters`, `label(for:)`,
+     `removing(_:)`) and the strip's quick filters (`toggling(_:)`), all tested.
+   - `FilterStore` saves to `UserDefaults` what is *excluded*, so a type or kind added later shows
+     by default; unreadable data gives the defaults. Heat detections are saved with them.
+   - The model refuses a query with no type or no kind (`/v1/events` reads an empty list as all).
+   - An empty view with filters on says so ("No events in this view match your filters") and
+     offers Reset filters, since the filters, not the sources, may be what hides events (§15).
+   - iPhone presents the filter sheet from inside the map sheet; the Mac as a window sheet.
+   - DEBUG: `SHIELD_RESET_FILTERS=1`, `SHIELD_FILTER_DEMO=1`, `SHIELD_SHOW_FILTERS=1`.
+   - Open for the owner: "Observed events" still counts every kind once a kind filter is on.
 4. **S3.4 Country.** `CountrySummaryCard`, `TypeSeverityMatrix`, `CoverageNotice`, `RecentChanges`.
 5. **S3.5 Detail.** `EventSheet`/`EventInspector`, `KeyFigures`, `RevisionTimeline`, and the
    type backgrounds (DESIGN §12).
