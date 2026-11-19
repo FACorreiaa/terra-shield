@@ -6,14 +6,24 @@ import ShieldCore
 /// serves `/v1/events` (BACKLOG S2.2); `/v1/sources` is live already.
 public struct APIEventProvider: HazardEventProvider {
     private let client: Client
+    private let stream: LiveStreamConfig?
     private let now: @Sendable () -> Date
 
-    public init(client: Client, now: @escaping @Sendable () -> Date = { .now }) {
+    /// `stream`: where to follow `/v1/stream` (S3.6); `nil` polls only.
+    public init(client: Client, stream: LiveStreamConfig? = nil, now: @escaping @Sendable () -> Date = { .now }) {
         self.client = client
+        self.stream = stream
         self.now = now
     }
 
     public var isSampleData: Bool { false }
+
+    public var supportsLiveChanges: Bool { stream != nil }
+
+    public func changes(after cursor: String?) -> AsyncThrowingStream<LiveUpdate, any Error> {
+        guard let stream else { return AsyncThrowingStream { $0.finish() } }
+        return Self.changes(after: cursor, using: stream)
+    }
 
     public func events(matching query: EventQuery) async throws -> [HazardEvent] {
         let input = Operations.ListEvents.Input(query: .init(query, now: now()), headers: .jsonOnly)

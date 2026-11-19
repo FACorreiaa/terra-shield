@@ -192,8 +192,11 @@ private struct StatusCapsule: View {
                         .font(ShieldFont.micro)
                         .tracking(ShieldTracking.micro)
                         .foregroundStyle(Color.muted)
+                    // Filled while the live stream is connected, a ring while only polling:
+                    // shape as well as colour (DESIGN.md §14).
                     Circle()
-                        .fill(dotColor)
+                        .fill(model.isLive ? dotColor : .clear)
+                        .strokeBorder(dotColor, lineWidth: 1.5)
                         .frame(width: 6, height: 6)
                         .accessibilityHidden(true)
                     Text(status(now: context.date))
@@ -216,6 +219,7 @@ private struct StatusCapsule: View {
                 .strokeBorder(Color.ink.opacity(ShieldAlpha.hairline)))
             .clipShape(RoundedRectangle(cornerRadius: ShieldRadius.md))
             .accessibilityElement(children: .combine)
+            .accessibilityValue(model.isLive ? "Live" : "")
         }
     }
 
@@ -226,7 +230,8 @@ private struct StatusCapsule: View {
         case .failed(.offline):
             return model.lastSuccess.map { "Offline · showing data from \(Freshness.utcClock($0))" } ?? "Offline"
         default:
-            guard let last = model.lastSuccess else { return "No data yet" }
+            // While live, a heartbeat confirms the data too (S3.6); the dot says it's live.
+            guard let last = model.lastUpdate else { return "No data yet" }
             let ago = Freshness.relative(last, now: now)
             return model.dataIsStale ? "Last update \(ago)" : "Updated \(ago)"
         }

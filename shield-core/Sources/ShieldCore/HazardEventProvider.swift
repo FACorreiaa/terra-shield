@@ -51,4 +51,9 @@ public protocol HazardEventProvider: Sendable {
     func sources() async throws -> [Source]
     /// Satellite thermal detections in view: grid cells below zoom 6, points from zoom 6.
     func detections(in viewport: MapViewport) async throws -> DetectionLayer
+    /// Whether `changes(after:)` streams anything (S3.6). Defaults to false.
+    var supportsLiveChanges: Bool { get }
+    /// Live updates after `cursor`. Ends or throws when the connection drops; the caller
+    /// reconnects with the last cursor it saw. Throws `StreamUnavailable` on 429/503.
+    func changes(after cursor: String?) -> AsyncThrowingStream<LiveUpdate, any Error>
 }

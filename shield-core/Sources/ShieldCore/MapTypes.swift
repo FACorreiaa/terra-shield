@@ -152,4 +152,9 @@ public struct MapSnapshot: Sendable, Hashable {
 
     /// Events plus every event inside a cluster.
     public var totalCount: Int { events.count + clusters.reduce(0) { $0 + $1.count } }
+
+    /// The same snapshot with `events` patched by a live change.
+    public func replacing(events: [HazardEvent]) -> MapSnapshot {
+        MapSnapshot(events: events, clusters: clusters, truncated: truncated, generatedAt: generatedAt)
+    }
 }
