@@ -15,16 +15,15 @@ struct EventList: View {
         if let snapshot = model.snapshot {
             if snapshot.totalCount == 0 {
                 message {
-                    EmptyViewWords(filtered: !model.query.isDefault)
-                    HStack(spacing: ShieldSpace.s5) {
+                    // The list, not the map, so the Sentinel may stand here (DESIGN.md §11).
+                    EmptyState {
+                        EmptyViewWords(filtered: !model.query.isDefault)
+                    } actions: {
                         if !model.query.isDefault {
                             Button("Reset filters") { model.query = EventQuery(country: model.query.country) }
                         }
                         Button("Zoom out", action: zoomOut)
                     }
-                    .font(ShieldFont.body.weight(.semibold))
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.accent)
                 }
             } else {
                 list(snapshot)

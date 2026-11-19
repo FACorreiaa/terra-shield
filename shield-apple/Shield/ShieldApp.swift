@@ -37,6 +37,24 @@ struct ShieldApp: App {
         return model
     }()
 
+    /// Finished or skipped the first-run cards (DESIGN.md §10.8).
+    @AppStorage(Onboarding.completedKey) private var onboardingCompleted = false
+    /// Read once at launch: whether this run starts on the cards, and on which.
+    @State private var onboarding: Int? = {
+        let env = ShieldApp.automationEnvironment
+        let completed = UserDefaults.standard.bool(forKey: Onboarding.completedKey)
+        return Onboarding.shouldShow(completed: completed, environment: env) ? Onboarding.firstCard(environment: env) : nil
+    }()
+
+    /// `SHIELD_*` launch hooks exist in Debug builds only.
+    private static var automationEnvironment: [String: String] {
+        #if DEBUG
+        ProcessInfo.processInfo.environment
+        #else
+        [:]
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -45,10 +63,10 @@ struct ShieldApp: App {
                 if ProcessInfo.processInfo.environment["SHIELD_GALLERY"] != nil {
                     ComponentGallery(provider: SampleEventProvider())
                 } else {
-                    MapScreen(model: model)
+                    root
                 }
                 #else
-                MapScreen(model: model)
+                root
                 #endif
             }
             .preferredColorScheme(.dark)
@@ -66,6 +84,21 @@ struct ShieldApp: App {
         }
         .defaultSize(width: 1100, height: 760)
         #endif
+    }
+
+    /// The cards stand in for the map until they're done: the iPhone map keeps its sheet
+    /// presented, so the cards can't be a modal over it.
+    @ViewBuilder
+    private var root: some View {
+        if let start = onboarding {
+            OnboardingView(startAt: start) {
+                onboardingCompleted = true
+                withAnimation(ShieldMotion.standard) { onboarding = nil }
+            }
+            .transition(.opacity)
+        } else {
+            MapScreen(model: model)
+        }
     }
 
     private static func makeProvider() -> any HazardEventProvider {

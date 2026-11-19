@@ -120,8 +120,12 @@ struct CountryView: View {
     private func loaded(_ summary: CountrySummary) -> some View {
         StatStrip(cells: Self.cells(summary))
         if summary.country.activeEvents == 0 {
-            // The mascot's EmptyState arrives with S3.7; the words carry it until then.
-            message("No active events in \(summary.country.name).", detail: nil)
+            // DESIGN.md §10.2: the mascot's EmptyState, then the coverage notice says what isn't covered.
+            EmptyState {
+                Text("No active events in \(summary.country.name) from covered sources.")
+                    .font(ShieldFont.body)
+                    .foregroundStyle(Color.ink)
+            }
             CoverageNotice(countryName: summary.country.name, coverage: summary.coverage, sources: model.sources)
         } else {
             section("By type and severity") {
