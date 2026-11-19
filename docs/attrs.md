@@ -119,7 +119,7 @@ A conflict event is one incident of organized lethal violence, from UCDP's month
 |---|---|---|
 | `violenceType` | string, **always** | `state_based` (a government is a side) · `non_state` (organized groups) · `one_sided` (an actor against civilians) |
 | `conflictName` | string, **always** | UCDP's conflict name ("Pakistan: Government") |
-| `sideA`, `sideB` | string, **always** | The two sides; `Civilians` for one-sided violence. "Unidentified group" where UCDP cannot name the actor |
+| `sideA`, `sideB` | string, **always** | The two sides; `Civilians` for one-sided violence. "Unidentified group" where UCDP cannot name the actor. Names are UCDP's own, kept verbatim ("Government of Russia (Soviet Union)", "Yemen (North Yemen)"; owner, 2026-11-19) |
 | `deathsBest`, `deathsLow`, `deathsHigh` | integer, **always** | Fatality estimates; `deathsBest` sets the severity |
 | `deathsSideA`, `deathsSideB`, `deathsCivilians`, `deathsUnknown` | integer, **always** | The best estimate split by who died |
 | `locationPrecision` | string, **always** | `exact` · `within_25km` · `admin2` (district centroid) · `admin1` (province centroid) · `area` (a line or fuzzy area). Draw anything but `exact` as approximate. Country-level and at-sea events are not ingested |

@@ -71,7 +71,7 @@ categories (volcanoes, landslides, dust, snow) carry no severity and show as min
   the cause, but are always **minor**, with `attrs.prescribed: true` (owner, 2026-11-19): a planned, controlled
   fire is not a hazard of its size. On 2026-11-19 they were 16 of 24 active EONET wildfires.
 
-## Armed conflicts (UCDP; ADR 27, owner 2026-11-19)
+## Armed conflicts (UCDP; ADR 27, bands approved by the owner 2026-11-19)
 
 | Best fatality estimate | Shield | September 2026 share |
 |---|---|---|
