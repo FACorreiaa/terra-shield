@@ -15,6 +15,7 @@ struct MapSheet: View {
     /// The filter sheet, presented from here: a second sheet from the map screen would fail
     /// while this one is up.
     @Binding var showsFilters: Bool
+    @Binding var showsSources: Bool
     /// The sheet sits on its peek detent.
     var isPeek: Bool
     var zoomOut: () -> Void
@@ -73,6 +74,7 @@ struct MapSheet: View {
         .animation(ShieldMotion.spring, value: model.selectedEventID)
         .animation(ShieldMotion.standard, value: country?.iso2)
         .animation(ShieldMotion.standard, value: search.isActive)
+        .sheet(isPresented: $showsSources) { sourcesSheet }
         .sheet(isPresented: $showsFilters) {
             NavigationStack {
                 FilterSheet(model: model, done: { showsFilters = false })
@@ -85,7 +87,21 @@ struct MapSheet: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: ShieldSpace.s3) {
-            MapSearchField(search: search, focused: $searchFocused)
+            HStack(spacing: ShieldSpace.s2) {
+                MapSearchField(search: search, focused: $searchFocused)
+                // DESIGN.md §10 shells: Sources opens from the sheet's header.
+                if !search.isActive {
+                    Button { showsSources = true } label: {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(ShieldFont.body.weight(.semibold))
+                            .foregroundStyle(Color.muted)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Sources")
+                }
+            }
             // Compact at peek, where the map needs the room; the big numbers above it. Gone
             // while searching: the results need the room.
             if !search.isActive || isPeek {
@@ -101,6 +117,15 @@ struct MapSheet: View {
             // Only the peek layout sets the peek detent; the full strip is taller.
             if isPeek { peekHeightChanged(height) }
         }
+    }
+
+    private var sourcesSheet: some View {
+        NavigationStack {
+            SourcesView(model: model, done: { showsSources = false })
+        }
+        .presentationDetents([.large])
+        .presentationBackground(Color.panel)
+        .preferredColorScheme(.dark)
     }
 
     private func choose(_ event: HazardEvent) {

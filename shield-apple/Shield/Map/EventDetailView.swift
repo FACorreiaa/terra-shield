@@ -193,10 +193,7 @@ struct EventDetailView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: ShieldSpace.s3) {
-            Text("Aegis Terra does not replace your national emergency service. Always follow official instructions.")
-                .font(ShieldFont.meta)
-                .foregroundStyle(Color.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            DisclaimerBanner(style: .footer)
             if let url = event.url ?? source?.url {
                 // No public event page until the web app ships, so this shares the source's record.
                 ShareLink(item: url, subject: Text(event.title), message: Text(event.title)) {

@@ -14,6 +14,7 @@ final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
     var areaFailure: (any Error)?
     var failure: (any Error)?
     var fireFailure: (any Error)?
+    var sourcesFailure: (any Error)?
 
     var requests: [MapViewport] { lock.withLock { _requests } }
     var fireRequests: Int { lock.withLock { _fireRequests } }
@@ -23,8 +24,9 @@ final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
     func events(matching query: EventQuery) async throws -> [HazardEvent] { [] }
     func event(id: UUID) async throws -> HazardEvent? { nil }
     func sources() async throws -> [Source] {
+        if let sourcesFailure { throw sourcesFailure }
         // EONET is stale in the sample sources; USGS is fresh.
-        SampleData.sources(now: Date(timeIntervalSince1970: 1_794_838_800))
+        return SampleData.sources(now: Date(timeIntervalSince1970: 1_794_838_800))
     }
 
     func snapshot(matching query: EventQuery, in viewport: MapViewport) async throws -> MapSnapshot {

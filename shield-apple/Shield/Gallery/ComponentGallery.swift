@@ -19,6 +19,7 @@ struct ComponentGallery: View {
                 switch ProcessInfo.processInfo.environment["SHIELD_GALLERY"] {
                 case "detail": section("Event detail states") { detailStates }
                 case "tsunami": section("Tsunami detail") { tsunamiDetails }
+                case "sources": section("Sources") { sourceStates }
                 default: EmptyView()
                 }
                 // Two columns when there is room (macOS, iPad landscape), one on iPhone.
@@ -53,6 +54,7 @@ struct ComponentGallery: View {
             section("Severity") { severityList }
             section("Kind") { kindRow }
             section("Event detail states") { detailStates }
+            section("Sources") { sourceStates }
         }
     }
 
@@ -73,6 +75,39 @@ struct ComponentGallery: View {
     }
 
     /// A PTWC threat forecast and an NTWC warning, shaped like #25's attrs (sample data).
+    /// DESIGN.md §10.7: both disclaimer styles and a source row in each health (sample data).
+    private var sourceStates: some View {
+        let now = Date.now
+        func source(_ name: String, success: TimeInterval?, error: TimeInterval? = nil, stale: Bool,
+                    poll: Int, cadence: String? = nil, coverage: String? = nil) -> Source {
+            var s = Source(id: name, name: name, url: URL(string: "https://example.org")!,
+                           license: "CC BY 4.0", attribution: "\(name) contributors",
+                           pollIntervalSeconds: poll,
+                           lastSuccessAt: success.map { now.addingTimeInterval($0) },
+                           lastErrorAt: error.map { now.addingTimeInterval($0) }, stale: stale)
+            s.cadence = cadence
+            s.coverage = coverage
+            s.termsUrl = coverage == nil ? nil : URL(string: "https://example.org/terms")
+            return s
+        }
+        let rows = [
+            source("Healthy source", success: -120, error: -3000, stale: false, poll: 600,
+                   coverage: "Earthquakes M2.5+ worldwide"),
+            source("Failing source", success: -3600, error: -180, stale: false, poll: 300),
+            source("Stale source", success: -19 * 3600, stale: true, poll: 600),
+            source("Monthly source", success: -1800, stale: false, poll: 21_600, cadence: "monthly release",
+                   coverage: "Armed-conflict events, monthly research estimates"),
+        ]
+        return VStack(alignment: .leading, spacing: ShieldSpace.s3) {
+            DisclaimerBanner(style: .inline)
+            DisclaimerBanner(style: .footer)
+            ForEach(rows) { SourceRow(source: $0, now: now) }
+        }
+        .padding(ShieldSpace.s4)
+        .frame(maxWidth: 420)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: ShieldRadius.md))
+    }
+
     private var tsunamiDetails: some View {
         let now = Date.now
         func event(kind: EventKind, severity: Severity, title: String, provisional: Bool,

@@ -211,6 +211,13 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
    line, severity-tinted edge; the arrival fade is Core Animation on the marker view, so it works
    the same on the Mac.
 7. **S3.7 Sources.** `SourceRow`, `DisclaimerBanner`, onboarding, and `EmptyState` with the mascot.
+   *Built (2026-11-19): `SourcesView`, `SourceRow` (+ `HealthDot`), `DisclaimerBanner`.* Gallery:
+   `SHIELD_GALLERY=sources`; screen: `SHIELD_SHOW_SOURCES=1`.
+   - **Deviations for the owner:**
+     - Entry: the sheet header (per DESIGN §10 shells), not the capsule menu this table names.
+     - Dot rule, which §10.7 leaves open: last check failed = `warning`, stale = `danger`.
+     - Disabled sources aren't listed ("every active source").
+     - The interval says "Checked every 6 h" (our poll), like the detail's "Checked".
 8. **S3.8 macOS.** `NavigationSplitView` shell, inspector, keyboard shortcuts (DESIGN §10).
 9. **Phase 2 Web.** The same catalog in Svelte, plus the MapLibre style (DESIGN §9).
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
