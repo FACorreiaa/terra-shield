@@ -43,7 +43,12 @@ private let eventList = """
 private let sources = """
 {"sources": [{"id": "usgs", "name": "USGS Earthquake Hazards Program", "url": "https://earthquake.usgs.gov/",
   "license": "Public domain", "attribution": "U.S. Geological Survey", "pollIntervalSeconds": 60,
-  "enabled": true, "lastSuccessAt": "2026-11-16T13:35:00.987654321Z", "stale": false}]}
+  "enabled": true, "lastSuccessAt": "2026-11-16T13:35:00.987654321Z", "stale": false,
+  "coverage": "Earthquakes worldwide", "cadence": "every minute"},
+ {"id": "ucdp", "name": "UCDP Candidate Events", "url": "https://ucdp.uu.se/",
+  "license": "CC BY 4.0", "attribution": "UCDP", "pollIntervalSeconds": 21600, "enabled": true,
+  "stale": false, "coverage": "Armed-conflict events with deaths, worldwide",
+  "termsUrl": "https://ucdp.uu.se/downloads/", "cadence": "monthly release"}]}
 """
 
 /// "now" just after the sample payload, so the default 24 h window keeps everything.
@@ -123,6 +128,15 @@ private let now = Date(timeIntervalSince1970: 1_794_838_800) // 2026-11-16T14:20
         #expect(s.id == "usgs" && s.pollInterval == 60 && s.stale == false)
         #expect(s.lastSuccessAt != nil)
         #expect(!p.isSampleData)
+    }
+
+    @Test func mapsWhatASourceCoversAndItsTerms() async throws {
+        let (p, _) = provider(["/v1/sources": (.ok, sources)])
+        let list = try await p.sources()
+        // USGS has no terms page the backend could verify: the row links its home instead.
+        #expect(list[0].coverage == "Earthquakes worldwide" && list[0].termsUrl == nil)
+        #expect(list[1].termsUrl == URL(string: "https://ucdp.uu.se/downloads/"))
+        #expect(list[1].cadence == "monthly release")
     }
 }
 
