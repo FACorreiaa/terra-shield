@@ -16,6 +16,8 @@ type Repositories struct {
 	Fires     *FireRepository
 	// WarningAreas are MeteoAlarm's area shapes (S1.5).
 	WarningAreas *WarningAreaRepository
+	// NWSZones are NOAA's public forecast zones, for tsunami warnings.
+	NWSZones *NWSZoneRepository
 }
 
 // New builds all repositories on pool.
@@ -27,6 +29,7 @@ func New(pool *pgxpool.Pool) *Repositories {
 		Fires:     NewFireRepository(pool),
 
 		WarningAreas: NewWarningAreaRepository(pool),
+		NWSZones:     NewNWSZoneRepository(pool),
 	}
 }
 

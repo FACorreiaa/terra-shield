@@ -104,6 +104,13 @@ type MeteoalarmAreaAlias struct {
 	Code      string
 }
 
+type NwsZone struct {
+	Ugc   string
+	State string
+	Name  string
+	Geom  interface{}
+}
+
 type Source struct {
 	ID                  string
 	Name                string
