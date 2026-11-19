@@ -9,8 +9,9 @@ package severity
 //   - 10,000–99,999 acres: severe
 //   - ≥ 100,000 acres (megafire): extreme
 //
-// Burned area says nothing about the people nearby, so these bands are
-// provisional until impact data (GDACS, PAGER-like) exists for the fire.
+// Burned area says nothing about the people nearby, so for EONET these
+// bands are provisional. For GDACS fires they floor the impact alert
+// (owner, 2026-11-19): every wildfire is sized on the same table.
 
 // AcresPerHectare converts hectares, the unit most non-US feeds use.
 const AcresPerHectare = 2.4710538

@@ -11,6 +11,11 @@
    "geometry": [
     {"magnitudeValue": 150000.4, "magnitudeUnit": "acres", "date": "2026-11-14T12:00:00Z", "type": "Point", "coordinates": [-120.1, 38.1]},
     {"magnitudeValue": 500.0, "magnitudeUnit": "acres", "date": "2026-11-10T12:00:00Z", "type": "Point", "coordinates": [-120.0, 38.0]}]},
+  {"id": "EONET_RX1", "title": "Prescribed Fire Unit 7 RX, Scott, Mississippi", "description": "", "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_RX1", "closed": null,
+   "categories": [{"id": "wildfires", "title": "Wildfires"}],
+   "sources": [{"id": "IRWIN", "url": "https://irwin.doi.gov/observer/incidents/2026-MS-RX1"}],
+   "geometry": [
+    {"magnitudeValue": 2400.0, "magnitudeUnit": "acres", "date": "2026-11-14T12:00:00Z", "type": "Point", "coordinates": [-89.5, 32.4]}]},
   {"id": "EONET_W2", "title": "Canadian Fire", "description": "", "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_W2", "closed": "2026-11-15T00:00:00Z",
    "categories": [{"id": "wildfires", "title": "Wildfires"}],
    "sources": [{"id": "BCWILDFIRE", "url": "https://wildfiresituation.nrs.gov.bc.ca/"}],

@@ -255,7 +255,7 @@ type Warning struct {
 	domain.Event
 	Areas      []Area   // in feed order
 	Supersedes []string // CAP identifiers this alert replaces
-	Cancel     bool     // a Cancel message: only Supersedes matters
+	Cancel     bool     // nothing to store (a Cancel, or an Update we skip, such as one lowered to green): only Supersedes matters
 }
 
 type feed struct {
@@ -345,18 +345,27 @@ func Parse(body []byte, now time.Time) (warnings []Warning, skipped map[string]i
 			continue
 		}
 		in := pickInfo(a.Info)
-		if in == nil {
-			skipped[SkipInvalid]++
-			continue
+		reason := SkipInvalid
+		if in != nil {
+			var ev domain.Event
+			var areas []Area
+			ev, areas, reason = normalize(a, in, now)
+			if reason == "" {
+				w.Event, w.Areas = ev, areas
+				out = append(out, w)
+				continue
+			}
 		}
-		ev, areas, reason := normalize(a, in, now)
-		switch reason {
-		case "":
-			w.Event, w.Areas = ev, areas
-			out = append(out, w)
-		case skipGreen:
-		default:
+		if reason != skipGreen {
 			skipped[reason]++
+		}
+		// A record we do not store can still replace one we did: a member
+		// lowering a yellow warning to green sends an Update at level 1
+		// that references the yellow one (375 in Croatia's feed on
+		// 2026-11-19). Without this, the yellow stayed on the map.
+		if len(w.Supersedes) > 0 {
+			w.Cancel = true
+			out = append(out, w)
 		}
 	}
 	return out, skipped, nil
@@ -416,15 +425,15 @@ func normalize(a *alert, in *info, now time.Time) (domain.Event, []Area, string)
 		status, ended = domain.StatusResolved, &e
 	}
 	started := onset.UTC()
-	title := strings.TrimSpace(in.Headline)
-	if title == "" {
-		title = strings.TrimSpace(in.Event)
-	}
+	title, headlineUsed := warningTitle(in.Headline, in.Event, levelNum, typeNum, descs)
 	url := in.Web
 	if url == "" {
 		url = "https://meteoalarm.org/"
 	}
 	summary := strings.TrimSpace(in.Description)
+	if h := strings.TrimSpace(in.Headline); !headlineUsed && h != "" && !strings.Contains(summary, h) {
+		summary = strings.TrimSpace(h + "\n\n" + summary) // a sentence-long headline still says something
+	}
 	if instr := strings.TrimSpace(in.Instruction); instr != "" {
 		summary = strings.TrimSpace(summary + "\n\n" + instr)
 	}
@@ -577,3 +586,80 @@ func sourceSeverity(level int, color string) string {
 	}
 	return strings.ToUpper(color[:1]) + strings.ToLower(color[1:]) + " warning"
 }
+
+// Title limits, in runes: a name longer than maxName is a sentence (some
+// members put the whole forecast in the headline), and an area is cut at
+// maxArea.
+const (
+	maxName = 60
+	maxArea = 40
+)
+
+// typeLabels name MeteoAlarm's awareness types for a title Shield builds
+// itself.
+var typeLabels = map[int]string{
+	1: "wind", 2: "snow and ice", 3: "thunderstorm", 4: "fog", 5: "high temperature",
+	6: "low temperature", 7: "coastal", 8: "forest fire", 9: "avalanche", 10: "rain",
+	12: "flood", 13: "rain and flood",
+}
+
+var levelColors = map[int]string{2: "Yellow", 3: "Orange", 4: "Red"}
+
+// warningTitle builds a short title that names the place. Members write
+// headlines differently: "Strong rainfall" (no place, and 110 Swiss
+// warnings share it), "Gale, yellow level, North Cape - ..., 2026-11-14T12:00"
+// (a sentence), or a Romanian forecast in the English block. The name is
+// the headline when it is short, else CAP's event name when that is a
+// name ("Gale"; Romania sends "awareness_type=1, awareness_level=2"), else
+// "Yellow wind warning". The first area follows unless the name has one.
+// headlineUsed reports whether the headline became the name; when it did
+// not, the caller keeps it in the summary.
+func warningTitle(headline, event string, level, awarenessType int, areas []string) (title string, headlineUsed bool) {
+	headline, event = strings.TrimSpace(headline), strings.TrimSpace(event)
+	var name string
+	switch {
+	case headline != "" && runeLen(headline) <= maxName:
+		name, headlineUsed = headline, true
+	case event != "" && runeLen(event) <= maxName && !strings.Contains(event, "="):
+		name = event
+	default:
+		label := typeLabels[awarenessType]
+		if label == "" {
+			label = "weather"
+		}
+		name = strings.TrimSpace(levelColors[level] + " " + label + " warning")
+	}
+
+	var place string
+	named := 0
+	lower := strings.ToLower(name)
+	for _, a := range areas {
+		a = strings.TrimSpace(a)
+		if a == "" {
+			continue
+		}
+		if strings.Contains(lower, strings.ToLower(a)) {
+			return name, headlineUsed // the name already says where
+		}
+		if place == "" {
+			place = a
+		}
+		named++
+	}
+	if place == "" {
+		return name, headlineUsed
+	}
+	if runeLen(place) > maxArea {
+		cut := string([]rune(place)[:maxArea-1])
+		if i := strings.LastIndex(cut, " "); i > len(cut)/2 {
+			cut = cut[:i] // at a word, not inside one
+		}
+		place = strings.TrimRight(cut, " ,;-") + "…"
+	}
+	if named > 1 {
+		place += fmt.Sprintf(" +%d", named-1)
+	}
+	return name + " · " + place, headlineUsed
+}
+
+func runeLen(s string) int { return len([]rune(s)) }

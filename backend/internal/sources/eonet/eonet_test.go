@@ -51,6 +51,9 @@ func TestParseRecordedFeed(t *testing.T) {
 			t.Fatalf("upstream %v", e.Attrs["upstream"])
 		}
 	}
+	if byID(events)["EONET_26256"].Attrs["prescribed"] != true { // "Prescribed Fire Compartment 22 RX"
+		t.Error("recorded prescribed burn not flagged")
+	}
 	ms := byID(events)["EONET_26465"]
 	if ms.Title != "Wildfire Range 47, Forrest, Mississippi" || ms.SourceSeverity != "2,379 acres burned" || ms.Severity != "moderate" ||
 		ms.URL != "https://irwin.doi.gov/observer/incidents/2026-MSMNF-000723" {
@@ -64,8 +67,16 @@ func TestParseEdgeCases(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := byID(events)
-	if len(events) != 4 {
-		t.Fatalf("kept %d, want V1 W1 W2 L1", len(events))
+	if len(events) != 5 {
+		t.Fatalf("kept %d, want V1 W1 RX1 W2 L1", len(events))
+	}
+
+	// A prescribed burn stays, always minor and flagged, whatever its size.
+	if rx := m["EONET_RX1"]; rx.Severity != "minor" || rx.SourceSeverity != "2,400 acres burned" || rx.Attrs["prescribed"] != true {
+		t.Errorf("prescribed burn %s %q prescribed=%v", rx.Severity, rx.SourceSeverity, rx.Attrs["prescribed"])
+	}
+	if m["EONET_W1"].Attrs["prescribed"] != nil {
+		t.Error("wildfire flagged as prescribed")
 	}
 
 	v := m["EONET_V1"]
@@ -128,10 +139,25 @@ func TestPoll(t *testing.T) {
 	s.url = srv.URL
 
 	res, err := s.Poll(t.Context(), domain.Validators{})
-	if err != nil || res.Upserted != 4 || len(store.got) != 4 {
+	if err != nil || res.Upserted != 5 || len(store.got) != 5 {
 		t.Fatalf("%+v err %v", res, err)
 	}
 	if info := s.Info(); info.ID != ID || info.PollInterval != 10*time.Minute || !info.Enabled {
 		t.Fatalf("%+v", info)
+	}
+}
+
+func TestIsPrescribed(t *testing.T) {
+	for title, want := range map[string]bool{
+		"Prescribed Fire Freidland-Chimney Piles RX, Coconino, Arizona": true,
+		"Prescribed Fire Bienville CPT 29 Sub 2 RX, Scott, Mississippi": true,
+		"Prescribed burn Block 4, Ocala, Florida":                       true,
+		"Unit 12 RX": true,
+		"Wildfire Range 47, Forrest, Mississippi": false,
+		"RX Ranch Fire, Texas":                    false, // a place, not the RX suffix
+	} {
+		if got := isPrescribed(title); got != want {
+			t.Errorf("%q = %v, want %v", title, got, want)
+		}
 	}
 }
