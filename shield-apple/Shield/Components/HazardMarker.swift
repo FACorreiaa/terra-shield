@@ -12,6 +12,8 @@ struct HazardMarker: View {
     var isSelected: Bool = false
     /// Point size of a `moderate` marker; other severities scale from it.
     var baseSize: CGFloat = 28
+    /// The extreme-severity halo. On the map only (DESIGN.md §8, §13); lists and cards hold still.
+    var pulses = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -41,7 +43,7 @@ struct HazardMarker: View {
 
     private var marker: some View {
         ZStack {
-            if severity.pulses && !reduceMotion && !isStale {
+            if pulses && severity.pulses && !reduceMotion && !isStale {
                 PulseHalo(shape: shape, color: severity.color)
             }
             body(for: kind)

@@ -44,7 +44,8 @@ and later once in Svelte with the same name and props. Props are named after API
 | `SourceBadge` | `source{name, attribution, license}, url?` | Who said so | events.source, sources |
 | `FreshnessLabel` | `observedAt, updatedAt, fetchedAt, pollInterval` | "12 min ago · 14:02 UTC"; stale → warning + clock | events, sources |
 | `StatusCapsule` | `isLive, lastUpdate, isOffline` | iOS top capsule: nav mark, live dot, freshness | stream state |
-| `StatStrip` | `cells[{value?, isLowerBound, label}], isSample` (`filter?` per cell with S3.3) | Numbers-first summary; "12+" or "–" where clusters cannot say; tap filters (S3.3) | derived from current list / country summary |
+| `StatStrip` | `cells[{value?, isLowerBound, label, unit?}], style: full\|compact, isSample` (`filter?` per cell with S3.3) | Numbers-first summary; "12+" or "–" where clusters cannot say; compact is one line for the iPhone peek; tap filters (S3.3) | derived from current list / country summary |
+| `MapSearchField` + `MapSearchResults` | `search: MapSearch`, `model` | Search places (MapKit completer, moves the map) and events in view (title); iPhone peek and macOS sidebar (⌘F) | MapKit; events in view |
 | `FilterChips` | `filters, onRemove` | Active filters as removable chips | local |
 | `FilterSheet` | `filters` | Type grid, min severity, kinds, time window, status | local |
 | `EventRow` | `event, source?, isStale, isSelected` | Glyph-in-shape, title, kind chip, source, freshness | events, sources |
@@ -110,13 +111,20 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      read "12+" or "–" instead of guessing. Cells are display-only until S3.3 gives them a filter.
    - `EventList` (`EventRow`s, most severe first, then newest) is the map's accessible
      alternative. Clustered events are not listed; a footnote says how many.
-   - iPhone (compact width): a sheet with three detents. Peek is the `StatStrip` (as tall as
-     the strip, so it follows Dynamic Type; there is no search field yet), medium is the list
-     or the selected event, large is the same with room for S3.5's detail. Selecting on the map
+   - iPhone (compact width): a sheet with three detents. Peek is `MapSearchField` over the
+     compact `StatStrip` (≈ 96 pt, measured, so it follows Dynamic Type), medium is the full
+     strip and the list or the selected event, large is the same with room for S3.5's detail.
+     Focusing search opens large. Selecting on the map
      or in the list opens the event at medium. The map's attribution moves to sit above the
      sheet at peek and at medium; at large the sheet covers the map.
-   - macOS and regular width (iPad): `NavigationSplitView` with `StatStrip` + list in the
-     sidebar and the selected event as a card on the map. The full shell (sidebar navigation,
+   - macOS and regular width (iPad): `NavigationSplitView` (sidebar 220–260 pt) with search
+     (⌘F), `StatStrip` and list in the sidebar, and the selected event as a card on the map.
+     The map repeats the empty and truncated notices only when the sidebar is hidden.
+   - Search (`MapSearch`) has no endpoint behind it: places come from MapKit's completer
+     (address results only) and move the map; events match by title among those in view, so
+     clustered events are not searched (a hint says so). Countries arrive with S3.4.
+   - The sample-data badge is the map's own, so it stays in view in every sheet state; the
+     strip no longer repeats it. Extreme markers pulse on the map only, not in rows. The full shell (sidebar navigation,
      inspector, shortcuts) is still S3.8.
 
    DEBUG launch env for screenshots: `SHIELD_DETECTIONS=1`, `SHIELD_REGION=lat,lon,latSpan,lonSpan`,

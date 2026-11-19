@@ -14,8 +14,24 @@ struct StatStrip: View {
         /// The real number is at least `value`; shown as "12+".
         var isLowerBound = false
         var label: String
+        /// The words in the compact strip, after the number: singular and plural.
+        var unit: (one: String, many: String)? = nil
 
         var id: String { label }
+
+        static func == (a: Self, b: Self) -> Bool {
+            a.value == b.value && a.isLowerBound == b.isLowerBound && a.label == b.label
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(value); hasher.combine(isLowerBound); hasher.combine(label)
+        }
+
+        /// "4 events", "1 warning", "– warnings".
+        var compactWords: String {
+            let unit = unit ?? (label.lowercased(), label.lowercased())
+            return value == 1 && !isLowerBound ? unit.one : unit.many
+        }
 
         var text: String {
             guard let value else { return "–" }
@@ -28,13 +44,65 @@ struct StatStrip: View {
         }
     }
 
+    enum Style {
+        /// Big numbers, words below (DESIGN.md §10.1).
+        case full
+        /// One line, "4 events · 1 high severity · 1 warning": the iPhone peek, under the search
+        /// field (owner, 2026-11-19).
+        case compact
+    }
+
     var cells: [Cell]
+    var style: Style = .full
     /// The numbers are not live, so they carry the badge (DESIGN.md §15).
     var isSample = false
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        switch style {
+        case .full: full
+        case .compact: compact
+        }
+    }
+
+    private var compact: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                // One cell per line, so a number never wraps away from its words (§14).
+                VStack(alignment: .leading, spacing: ShieldSpace.s1) {
+                    ForEach(cells) { Text(compactText($0)) }
+                }
+            } else {
+                Text(cells.enumerated().reduce(into: AttributedString()) { line, item in
+                    if item.offset > 0 {
+                        var dot = AttributedString("  ·  ")
+                        dot.foregroundColor = Color.muted
+                        line += dot
+                    }
+                    line += compactText(item.element)
+                })
+            }
+        }
+        .font(ShieldFont.body)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(cells.map(\.accessibilityText).joined(separator: ", "))
+        .animation(ShieldMotion.standard, value: cells)
+    }
+
+    /// "4 events": the number in ink and mono, the words muted.
+    private func compactText(_ cell: Cell) -> AttributedString {
+        var number = AttributedString(cell.text)
+        number.font = ShieldFont.body.weight(.semibold).monospacedDigit()
+        number.foregroundColor = cell.value == nil ? Color.muted : Color.ink
+        var words = AttributedString("\u{00A0}" + cell.compactWords)
+        words.foregroundColor = Color.muted
+        return number + words
+    }
+
+    private var full: some View {
         VStack(alignment: .leading, spacing: ShieldSpace.s2) {
             if typeSize.isAccessibilitySize {
                 // Three columns cannot hold the words at these sizes: one cell per line, number
@@ -97,9 +165,9 @@ extension StatStrip.Cell {
     static func liveMap(_ snapshot: MapSnapshot?) -> [StatStrip.Cell] {
         guard let snapshot else {
             return [
-                .init(value: nil, label: "Observed events"),
-                .init(value: nil, label: "High severity"),
-                .init(value: nil, label: "Official warnings"),
+                .init(value: nil, label: "Observed events", unit: units[0]),
+                .init(value: nil, label: "High severity", unit: units[1]),
+                .init(value: nil, label: "Official warnings", unit: units[2]),
             ]
         }
 
@@ -123,12 +191,16 @@ extension StatStrip.Cell {
         let short = snapshot.truncated
 
         return [
-            .init(value: snapshot.totalCount, isLowerBound: short, label: "Observed events"),
-            .init(value: high, isLowerBound: highIsLowerBound || short, label: "High severity"),
+            .init(value: snapshot.totalCount, isLowerBound: short, label: "Observed events", unit: units[0]),
+            .init(value: high, isLowerBound: highIsLowerBound || short, label: "High severity", unit: units[1]),
             .init(value: clustered && warnings == 0 ? nil : warnings,
-                  isLowerBound: clustered || short, label: "Official warnings"),
+                  isLowerBound: clustered || short, label: "Official warnings", unit: units[2]),
         ]
     }
+
+    private static let units: [(one: String, many: String)] = [
+        ("event", "events"), ("high severity", "high severity"), ("warning", "warnings"),
+    ]
 }
 
 #Preview("StatStrip", traits: .sizeThatFitsLayout) {
@@ -139,6 +211,11 @@ extension StatStrip.Cell {
             .init(value: 3, isLowerBound: true, label: "Official warnings"),
         ], isSample: true)
         StatStrip(cells: StatStrip.Cell.liveMap(nil), isSample: true)
+        StatStrip(cells: [
+            .init(value: 128, label: "Observed events", unit: ("event", "events")),
+            .init(value: 14, label: "High severity"),
+            .init(value: 1, label: "Official warnings", unit: ("warning", "warnings")),
+        ], style: .compact)
     }
     .padding(ShieldSpace.s5)
     .frame(width: 360)

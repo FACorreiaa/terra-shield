@@ -11,11 +11,19 @@ import SwiftUI
 struct MapScreen: View {
     @Bindable var model: LiveMapModel
     @State private var fitWorldRequest = 0
+    @State private var search = MapSearch()
+    /// Where a chosen place moves the map.
+    @State private var focus: MapFocus?
+    /// The sidebar holds the list and its notices; the map repeats them only when it's hidden.
+    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
+    @FocusState private var sidebarSearchFocused: Bool
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var peekHeight = MapScreen.defaultPeekHeight
     @State private var detent = PresentationDetent.height(MapScreen.defaultPeekHeight)
     @State private var sheetHeight: CGFloat = 0
+    /// Where the sheet was when search opened it to large, to go back on Cancel.
+    @State private var detentBeforeSearch: PresentationDetent?
     #endif
 
     var body: some View {
@@ -24,6 +32,11 @@ struct MapScreen: View {
             .task { await model.keepFresh() }
             #if os(macOS)
             .onKeyPress(.escape) {
+                if search.isActive {
+                    search.end()
+                    sidebarSearchFocused = false
+                    return .handled
+                }
                 guard model.selectedEventID != nil else { return .ignored }
                 model.selectedEventID = nil
                 return .handled
@@ -43,36 +56,72 @@ struct MapScreen: View {
     // MARK: Shells
 
     private var splitShell: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             VStack(spacing: 0) {
-                StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot),
-                          isSample: model.provider.isSampleData)
+                MapSearchField(search: search, focused: $sidebarSearchFocused)
                     .padding(.horizontal, ShieldSpace.s4)
-                    .padding(.vertical, ShieldSpace.s3)
+                    .padding(.top, ShieldSpace.s3)
+                    .background {
+                        // ⌘F: search places and events (DESIGN.md §10 keyboard shortcuts).
+                        Button("Search") { sidebarSearchFocused = true }
+                            .keyboardShortcut("f", modifiers: .command)
+                            .opacity(0)
+                            .accessibilityHidden(true)
+                    }
+                // The sample badge is the map's own (always in view), not repeated here. The
+                // strip steps aside while searching.
+                if !search.isActive {
+                    StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot))
+                        .padding(.horizontal, ShieldSpace.s4)
+                        .padding(.vertical, ShieldSpace.s3)
+                } else {
+                    Spacer().frame(height: ShieldSpace.s3)
+                }
                 Rectangle()
                     .fill(Color.ink.opacity(ShieldAlpha.hairline))
                     .frame(height: 1)
-                EventList(model: model, zoomOut: fitWorld)
+                if search.isActive {
+                    MapSearchResults(search: search, model: model,
+                                     selectEvent: { event in
+                                         sidebarSearchFocused = false
+                                         search.end()
+                                         model.selectedEventID = event.id
+                                     },
+                                     selectPlace: { place in
+                                         sidebarSearchFocused = false
+                                         Task { await go(to: place) }
+                                     })
+                } else {
+                    EventList(model: model, zoomOut: fitWorld)
+                }
             }
-            .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 300)
+            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 260) // DESIGN.md §10
         } detail: {
-            mapLayer(showsSelectedCard: true)
+            mapLayer(showsSelectedCard: true, showsNotices: columnVisibility == .detailOnly)
                 .toolbar(removing: .title)
         }
     }
 
     #if os(iOS)
-    /// The stat strip's height before it has been measured.
-    private static let defaultPeekHeight: CGFloat = 116
+    /// The peek's height (search field + compact strip) before it has been measured.
+    private static let defaultPeekHeight: CGFloat = 96
 
     private var sheetShell: some View {
         // The map's attribution sits above the sheet wherever the map is still usable: at peek
         // and at medium. The notices sit above the peek.
-        mapLayer(showsSelectedCard: false,
+        // Above medium the sheet's list shows the empty and truncated notices itself.
+        mapLayer(showsSelectedCard: false, showsNotices: detent == .height(peekHeight),
                  bottomCover: detent == .medium ? max(sheetHeight, peekHeight) : peekHeight)
             .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: peekHeight) }
             .sheet(isPresented: .constant(true)) {
-                MapSheet(model: model, zoomOut: fitWorld, peekHeightChanged: setPeekHeight,
+                MapSheet(model: model, search: search, isPeek: detent == .height(peekHeight),
+                         zoomOut: fitWorld,
+                         selectEvent: { event in
+                             model.selectedEventID = event.id
+                             withAnimation(ShieldMotion.spring) { detent = .medium }
+                         },
+                         selectPlace: { place in Task { await go(to: place) } },
+                         peekHeightChanged: setPeekHeight,
                          heightChanged: { sheetHeight = $0.rounded(.up) })
                     .presentationDetents([.height(peekHeight), .medium, .large], selection: $detent)
                     // The map stays usable at peek and medium (DESIGN.md §10 shells).
@@ -83,6 +132,20 @@ struct MapScreen: View {
                     .preferredColorScheme(.dark)
                     .tint(.accent)
             }
+            // Typing needs the room: results fill the sheet, as in Maps.
+            .onChange(of: search.isEditing) { _, editing in
+                guard editing, detent != .large else { return }
+                detentBeforeSearch = detent
+                withAnimation(ShieldMotion.spring) { detent = .large }
+            }
+            // Search put away with nothing chosen (Cancel, or cleared and dismissed): back to
+            // where the sheet was. Choosing an event or a place sets its own detent first.
+            .onChange(of: search.isActive) { _, active in
+                guard !active, let previous = detentBeforeSearch else { return }
+                detentBeforeSearch = nil
+                guard detent == .large, model.selectedEventID == nil else { return }
+                withAnimation(ShieldMotion.spring) { detent = previous }
+            }
             // A marker tapped while the sheet peeks: open far enough to show the event and
             // still leave the map in view.
             .onChange(of: model.selectedEventID, initial: true) { _, selected in
@@ -92,11 +155,23 @@ struct MapScreen: View {
             #if DEBUG
             // Screenshot automation: `SHIELD_SHEET=peek|medium|large`.
             .onAppear {
-                switch ProcessInfo.processInfo.environment["SHIELD_SHEET"] {
+                let env = ProcessInfo.processInfo.environment
+                switch env["SHIELD_SHEET"] {
                 case "medium": detent = .medium
                 case "large": detent = .large
                 default: break
                 }
+                // `SHIELD_SEARCH=<text>` types into search; `SHIELD_SEARCH_GO=1` also picks the
+                // first place once it arrives.
+                if let text = env["SHIELD_SEARCH"] {
+                    search.text = text
+                    detent = .large
+                }
+            }
+            .onChange(of: search.places.first?.id) { _, first in
+                guard ProcessInfo.processInfo.environment["SHIELD_SEARCH_GO"] == "1",
+                      first != nil, let place = search.places.first else { return }
+                Task { await go(to: place) }
             }
             #endif
     }
@@ -113,11 +188,21 @@ struct MapScreen: View {
 
     private func fitWorld() { fitWorldRequest += 1 }
 
+    /// Moves the map to a chosen place and puts the search away, so the map is in view.
+    private func go(to place: MapSearch.Place) async {
+        guard let region = await search.region(for: place) else { return }
+        focus = MapFocus(region: region)
+        search.end()
+        #if os(iOS)
+        withAnimation(ShieldMotion.spring) { detent = .height(peekHeight) }
+        #endif
+    }
+
     // MARK: Map
 
-    private func mapLayer(showsSelectedCard: Bool, bottomCover: CGFloat = 0) -> some View {
+    private func mapLayer(showsSelectedCard: Bool, showsNotices: Bool, bottomCover: CGFloat = 0) -> some View {
         ZStack {
-            HazardMapView(model: model, fitWorldRequest: fitWorldRequest, bottomCover: bottomCover)
+            HazardMapView(model: model, fitWorldRequest: fitWorldRequest, focus: focus, bottomCover: bottomCover)
                 .ignoresSafeArea()
 
             VStack(spacing: ShieldSpace.s2) {
@@ -147,7 +232,7 @@ struct MapScreen: View {
                     .transition(.opacity)
                 }
                 Spacer()
-                bottom(showsSelectedCard: showsSelectedCard)
+                bottom(showsSelectedCard: showsSelectedCard, showsNotices: showsNotices)
                     // Clear of the map's attribution ("Maps · Legal"), which must stay
                     // visible (DECISIONS #11).
                     .padding(.bottom, ShieldSpace.s6)
@@ -160,9 +245,9 @@ struct MapScreen: View {
     }
 
     /// The selected event where there is no sheet to hold it, else the empty and truncated
-    /// notices, which the sheet's list repeats for when it covers them.
+    /// notices when no list is in view to show them.
     @ViewBuilder
-    private func bottom(showsSelectedCard: Bool) -> some View {
+    private func bottom(showsSelectedCard: Bool, showsNotices: Bool) -> some View {
         if showsSelectedCard, let event = model.selectedEvent {
             SelectedEventCard(
                 event: event,
@@ -171,6 +256,8 @@ struct MapScreen: View {
                 close: { model.selectedEventID = nil }
             )
             .transition(.move(edge: .bottom).combined(with: .opacity))
+        } else if !showsNotices {
+            EmptyView()
         } else if let snapshot = model.snapshot, snapshot.totalCount == 0 {
             EmptyViewNotice(zoomOut: fitWorld)
         } else if model.snapshot?.truncated == true {

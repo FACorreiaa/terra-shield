@@ -10,6 +10,8 @@ struct HazardMapView {
     let model: LiveMapModel
     /// Bump to fit the whole world (recentre control, ⌘0).
     var fitWorldRequest: Int = 0
+    /// A place chosen in search; a new value moves the map there.
+    var focus: MapFocus?
     /// Points of the map's bottom edge covered by other UI, on top of the safe area (iOS: the
     /// peeking sheet). The attribution must stay visible above it (DECISIONS #11).
     var bottomCover: CGFloat = 0
@@ -53,6 +55,10 @@ struct HazardMapView {
         if fitWorldRequest != coordinator.fitWorldRequest {
             coordinator.fitWorldRequest = fitWorldRequest
             coordinator.fitWorld()
+        }
+        if let focus, focus.id != coordinator.focusID {
+            coordinator.focusID = focus.id
+            coordinator.show(focus.region)
         }
     }
 
@@ -191,6 +197,17 @@ struct HazardMapView {
 
         func fitWorld() {
             map?.setRegion(Self.worldRegion, animated: true)
+        }
+
+        var focusID: UUID?
+
+        /// A searched place. A point-sized region (a small town) still shows its surroundings.
+        func show(_ region: MKCoordinateRegion) {
+            guard let map else { return }
+            var region = region
+            region.span.latitudeDelta = max(region.span.latitudeDelta * 1.2, 0.5)
+            region.span.longitudeDelta = max(region.span.longitudeDelta * 1.2, 0.5)
+            map.setRegion(map.regionThatFits(region), animated: true)
         }
 
         /// Zooms to a server cluster's members. Co-located members have a zero-area box, so the

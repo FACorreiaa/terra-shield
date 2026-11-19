@@ -210,7 +210,9 @@ empty, stale, offline, error and no-coverage** states. They are listed under eac
 - Top: a compact status capsule (`AEGIS TERRA` micro-label · live dot · "Updated 30 s ago")
   and below it a horizontal row of `FilterChips` (type, severity, kind, time window).
 - Bottom: an interactive **sheet with three detents**:
-  - *peek* (≈ 96 pt): `StatStrip` + search field.
+  - *peek* (≈ 96 pt): search field + the `StatStrip` in its compact one-line style
+    ("4 events · 1 high severity · 1 warning"); the full strip (big numbers, words below) shows
+    from medium up (owner, 2026-11-19). Focusing search opens the sheet to large.
   - *medium*: the event list for the current viewport, or the selected event / country.
   - *large*: full detail.
 - The map stays interactive at peek and medium. Saved, Alerts and Sources open from the
@@ -228,7 +230,7 @@ empty, stale, offline, error and no-coverage** states. They are listed under eac
 | Shortcut | Action |
 |---|---|
 | ⌘1–⌘5 | Map · Countries · Saved · Alerts · Sources |
-| ⌘F | Search places / countries / events |
+| ⌘F | Search places / countries / events (countries with S3.4) |
 | ⌥⌘I | Toggle inspector |
 | ⌘L | Open official source of selected event |
 | ⌘R | Refresh now |

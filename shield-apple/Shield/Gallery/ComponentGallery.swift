@@ -37,7 +37,10 @@ struct ComponentGallery: View {
     private var componentColumn: some View {
         VStack(alignment: .leading, spacing: ShieldSpace.s6) {
             section("Stat strip") {
-                StatStrip(cells: StatStrip.Cell.liveMap(snapshot), isSample: provider.isSampleData)
+                VStack(alignment: .leading, spacing: ShieldSpace.s4) {
+                    StatStrip(cells: StatStrip.Cell.liveMap(snapshot), isSample: provider.isSampleData)
+                    StatStrip(cells: StatStrip.Cell.liveMap(snapshot), style: .compact)
+                }
             }
             section("Markers") { markerGrid }
             section("Severity") { severityList }
