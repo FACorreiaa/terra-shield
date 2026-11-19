@@ -87,6 +87,12 @@ struct EventDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
                 places
+                if let note = event.locationNote {
+                    Text(note)
+                        .font(ShieldFont.meta)
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: ShieldSpace.s2)
             Button(action: close) {

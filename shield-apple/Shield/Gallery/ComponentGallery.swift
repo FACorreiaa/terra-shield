@@ -14,9 +14,12 @@ struct ComponentGallery: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ShieldSpace.s6) {
                 header
-                // Screenshot automation: `SHIELD_GALLERY=detail` puts the detail states first.
-                if ProcessInfo.processInfo.environment["SHIELD_GALLERY"] == "detail" {
-                    section("Event detail states") { detailStates }
+                // Screenshot automation: `SHIELD_GALLERY=detail` puts the detail states first,
+                // `=tsunami` the tsunami forecast and warning.
+                switch ProcessInfo.processInfo.environment["SHIELD_GALLERY"] {
+                case "detail": section("Event detail states") { detailStates }
+                case "tsunami": section("Tsunami detail") { tsunamiDetails }
+                default: EmptyView()
                 }
                 // Two columns when there is room (macOS, iPad landscape), one on iPhone.
                 ViewThatFits(in: .horizontal) {
@@ -65,6 +68,54 @@ struct ComponentGallery: View {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: ShieldSpace.s4) { detailCards(event, states) }
                 VStack(alignment: .leading, spacing: ShieldSpace.s4) { detailCards(event, states) }
+            }
+        }
+    }
+
+    /// A PTWC threat forecast and an NTWC warning, shaped like #25's attrs (sample data).
+    private var tsunamiDetails: some View {
+        let now = Date.now
+        func event(kind: EventKind, severity: Severity, title: String, provisional: Bool,
+                   countries: [EventCountry], attrs: [String: JSONValue]) -> HazardEvent {
+            HazardEvent(id: UUID(), source: "tsunami", type: .tsunami, kind: kind, severity: severity,
+                        sourceSeverity: kind == .forecast ? "Threat forecast" : "Tsunami Warning",
+                        severityProvisional: provisional, title: title,
+                        summary: kind == .forecast ? "Guidance for national authorities, not a warning. Hazardous tsunami waves are forecast for some coasts." : nil,
+                        centroid: Coordinate(latitude: 52.5, longitude: 160), countries: countries,
+                        observedAt: now.addingTimeInterval(-1200), updatedAt: now.addingTimeInterval(-600),
+                        fetchedAt: now, attrs: attrs)
+        }
+        let common: [String: JSONValue] = ["product": .string("WEPA40"), "bulletin": .number(3),
+                                           "incident": .string("x"), "magnitude": .number(8.8),
+                                           "magnitudeType": .string("Mww")]
+        let forecast = event(kind: .forecast, severity: .severe, title: "Tsunami threat forecast · Kamchatka",
+                             provisional: false,
+                             countries: [EventCountry(iso2: "JP", relation: .within), EventCountry(iso2: "RU", relation: .within)],
+                             attrs: common.merging([
+                                "center": .string("PTWC"), "geometry": .string("epicenter"), "guidance": .bool(true),
+                                "forecast": .array([
+                                    .object(["band": .string("1–3 m"), "places": .array([.string("Japan"), .string("Russia")])]),
+                                    .object(["band": .string("0.3–1 m"), "places": .array([.string("Hawaii"), .string("Chile"), .string("Peru")])]),
+                                ]),
+                                "unmatchedPlaces": .array([.string("Wake Island")]),
+                             ]) { $1 })
+        let warning = event(kind: .warning, severity: .extreme, title: "Tsunami Warning · Alaska",
+                            provisional: false, countries: [EventCountry(iso2: "US", relation: .within)],
+                            attrs: common.merging([
+                                "center": .string("NTWC"), "geometry": .string("zones"),
+                                "areas": .array([.string("Chignik Bay, Alaska to Samalga Pass, Alaska"),
+                                                 .string("Samalga Pass, Alaska to Attu, Alaska")]),
+                                "zonesUnresolved": .array([.string("PZZ530"), .string("BCZ921")]),
+                            ]) { $1 })
+        return HStack(alignment: .top, spacing: ShieldSpace.s4) {
+            ForEach([forecast, warning]) { e in
+                EventDetailView(event: e, state: .loaded(EventDetail(event: e, geometry: .point(e.centroid))),
+                                source: nil, isStale: false,
+                                countryName: { Locale(identifier: "en").localizedString(forRegionCode: $0) ?? $0 },
+                                openCountry: { _ in }, close: {})
+                    .padding(ShieldSpace.s4)
+                    .frame(width: 320)
+                    .background(Color.panel, in: RoundedRectangle(cornerRadius: ShieldRadius.md))
             }
         }
     }
