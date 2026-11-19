@@ -5,6 +5,9 @@ import (
 	"log/slog"
 	"time"
 
+	"shield/internal/domain"
+	"shield/internal/metrics"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
@@ -27,11 +30,34 @@ func NewRunner(pool *pgxpool.Pool, states SourceStates, sources []Source, logger
 	return &Runner{pool: pool, states: states, sources: sources, logger: logger}
 }
 
+// seedHealth exports a source's poll interval and last success before its
+// first poll, so the staleness alert sees every source from the start. A
+// source that never succeeded counts from this start: one failing since
+// boot goes stale after three intervals instead of exporting nothing.
+func (r *Runner) seedHealth(ctx context.Context, info domain.SourceInfo, started time.Time) error {
+	metrics.SourcePollInterval.WithLabelValues(info.ID).Set(info.PollInterval.Seconds())
+	last, err := r.states.LastSuccess(ctx, info.ID)
+	if err != nil {
+		return err
+	}
+	at := started
+	if last != nil {
+		at = *last
+	}
+	metrics.SourceLastSuccess.WithLabelValues(info.ID).Set(float64(at.Unix()))
+	return nil
+}
+
 // Run registers source metadata, starts River and blocks until ctx ends,
 // then stops gracefully.
 func (r *Runner) Run(ctx context.Context) error {
+	started := time.Now()
 	for _, s := range r.sources {
-		if err := r.states.Register(ctx, s.Info()); err != nil {
+		info := s.Info()
+		if err := r.states.Register(ctx, info); err != nil {
+			return err
+		}
+		if err := r.seedHealth(ctx, info, started); err != nil {
 			return err
 		}
 	}

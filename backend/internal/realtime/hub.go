@@ -152,6 +152,9 @@ func (h *Hub) cursor() int64 {
 // A subscriber whose queue is full is dropped rather than slowing the
 // others; it reconnects with Last-Event-ID and catches up.
 func (h *Hub) publish(c *domain.StreamChange) {
+	if c.Event != nil {
+		metrics.EventPublish.Observe(max(0, time.Since(c.Event.FetchedAt).Seconds()))
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.seq = c.Seq

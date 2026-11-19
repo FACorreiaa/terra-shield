@@ -37,10 +37,12 @@ var (
 	}, []string{"source", "result"})
 
 	// SourceLastSuccess is the Unix time of each source's last good poll;
-	// the staleness alert compares it with the poll interval.
+	// the staleness alert compares it with the poll interval. The worker
+	// seeds it at start from the database, or with its start time for a
+	// source that never succeeded, so every source has a series.
 	SourceLastSuccess = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "shield_source_last_success_timestamp_seconds",
-		Help: "Unix time of the last successful poll per source.",
+		Help: "Unix time of the last successful poll per source (worker start time if it never succeeded).",
 	}, []string{"source"})
 
 	// SourceEventsUpserted counts events written per source.
@@ -48,6 +50,29 @@ var (
 		Name: "shield_source_events_upserted_total",
 		Help: "Events inserted or updated per source.",
 	}, []string{"source"})
+
+	// SourceLag is how far our latest fetch trails the source's own last
+	// update (ADR 16): now minus the feed's Last-Modified, or what the
+	// adapter reports. Sources without a feed timestamp (EONET) have none.
+	SourceLag = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "shield_source_lag_seconds",
+		Help: "Seconds between the source's last update and our last successful fetch of it.",
+	}, []string{"source"})
+
+	// SourcePollInterval is each source's poll interval, so the staleness
+	// alert compares against it: last success older than 3x the interval.
+	SourcePollInterval = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "shield_source_poll_interval_seconds",
+		Help: "Configured poll interval per source.",
+	}, []string{"source"})
+
+	// EventPublish is the time from an event's write (its transaction's
+	// start, events.fetched_at) to its fan-out to stream subscribers.
+	EventPublish = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "shield_event_publish_seconds",
+		Help:    "Seconds from an event write to its fan-out on the live stream.",
+		Buckets: []float64{.05, .1, .25, .5, 1, 2.5, 5, 10, 30, 60},
+	})
 
 	// StreamSubscribers is the number of open /v1/stream connections.
 	StreamSubscribers = promauto.NewGauge(prometheus.GaugeOpts{

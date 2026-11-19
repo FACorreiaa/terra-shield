@@ -9,6 +9,10 @@ import (
 	"time"
 
 	"shield/internal/domain"
+	"shield/internal/metrics"
+
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 )
 
 // fakeSource is an in-memory change log.
@@ -223,5 +227,30 @@ func TestHubCapsStreamsPerClient(t *testing.T) {
 	}
 	if _, err := h.Subscribe(Filter{}, "1.2.3.4"); !errors.Is(err, ErrClientLimit) {
 		t.Fatalf("double close freed a slot: %v", err)
+	}
+}
+
+func publishCount(t *testing.T) uint64 {
+	t.Helper()
+	var m dto.Metric
+	if err := metrics.EventPublish.(prometheus.Metric).Write(&m); err != nil {
+		t.Fatal(err)
+	}
+	return m.GetHistogram().GetSampleCount()
+}
+
+func TestHubObservesPublishLatency(t *testing.T) {
+	src := newFakeSource()
+	h, _ := start(t, src, Options{})
+	sub, _ := h.Subscribe(Filter{}, "ip")
+	before := publishCount(t)
+
+	c := quake(1, "a", 0, 0, "minor")
+	c.Event.FetchedAt = time.Now().Add(-2 * time.Second)
+	src.append(c, domain.StreamChange{Seq: 2, Op: domain.OpRemoved, EventID: "gone"})
+	recv(t, sub)
+	recv(t, sub)
+	if got := publishCount(t) - before; got != 1 {
+		t.Fatalf("%d observations, want 1 (removals carry no write time)", got)
 	}
 }

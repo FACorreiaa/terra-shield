@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"shield/internal/fetch"
@@ -80,12 +81,28 @@ func (w *PollWorker) Work(ctx context.Context, job *river.Job[PollArgs]) error {
 	metrics.SourcePolls.WithLabelValues(id, result).Inc()
 	metrics.SourceEventsUpserted.WithLabelValues(id).Add(float64(res.Upserted))
 	metrics.SourceLastSuccess.WithLabelValues(id).Set(float64(now.Unix()))
+	if updated, ok := sourceUpdatedAt(&res); ok {
+		metrics.SourceLag.WithLabelValues(id).Set(max(0, now.Sub(updated).Seconds()))
+	}
 
 	if err := w.states.RecordSuccess(ctx, id, now, res.Validators); err != nil {
 		return fmt.Errorf("record success: %w", err)
 	}
 	w.logger.Info("polled", "source", id, "result", result, "upserted", res.Upserted)
 	return nil
+}
+
+// sourceUpdatedAt is the adapter's own timestamp, else the feed's
+// Last-Modified (kept across 304s, so a quiet feed's lag keeps growing).
+func sourceUpdatedAt(res *Result) (time.Time, bool) {
+	if !res.SourceUpdatedAt.IsZero() {
+		return res.SourceUpdatedAt, true
+	}
+	if res.Validators.LastModified == "" {
+		return time.Time{}, false
+	}
+	t, err := http.ParseTime(res.Validators.LastModified)
+	return t, err == nil
 }
 
 func (w *PollWorker) failed(ctx context.Context, job *river.Job[PollArgs], id string, now time.Time, pollErr error) error {

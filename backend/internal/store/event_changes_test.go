@@ -53,6 +53,11 @@ func TestEventChangeLog(t *testing.T) {
 	if e := all[0].Event; e == nil || len(e.Countries) == 0 || e.Countries[0].ISO2 != "PT" {
 		t.Fatalf("record %+v", e)
 	}
+	// The hub measures publish latency from FetchedAt (the write's
+	// transaction start), so it must be the write time, not a zero value.
+	if at := all[0].Event.FetchedAt; at.Before(now.Add(-5*time.Second)) || at.After(time.Now().Add(5*time.Second)) {
+		t.Fatalf("fetched_at %s, want the write time (~%s)", at, now)
+	}
 
 	// Unchanged: no new cursor. Changed: updated. Resolved: resolved.
 	_, _ = repo.Upsert(ctx, "test", []domain.Event{quake("a", -8, 39.5, 3, now)})

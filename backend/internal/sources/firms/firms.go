@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -106,7 +107,7 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		fresh[f.URL] = v
 	}
 	if len(fresh) == 0 {
-		return ingest.Result{NotModified: true}, nil
+		return ingest.Result{NotModified: true, SourceUpdatedAt: s.newestModified()}, nil
 	}
 	n, err := s.store.Insert(ctx, fires)
 	if err != nil {
@@ -117,7 +118,21 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		s.held[u] = v
 	}
 	s.mu.Unlock()
-	return ingest.Result{Upserted: n}, nil
+	return ingest.Result{Upserted: n, SourceUpdatedAt: s.newestModified()}, nil
+}
+
+// newestModified is the latest Last-Modified among the files held: FIRMS
+// is as fresh as its freshest satellite file. Zero when none parses.
+func (s *Source) newestModified() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var newest time.Time
+	for _, v := range s.held {
+		if t, err := http.ParseTime(v.LastModified); err == nil && t.After(newest) {
+			newest = t
+		}
+	}
+	return newest
 }
 
 func (s *Source) fetchIfChanged(ctx context.Context, url string) (domain.Validators, []byte, bool, error) {

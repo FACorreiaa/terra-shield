@@ -70,6 +70,19 @@ func (r *SourceRepository) Validators(ctx context.Context, id string) (domain.Va
 	return domain.Validators{ETag: deref(row.Etag), LastModified: deref(row.LastModified)}, nil
 }
 
+// LastSuccess returns when the source last polled successfully; nil for
+// an unknown or never-successful source.
+func (r *SourceRepository) LastSuccess(ctx context.Context, id string) (*time.Time, error) {
+	at, err := r.q.GetSourceLastSuccess(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load last success %s: %w", id, err)
+	}
+	return at, nil
+}
+
 // RecordSuccess stores a successful poll and the validators to send next.
 func (r *SourceRepository) RecordSuccess(ctx context.Context, id string, at time.Time, v domain.Validators) error {
 	return r.q.RecordSourceSuccess(ctx, sourcesdb.RecordSourceSuccessParams{

@@ -24,6 +24,10 @@ type Result struct {
 	Validators  domain.Validators // to keep for the next poll
 	NotModified bool              // the feed had nothing new
 	Upserted    int               // records inserted, updated or deleted
+	// SourceUpdatedAt is when the source last updated what was fetched,
+	// for adapters that know it better than one Last-Modified header
+	// (FIRMS reads several files). Zero: the worker uses Last-Modified.
+	SourceUpdatedAt time.Time
 }
 
 // Source is one feed adapter. Poll fetches the feed once, normalizes and
@@ -44,6 +48,7 @@ type Housekeeper interface {
 type SourceStates interface {
 	Register(ctx context.Context, info domain.SourceInfo) error
 	Validators(ctx context.Context, id string) (domain.Validators, error)
+	LastSuccess(ctx context.Context, id string) (*time.Time, error)
 	RecordSuccess(ctx context.Context, id string, at time.Time, v domain.Validators) error
 	RecordError(ctx context.Context, id string, at time.Time, msg string) error
 }
