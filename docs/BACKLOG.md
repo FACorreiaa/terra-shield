@@ -46,7 +46,7 @@
 - [~] S3.6 Live updates via SSE (`URLSession.bytes`): changes applied in place, reconnect with `Last-Event-ID` on foreground, polling only as fallback; "updated N min ago" on every event. Data path ✓ (stream client, reconnect, burst fold: >50 changes/s become one reload, #13). Open: NewEventToast, arrive animation
 - [ ] S3.7 Sources & attribution screen + safety disclaimer
 - [ ] S3.8 macOS layout: `NavigationSplitView` sidebar + map, keyboard shortcuts
-- [ ] S3.9a **Go-live of the API** (only once the TestFlight build is ready, or the day before MVP): pick the hostname, Cloudflare DNS A record, `image.yml` (ghcr push + promote PR into LuminaVaultInfra, `INFRA_TOKEN`), and in `platform/infra`: node dir `/data/pg-shield`, data app (PostGIS + backup CronJob), DB role, sealed secrets (`horus`), api/worker values, network policy, ingress + TLS Also add the `shield` alert group from `docs/alerts.md` to infra `observability/alerts/platform_rules.py`.
+- [ ] S3.9a **Go-live of the API** (gated on the web launch, ADR 22; until then web and Apple run against a local API): pick the hostname, Cloudflare DNS A record, `image.yml` (ghcr push + promote PR into LuminaVaultInfra, `INFRA_TOKEN`), and in `platform/infra`: node dir `/data/pg-shield`, data app (PostGIS + backup CronJob), DB role, sealed secrets (`horus`), api/worker values, network policy, ingress + TLS Also add the `shield` alert group from `docs/alerts.md` to infra `observability/alerts/platform_rules.py`.
 - [ ] S3.9 Fastlane (§7) + workflows; internal TestFlight (iOS + macOS) against the live API
 - [ ] S3.10 Sentry + PostHog
 
@@ -56,9 +56,10 @@
 - [ ] S4.3 Strangers-count tracked in demand-hour. **Gate: 10 strangers before Phase 2+ polish.**
 
 ### Later phases
-- **Phase 2 — Web:** React + TypeScript (Vite+) + MapLibre GL JS 6 in `shield-app-web/`, on the same API (ADR 19). Hosting still open: static behind Caddy, or embedded in the Go binary.
+- **Phase 2 — Web, now first to launch (ADR 22, owner 2026-11-19):** React + TypeScript (Vite+) + MapLibre GL JS 6 in `shield-app-web/`, on the same API (ADR 19). It launches before the App Store and gates S3.9a. Hosting still open: static behind Caddy, or embedded in the Go binary; decide before S3.9a.
 - **Phase 3 — Personal monitoring:** follow countries/regions, saved filters, APNs push (reuse `norviq-backend-v2/internal/platform/push/`), "what changed in 24h", optional sign-in with **Apple + Google + Email** (norviq `internal/auth` pattern; map, countries and detail keep working signed out per App Store 5.1.1(v); Apple ships with Google per 4.8; `DELETE /v1/me` for account deletion). Owner confirmed 2026-11-16: no accounts in the MVP.
 - **Phase 4 — Android:** Kotlin + Compose + MapLibre Native.
+- **AI agent (ADR 23, owner 2026-11-19), after the MVP backlog is done:** an Anthropic adapter in the backend on the official Go SDK, then the API surface, web and Apple UI for an AI agent as a first-class part of the app. Read `platform/infra/docs/llm-haiku-trial.md` first.
 - **Phase 5 — Layers:** licensed rain radar/precipitation, smoke, storm tracks, timeline replay, `ST_AsMVT` vector tiles, Copernicus EFFIS, cross-source merging.
 
 
