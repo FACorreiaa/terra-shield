@@ -40,6 +40,7 @@ struct ShieldApp: App {
 
     private static func makeProvider() -> any HazardEventProvider {
         guard let url = AppConfig.apiBaseURL else { return SampleEventProvider() }
-        return APIEventProvider(client: .shield(baseURL: url))
+        // Polls /v1/events and follows /v1/stream for live changes (S3.6).
+        return APIEventProvider(client: .shield(baseURL: url), stream: LiveStreamConfig(baseURL: url))
     }
 }

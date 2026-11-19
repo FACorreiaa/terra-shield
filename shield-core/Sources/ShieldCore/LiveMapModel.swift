@@ -32,6 +32,31 @@ public final class LiveMapModel {
     /// From `/v1/sources`, for per-source staleness (DESIGN.md §5). Kept from the last success.
     public private(set) var sources: [String: Source] = [:]
 
+    /// Connected to `/v1/stream` and caught up (S3.6), and the stream has spoken recently.
+    /// While live the data is current without a reload: the stream pushes every change and a
+    /// heartbeat every 20 s. A half-open socket (sleep, network change) goes quiet, so silence
+    /// past `liveSilence` ends it, without waiting for the connection to fail.
+    public var isLive: Bool {
+        guard streamReady, let lastStreamActivity else { return false }
+        return now().timeIntervalSince(lastStreamActivity) < Self.liveSilence.seconds
+    }
+
+    /// Two missed heartbeats, plus slack.
+    public static let liveSilence: Duration = .seconds(45)
+
+    /// When the stream last delivered anything, a heartbeat included: the data was confirmed
+    /// current then.
+    public private(set) var lastStreamActivity: Date?
+    private var streamReady = false
+
+    /// When the map's data was last known current: a load, or a live stream's latest word.
+    public var lastUpdate: Date? {
+        guard isLive, let lastStreamActivity else { return lastSuccess }
+        return max(lastSuccess ?? lastStreamActivity, lastStreamActivity)
+    }
+    /// The last stream cursor seen, sent back as `Last-Event-ID` on reconnect.
+    public private(set) var streamCursor: String?
+
     /// How often the map reloads while visible. 60 s is the shortest source poll interval.
     public static let refreshInterval: Duration = .seconds(60)
 
@@ -67,6 +92,7 @@ public final class LiveMapModel {
 
     /// The map itself has not refreshed for three refresh intervals, e.g. after failures.
     public var dataIsStale: Bool {
+        if isLive { return false }
         guard let lastSuccess else { return false }
         return now().timeIntervalSince(lastSuccess) > 3 * Self.refreshInterval.seconds
     }
@@ -104,14 +130,106 @@ public final class LiveMapModel {
         schedule(after: .zero)
     }
 
-    /// Reloads every `interval` until the calling task is cancelled (attach to the view's
-    /// lifetime). 60 s matches the shortest source poll interval; the server caches 15 s.
+    /// Keeps the map current until the calling task is cancelled (attach to the view's
+    /// lifetime): follows the live stream when the provider has one, and reloads every
+    /// `interval` regardless, so a silently dead stream can never freeze the map. 60 s matches
+    /// the shortest source poll interval; the server caches 15 s.
     public func keepFresh(every interval: Duration = LiveMapModel.refreshInterval) async {
+        // The stream task ends with this one: cancelling the view's task ends the poll loop,
+        // and the defer cancels the stream.
+        let stream: Task<Void, Never>? = provider.supportsLiveChanges ? Task { await self.followChanges() } : nil
+        defer { stream?.cancel() }
         while !Task.isCancelled {
             try? await Task.sleep(for: interval)
             if Task.isCancelled { return }
             reload()
         }
+    }
+
+    /// Follows `/v1/stream`, reconnecting with the last cursor until cancelled.
+    ///
+    /// Backoff after a failure: the server's `Retry-After` when it gave one (429, 503), else
+    /// its `retry:` hint (5 s) doubling per consecutive failure up to 60 s. Never a banner:
+    /// polling carries the map meanwhile.
+    func followChanges(
+        sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) },
+        jitter: @escaping @Sendable () -> Double = { .random(in: 0.8...1.2) }
+    ) async {
+        var failures = 0
+        while !Task.isCancelled {
+            var retryAfter: Duration?
+            do {
+                for try await update in provider.changes(after: streamCursor) {
+                    if let cursor = update.cursor { streamCursor = cursor }
+                    lastStreamActivity = now()
+                    failures = 0
+                    if let change = update.change { apply(change) }
+                }
+            } catch is CancellationError {
+                break
+            } catch let unavailable as StreamUnavailable {
+                retryAfter = unavailable.retryAfter
+            } catch {
+                if Task.isCancelled { break }
+            }
+            streamReady = false
+            if Task.isCancelled { break }
+            failures += 1
+            // ±20 % so clients dropped together (a pod shutting down) don't return together.
+            // The server's Retry-After is taken as given.
+            await sleep(retryAfter ?? Self.streamBackoff(failures: failures) * jitter())
+        }
+        streamReady = false
+    }
+
+    /// 5 s, 10 s, 20 s, 40 s, then 60 s.
+    nonisolated static func streamBackoff(failures: Int) -> Duration {
+        let seconds = 5 * pow(2, Double(max(failures, 1) - 1))
+        return .seconds(min(seconds, 60))
+    }
+
+    /// Applies one change. Patched in place only when the snapshot is the complete, unclustered
+    /// set of events in view: zoom 6 or more, and not truncated. Otherwise a change in view
+    /// reloads (debounced, so a burst is one request), because only the server knows:
+    /// - below zoom 6, whether the event joins a cluster (even where none exists yet);
+    /// - when truncated, whether the event makes the cut.
+    func apply(_ change: LiveChange) {
+        switch change {
+        case .ready:
+            streamReady = true
+            lastStreamActivity = now()
+            // The stream is open before this load, so no change can fall between the two.
+            reload()
+        case .reset:
+            reload()
+        case .upsert(let event):
+            if event.id == selectedEventID { loadSelectedArea(keepingCurrent: true) }
+            guard let snapshot else { return }
+            let shown = snapshot.events.contains { $0.id == event.id }
+            let inView = viewport.box.contains(event.centroid)
+            guard shown || inView else { return }
+            guard canPatch(snapshot) else {
+                schedule(after: debounce)
+                return
+            }
+            var events = snapshot.events.filter { $0.id != event.id }
+            if inView, query.matches(event, now: now()) { events.append(event) }
+            self.snapshot = snapshot.replacing(events: events.sortedForDisplay())
+        case .removed(let id):
+            if id == selectedEventID { selectedEventID = nil }
+            guard let snapshot else { return }
+            let shown = snapshot.events.contains { $0.id == id }
+            if canPatch(snapshot) {
+                if shown { self.snapshot = snapshot.replacing(events: snapshot.events.filter { $0.id != id }) }
+            } else if shown || !snapshot.clusters.isEmpty || snapshot.truncated {
+                // It may be a cluster member, or its removal lets a cut event in.
+                schedule(after: debounce)
+            }
+        }
+    }
+
+    private func canPatch(_ snapshot: MapSnapshot) -> Bool {
+        viewport.zoom >= MapViewport.detailZoom && !snapshot.truncated
     }
 
     /// Waits for the current load, if any (tests, pull-to-refresh).
@@ -172,9 +290,11 @@ public final class LiveMapModel {
 
     /// Fetches the selected event's geometry. A newer selection cancels the older fetch, and a
     /// late answer for an event no longer selected is dropped.
-    private func loadSelectedArea() {
+    private func loadSelectedArea(keepingCurrent: Bool = false) {
         areaTask?.cancel()
-        selectedGeometry = nil
+        // A refetch for the same event (a live update) keeps the drawn area until the new one
+        // arrives, so the overlay doesn't flicker; a new selection clears it at once.
+        if !keepingCurrent { selectedGeometry = nil }
         guard let id = selectedEventID else { return }
         let provider = provider
         areaTask = Task { [weak self] in

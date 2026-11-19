@@ -44,10 +44,11 @@ and later once in Svelte with the same name and props. Props are named after API
 | `SourceBadge` | `source{name, attribution, license}, url?` | Who said so | events.source, sources |
 | `FreshnessLabel` | `observedAt, updatedAt, fetchedAt, pollInterval` | "12 min ago · 14:02 UTC"; stale → warning + clock | events, sources |
 | `StatusCapsule` | `isLive, lastUpdate, isOffline` | iOS top capsule: nav mark, live dot, freshness | stream state |
-| `StatStrip` | `cells[{value, label, filter?}], isSample` | Numbers-first summary; tap filters | derived from current list / country summary |
+| `StatStrip` | `cells[{value?, isLowerBound, label}], isSample` (`filter?` per cell with S3.3) | Numbers-first summary; "12+" or "–" where clusters cannot say; tap filters (S3.3) | derived from current list / country summary |
 | `FilterChips` | `filters, onRemove` | Active filters as removable chips | local |
 | `FilterSheet` | `filters` | Type grid, min severity, kinds, time window, status | local |
-| `EventRow` | `event` | Glyph-in-shape, title, kind chip, source, freshness | events |
+| `EventRow` | `event, source?, isStale, isSelected` | Glyph-in-shape, title, kind chip, source, freshness | events, sources |
+| `EventList` | `model` | The viewport's `EventRow`s, severity then recency, with loading, empty and failed states; one view for the iOS sheet and the sidebar, because the list is the accessible alternative to the map (DESIGN §14) | events |
 | `EventSheet` / `EventInspector` | `eventId` | Event detail layout (DESIGN §10.3); one view, two hosts | `GET /v1/events/{id}` |
 | `KeyFigures` | `type, attrs` | Type-specific figures; render only those present | events.attrs |
 | `RevisionTimeline` | `revisions[]` | Changes in words + time, newest first | events/{id}.revisions |
@@ -101,10 +102,25 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
    `StatusCapsule`, `StatStrip`, `EventRow`, and the iOS sheet with three detents.
    *Status 2026-11-18:* map, markers, server + local clusters, `EventArea` (selected event, by
    kind, stale desaturated), `DetectionLayer` (density below zoom 6, dots from 6), `MapControls`,
-   `StatusCapsule` and every §10.1 state are built and checked against the local API, as is a
-   compact selected-event card. Still to do: `StatStrip`, `EventRow` list, the three-detent
-   sheet (the card stands in until then). DEBUG launch env for screenshots: `SHIELD_DETECTIONS=1`,
-   `SHIELD_REGION=lat,lon,latSpan,lonSpan`, `SHIELD_SELECT=<event id>`.
+   `StatusCapsule` and every §10.1 state are built and checked against the local API.
+   `StatStrip`, `EventRow` and the shells are built too, checked on sample data in the iPhone
+   simulator only (the macOS and iPad shell compiles but has not been looked at):
+   - `StatStrip` shows observed events, high severity and official warnings. Counts include
+     cluster members. Clusters carry no kind and sometimes no severity split, so those cells
+     read "12+" or "–" instead of guessing. Cells are display-only until S3.3 gives them a filter.
+   - `EventList` (`EventRow`s, most severe first, then newest) is the map's accessible
+     alternative. Clustered events are not listed; a footnote says how many.
+   - iPhone (compact width): a sheet with three detents. Peek is the `StatStrip` (as tall as
+     the strip, so it follows Dynamic Type; there is no search field yet), medium is the list
+     or the selected event, large is the same with room for S3.5's detail. Selecting on the map
+     or in the list opens the event at medium. The map's attribution moves to sit above the
+     sheet at peek and at medium; at large the sheet covers the map.
+   - macOS and regular width (iPad): `NavigationSplitView` with `StatStrip` + list in the
+     sidebar and the selected event as a card on the map. The full shell (sidebar navigation,
+     inspector, shortcuts) is still S3.8.
+
+   DEBUG launch env for screenshots: `SHIELD_DETECTIONS=1`, `SHIELD_REGION=lat,lon,latSpan,lonSpan`,
+   `SHIELD_SELECT=<event id>`, `SHIELD_SHEET=peek|medium|large`.
 3. **S3.3 Filters.** `FilterChips`, `FilterSheet`, persisted.
 4. **S3.4 Country.** `CountrySummaryCard`, `TypeSeverityMatrix`, `CoverageNotice`, `RecentChanges`.
 5. **S3.5 Detail.** `EventSheet`/`EventInspector`, `KeyFigures`, `RevisionTimeline`, and the

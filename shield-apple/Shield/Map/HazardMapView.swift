@@ -10,6 +10,9 @@ struct HazardMapView {
     let model: LiveMapModel
     /// Bump to fit the whole world (recentre control, ⌘0).
     var fitWorldRequest: Int = 0
+    /// Points of the map's bottom edge covered by other UI, on top of the safe area (iOS: the
+    /// peeking sheet). The attribution must stay visible above it (DECISIONS #11).
+    var bottomCover: CGFloat = 0
 
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
 
@@ -270,7 +273,13 @@ struct HazardMapView {
 #if os(iOS)
 extension HazardMapView: UIViewRepresentable {
     func makeUIView(context: Context) -> MKMapView { makeMap(context.coordinator) }
-    func updateUIView(_ uiView: MKMapView, context: Context) { update(context.coordinator) }
+    func updateUIView(_ uiView: MKMapView, context: Context) {
+        // Lifts the attribution above whatever covers the map's bottom edge (the peeking sheet).
+        if uiView.directionalLayoutMargins.bottom != bottomCover {
+            uiView.directionalLayoutMargins.bottom = bottomCover
+        }
+        update(context.coordinator)
+    }
 }
 #else
 extension HazardMapView: NSViewRepresentable {
