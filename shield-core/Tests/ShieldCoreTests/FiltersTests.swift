@@ -161,3 +161,31 @@ private func freshStore(_ name: String = #function) -> FilterStore {
         store.clear()
     }
 }
+
+/// PR #23: the server windows a resolved event by when it ended (else its last update), an
+/// active one by its last update. Live stream patches must agree.
+@Suite struct ResolvedWindowTests {
+    let now = Date(timeIntervalSince1970: 1_794_838_800)
+
+    private func event(updated: TimeInterval, ended: TimeInterval?) -> HazardEvent {
+        HazardEvent(id: UUID(), source: "meteoalarm", type: .wind, kind: .warning,
+                    status: ended == nil ? .active : .resolved, severity: .moderate, sourceSeverity: nil,
+                    title: "t", centroid: Coordinate(latitude: 0, longitude: 0),
+                    observedAt: now.addingTimeInterval(updated), updatedAt: now.addingTimeInterval(updated),
+                    endedAt: ended.map { now.addingTimeInterval($0) }, fetchedAt: now)
+    }
+
+    @Test func aResolvedEventIsWindowedByItsEnd() {
+        let q = EventQuery(includeResolved: true, window: 24 * 3600)
+        // Updated two days ago, ended an hour ago: resolved within the last 24 h.
+        #expect(q.matches(event(updated: -48 * 3600, ended: -3600), now: now))
+        // Updated an hour ago, ended two days ago: not.
+        #expect(!q.matches(event(updated: -3600, ended: -48 * 3600), now: now))
+    }
+
+    @Test func anActiveEventIsStillWindowedByItsUpdate() {
+        let q = EventQuery(includeResolved: true, window: 24 * 3600)
+        #expect(q.matches(event(updated: -3600, ended: nil), now: now))
+        #expect(!q.matches(event(updated: -48 * 3600, ended: nil), now: now))
+    }
+}

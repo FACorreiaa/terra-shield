@@ -29,7 +29,10 @@ public struct EventQuery: Sendable, Hashable {
     public func matches(_ e: HazardEvent, now: Date = .now) -> Bool {
         guard types.contains(e.type), e.severity >= minimumSeverity, kinds.contains(e.kind) else { return false }
         if !includeResolved, e.status == .resolved { return false }
-        if let window, now.timeIntervalSince(e.updatedAt) > window { return false }
+        // A resolved event by when it ended (else its last update), an active one by its last
+        // update: the server's rule (PR #23), so a live patch agrees with the next load.
+        let windowed = e.isResolved ? (e.endedAt ?? e.updatedAt) : e.updatedAt
+        if let window, now.timeIntervalSince(windowed) > window { return false }
         if let country, !e.countries.contains(where: { $0.iso2 == country }) { return false }
         return true
     }

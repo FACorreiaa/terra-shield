@@ -146,7 +146,7 @@ struct FilterSheet: View {
             switchRow("Include resolved", symbol: "checkmark.circle", isOn: $model.query.includeResolved, disabled: false)
                 .padding(.horizontal, ShieldSpace.s3)
                 .background(Color.ink.opacity(ShieldAlpha.hairline / 2), in: RoundedRectangle(cornerRadius: ShieldRadius.md))
-            Text("Adds events that have ended or been cancelled, shown faded, if they were updated in the window.")
+            Text("Adds events that ended or were cancelled in the window, shown faded.")
                 .font(ShieldFont.meta)
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
