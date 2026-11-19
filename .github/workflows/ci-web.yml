@@ -38,7 +38,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           working-directory: shield-app-web
@@ -51,7 +51,7 @@ jobs:
     name: Typecheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           working-directory: shield-app-web
@@ -70,7 +70,7 @@ jobs:
       matrix:
         shard: [1]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # --changed needs the base branch to diff against.
           fetch-depth: 0
@@ -78,7 +78,7 @@ jobs:
         with:
           working-directory: shield-app-web
           cache: true
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           path: shield-app-web/.ci/test-timings.json
           key: web-test-timings-${{ github.run_id }}
@@ -92,7 +92,7 @@ jobs:
         env:
           TEST_TIMINGS_OUT: test-timings/shard-${{ matrix.shard }}.json
       - if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-test-timings-${{ matrix.shard }}
           path: shield-app-web/test-timings/
@@ -106,17 +106,17 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: web-test-timings-*
           path: shield-app-web/test-timings
           merge-multiple: true
       - run: mkdir -p .ci && bun tools/ci/src/merge.ts test-timings .ci/test-timings.json
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         with:
           path: shield-app-web/.ci/test-timings.json
           key: web-test-timings-${{ github.run_id }}
@@ -125,7 +125,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           working-directory: shield-app-web
@@ -142,7 +142,7 @@ jobs:
     name: Tokens and API client are current
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           working-directory: shield-app-web
@@ -164,7 +164,7 @@ jobs:
     name: E2E
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           working-directory: shield-app-web
@@ -174,7 +174,7 @@ jobs:
         working-directory: shield-app-web/apps/web
       - run: vp run web#e2e
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-playwright-report
           path: shield-app-web/apps/web/test-results/
