@@ -25,7 +25,8 @@ import (
 // Alaska product with mixed segments → Cancellation), the M7.6 Panama earthquake of
 // 2026-10-09 (final threat message), the M7.2 Vanuatu earthquake of
 // 2026-10-24 (Hawaii information statement), and tsunami.gov's list of
-// recent messages on 2026-11-19.
+// recent messages on 2026-11-19, with two of its information statements
+// (NTWC WEAK53, PTWC WECA42), the commonest messages.
 func read(t *testing.T, name string) []byte {
 	t.Helper()
 	b, err := os.ReadFile("testdata/" + name)
@@ -246,11 +247,13 @@ func TestClassifyNTWCSegments(t *testing.T) {
 
 func TestClassifyEnds(t *testing.T) {
 	for name, at := range map[string]time.Time{
-		"kamchatka_9_WEGM40.xml":       time.Date(2025, 7, 30, 8, 40, 15, 0, time.UTC),  // Cancellation
-		"kamchatka_20_WEHW40.xml":      time.Date(2025, 7, 30, 18, 59, 40, 0, time.UTC), // Hawaii's Cancellation
-		"kamchatka_ntwc_35_WEAK51.xml": time.Date(2025, 7, 31, 14, 17, 23, 0, time.UTC), // NTWC's last segment canceled
-		"panama_4_WEPA40.xml":          time.Date(2026, 10, 9, 19, 40, 6, 0, time.UTC),  // final: no info
-		"vanuatu_1_WEHW42.xml":         time.Date(2026, 10, 24, 2, 39, 11, 0, time.UTC), // Information
+		"kamchatka_9_WEGM40.xml":       time.Date(2025, 7, 30, 8, 40, 15, 0, time.UTC),   // Cancellation
+		"kamchatka_20_WEHW40.xml":      time.Date(2025, 7, 30, 18, 59, 40, 0, time.UTC),  // Hawaii's Cancellation
+		"kamchatka_ntwc_35_WEAK51.xml": time.Date(2025, 7, 31, 14, 17, 23, 0, time.UTC),  // NTWC's last segment canceled
+		"panama_4_WEPA40.xml":          time.Date(2026, 10, 9, 19, 40, 6, 0, time.UTC),   // final: no info
+		"vanuatu_1_WEHW42.xml":         time.Date(2026, 10, 24, 2, 39, 11, 0, time.UTC),  // Information
+		"info_PAAQ_WEAK53.xml":         time.Date(2026, 11, 13, 23, 30, 2, 0, time.UTC),  // NTWC Information, no UGC
+		"info_PHEB_WECA42.xml":         time.Date(2026, 11, 13, 16, 43, 19, 0, time.UTC), // Caribbean Information
 	} {
 		a := loadCAP(t, name)
 		out, err := Classify(kamchatka(9, "WEGM40"), &a)
