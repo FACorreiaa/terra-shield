@@ -27,6 +27,10 @@ public struct APIEventProvider: HazardEventProvider {
             throw APIError.unexpectedNotModified
         case .badRequest(let r):
             throw APIError.server(status: 400, try? r.body.json.reason)
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
         case .default(let status, let r):
             throw APIError.server(status: status, try? r.body.json.reason)
         }
@@ -51,6 +55,10 @@ public struct APIEventProvider: HazardEventProvider {
             throw APIError.unexpectedNotModified
         case .badRequest(let r):
             throw APIError.server(status: 400, try? r.body.json.reason)
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
         case .default(let status, let r):
             throw APIError.server(status: status, try? r.body.json.reason)
         }
@@ -66,6 +74,10 @@ public struct APIEventProvider: HazardEventProvider {
             throw APIError.unexpectedNotModified
         case .badRequest(let r):
             throw APIError.server(status: 400, try? r.body.json.reason)
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
         case .default(let status, let r):
             throw APIError.server(status: status, try? r.body.json.reason)
         }
@@ -82,6 +94,10 @@ public struct APIEventProvider: HazardEventProvider {
             throw APIError.server(status: 400, try? r.body.json.reason)
         case .notModified:
             throw APIError.unexpectedNotModified
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
         case .default(let status, let r):
             throw APIError.server(status: status, try? r.body.json.reason)
         }
@@ -100,6 +116,10 @@ public struct APIEventProvider: HazardEventProvider {
             throw APIError.server(status: 400, try? r.body.json.reason)
         case .notModified:
             throw APIError.unexpectedNotModified
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
         case .default(let status, let r):
             throw APIError.server(status: status, try? r.body.json.reason)
         }
@@ -109,6 +129,10 @@ public struct APIEventProvider: HazardEventProvider {
         switch try await unwrapping { try await client.listSources() } {
         case .ok(let ok):
             return try ok.body.json.sources.map(Source.init)
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
         case .default(let status, let r):
             throw APIError.server(status: status, try? r.body.json.reason)
         }
@@ -132,6 +156,10 @@ public enum APIError: Error, Equatable {
     /// A 304 that reached the client. URLCache answers revalidations itself, so this means a
     /// cache was bypassed somewhere.
     case unexpectedNotModified
+    /// 429: over the per-IP limit (20 req/s). `retryAfter` in seconds, when sent.
+    case rateLimited(retryAfter: Int?)
+    /// 503: the request timed out on the server, or the pod is shutting down.
+    case unavailable
 }
 
 extension APIError: UserFacingError {
@@ -143,6 +171,12 @@ extension APIError: UserFacingError {
             reason.map { "Shield couldn’t answer that request: \($0)" } ?? "Shield couldn’t answer that request (\(status))."
         case .unexpectedNotModified:
             "Shield answered from a cache that wasn’t there. Try again."
+        case .rateLimited(let seconds?):
+            "Shield is getting too many requests from this network. Try again in \(seconds) s."
+        case .rateLimited(nil):
+            "Shield is getting too many requests from this network. Try again shortly."
+        case .unavailable:
+            "Shield’s server is busy. Try again shortly."
         }
     }
 }

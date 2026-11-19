@@ -9,6 +9,7 @@ final class StubTransport: ClientTransport, @unchecked Sendable {
     private let lock = NSLock()
     private let routes: [String: (HTTPResponse.Status, String)]
     private let contentTypes: [String: String]
+    private let headers: [String: [HTTPField.Name: String]]
     private var _requests: [HTTPRequest] = []
 
     private let geoJSON: [String: String]
@@ -16,9 +17,10 @@ final class StubTransport: ClientTransport, @unchecked Sendable {
     /// `contentTypes` overrides `application/json` per path (e.g. GeoJSON for `/v1/fires`).
     /// `geoJSON` is a path's GeoJSON alternative, served when `Accept` asks for it.
     init(_ routes: [String: (HTTPResponse.Status, String)], contentTypes: [String: String] = [:],
-         geoJSON: [String: String] = [:]) {
+         geoJSON: [String: String] = [:], headers: [String: [HTTPField.Name: String]] = [:]) {
         self.routes = routes
         self.contentTypes = contentTypes
+        self.headers = headers
         self.geoJSON = geoJSON
     }
 
@@ -42,6 +44,8 @@ final class StubTransport: ClientTransport, @unchecked Sendable {
             return (HTTPResponse(status: .ok, headerFields: [.contentType: "application/geo+json"]), HTTPBody(geo))
         }
         let type = status == .ok ? contentTypes[path] ?? "application/json" : "application/json"
-        return (HTTPResponse(status: status, headerFields: [.contentType: type]), HTTPBody(json))
+        var fields: HTTPFields = [.contentType: type]
+        for (name, value) in headers[path] ?? [:] { fields[name] = value }
+        return (HTTPResponse(status: status, headerFields: fields), HTTPBody(json))
     }
 }

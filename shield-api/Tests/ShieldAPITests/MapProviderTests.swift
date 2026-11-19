@@ -136,3 +136,22 @@ private struct RefusingTransport: ClientTransport {
         }
     }
 }
+
+@Suite struct RateLimitTests {
+    @Test func a429SaysWhenToRetryAndA503SaysBusy() async throws {
+        let envelope = #"{"error":true,"code":"rate_limited","reason":"slow down"}"#
+        let t = StubTransport(["/v1/events": (.tooManyRequests, envelope)],
+                              headers: ["/v1/events": [HTTPField.Name("Retry-After")!: "30"]])
+        let p = APIEventProvider(client: .shield(baseURL: base, transport: t))
+        await #expect(throws: APIError.rateLimited(retryAfter: 30)) {
+            try await p.snapshot(matching: EventQuery(), in: .world)
+        }
+        #expect(APIError.rateLimited(retryAfter: 30).userMessage
+            == "Shield is getting too many requests from this network. Try again in 30 s.")
+
+        let busy = StubTransport(["/v1/sources": (.serviceUnavailable, #"{"error":true,"code":"unavailable","reason":"timeout"}"#)])
+        await #expect(throws: APIError.unavailable) {
+            try await APIEventProvider(client: .shield(baseURL: base, transport: busy)).sources()
+        }
+    }
+}
