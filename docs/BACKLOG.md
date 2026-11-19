@@ -47,8 +47,8 @@
 - [ ] S3.7 Sources & attribution screen + safety disclaimer
 - [ ] S3.8 macOS layout: `NavigationSplitView` sidebar + map, keyboard shortcuts
 - [ ] S3.9a **Go-live of the API** (gated on the web launch, ADR 22; until then web and Apple run against a local API): pick the hostname, Cloudflare DNS A record, `image.yml` (ghcr push + promote PR into LuminaVaultInfra, `INFRA_TOKEN`), and in `platform/infra`: node dir `/data/pg-shield`, data app (PostGIS + backup CronJob), DB role, sealed secrets (`horus`), api/worker values, network policy, ingress + TLS Also add the `shield` alert group from `docs/alerts.md` to infra `observability/alerts/platform_rules.py`.
-- [ ] S3.9 Fastlane (§7) + workflows; internal TestFlight (iOS + macOS) against the live API
-- [ ] S3.10 Sentry + PostHog
+- [ ] S3.9 Fastlane (§7) + workflows; internal TestFlight (iOS + macOS) against the live API. Signing: Khepri's match repo and secrets (ADR 24); `ASC_*` and `REVIEW_*` are team-level and also reused from Khepri
+- [ ] S3.10 Sentry + PostHog: **new Shield projects** in the existing organisations, with their own DSN and key (ADR 24), never Khepri's
 
 ### M4 — Ship to strangers
 - [ ] S4.1 Store metadata, privacy label (no account, no tracking), screenshots
