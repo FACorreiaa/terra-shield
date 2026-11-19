@@ -177,7 +177,9 @@ extension HazardEvent {
         if let endedAt {
             out.append(DetailTime(label: "Ended", date: endedAt))
         } else if let raw = attrs["expiresAt"]?.stringValue, let expires = try? Date(raw, strategy: .iso8601) {
-            out.append(DetailTime(label: "Expires", date: expires))
+            // A PTWC forecast carries no expiry; its expiresAt is Shield's 12 h net (#25).
+            let isNet = type == .tsunami && kind == .forecast
+            out.append(DetailTime(label: isNet ? "Shown until" : "Expires", date: expires))
         }
         return out
     }
@@ -229,6 +231,11 @@ extension HazardEvent {
         return "Shown at the earthquake’s epicentre. The waves reach the places listed below."
     }
 
+    /// NWS marine forecast areas (UGC prefixes): coastal waters, the Great Lakes, St Lawrence.
+    static let marineUGCPrefixes: Set<String> = [
+        "AM", "AN", "GM", "LC", "LE", "LH", "LM", "LO", "LS", "PH", "PK", "PM", "PS", "PZ", "SL",
+    ]
+
     fileprivate var tsunamiFigures: [KeyFigure] {
         var out: [KeyFigure] = []
         func strings(_ key: String) -> [String] {
@@ -248,7 +255,8 @@ extension HazardEvent {
         // US segments ("Chignik Bay, Alaska to Samalga Pass, Alaska") carry commas of their own.
         let areas = strings("areas")
         if !areas.isEmpty { out.append(KeyFigure(label: "Coasts", value: areas.joined(separator: "; "))) }
-        let unresolved = strings("zonesUnresolved")
+        // Marine zones (PZZ…, AMZ…) are never drawn, so only land zones count as missing.
+        let unresolved = strings("zonesUnresolved").filter { !Self.marineUGCPrefixes.contains(String($0.prefix(2))) }
         if !unresolved.isEmpty {
             let noun = unresolved.count == 1 ? "zone" : "zones"
             out.append(KeyFigure(label: "Not on the map",

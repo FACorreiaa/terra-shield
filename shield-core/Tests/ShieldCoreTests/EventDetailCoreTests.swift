@@ -400,9 +400,26 @@ extension JSONValue: ExpressibleByStringLiteral, ExpressibleByFloatLiteral,
         #expect(f.map(\.label) == ["Coasts", "Not on the map", "Earthquake", "Issued by", "Bulletin"])
         // Segment descriptions hold commas of their own, so they are set apart by semicolons.
         #expect(f[0].value == "Chignik Bay, Alaska to Samalga Pass, Alaska; Samalga Pass, Alaska to Attu, Alaska")
-        #expect(f[1].value == "2 zones without a shape (PZZ530, BCZ921)")
+        // Marine zones (PZZ…) are never drawn, so they aren't counted as missing.
+        #expect(f[1].value == "1 zone without a shape (BCZ921)")
         #expect(f[2].value == "M8.8")
         #expect(f[3].value == "National Tsunami Warning Center")
+    }
+
+    @Test func onlyMarineZonesLeaveNothingToSay() {
+        var w = warning
+        w.attrs["zonesUnresolved"] = ["PZZ530", "AMZ650", "GMZ032"]
+        #expect(!w.keyFigures.map(\.label).contains("Not on the map"))
+    }
+
+    @Test func aForecastsExpiryIsOurSafetyNetNotTheCentres() {
+        // #25: a forecast's expiresAt is Shield's 12 h net; PTWC gives none.
+        var f = forecast()
+        f.attrs["expiresAt"] = "2026-11-16T18:00:00Z"
+        #expect(f.detailTimes(now: at).last?.label == "Shown until")
+        var w = warning
+        w.attrs["expiresAt"] = "2026-11-16T18:00:00Z"
+        #expect(w.detailTimes(now: at).last?.label == "Expires")
     }
 
     @Test func anEpicentreMarkerSaysWhereTheWavesAreNot() {
