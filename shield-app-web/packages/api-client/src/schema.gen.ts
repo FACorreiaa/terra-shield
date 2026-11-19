@@ -183,6 +183,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/aircraft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live aircraft positions in a map view (adsb.lol), a separate layer from events.
+         * @description Positions are cached in memory and never stored. The world is cut into 5° cells (on multiples of 5°); `bbox` is required and may span at most 4 of them, else 400 ("zoom in"): a view up to 5° high and 5° wide always fits, up to 10° × 10° fits when aligned. Each cell is refreshed from the feed at most once a minute, and only while its daily quota allows. Without a key (500 requests a day) the whole server gets one request every ~3 minutes, so one viewer's 4-cell view is up to 12 minutes old: show `dataAt`, and poll no faster than once a minute. A cell with no data younger than 15 minutes is left out and `complete` is false. Aircraft whose operators opted out of display (FAA LADD, privacy ICAO addresses) are never returned. Military aircraft are returned as the feed reports them, with `military` set. Data ODbL 1.0: show `attribution` on the map.
+         */
+        get: operations["listAircraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/stream": {
         parameters: {
             query?: never;
@@ -493,6 +513,64 @@ export interface components {
             geometry: components["schemas"]["Geometry"];
             /** @description A FireDetection, or a FireCell when the collection's aggregation is "grid". */
             properties: components["schemas"]["FireDetection"] | components["schemas"]["FireCell"];
+        };
+        AircraftList: {
+            aircraft: components["schemas"]["Aircraft"][];
+            /**
+             * Format: date-time
+             * @description When the feed generated the oldest data in this answer. Absent when nothing was served.
+             */
+            dataAt?: string;
+            /** @description False when part of the view had no data young enough to serve (the feed's quota is spent or it failed). */
+            complete: boolean;
+            /** @example © adsb.lol contributors */
+            attribution: string;
+            /** @example ODbL 1.0 */
+            license: string;
+            /** Format: uri */
+            licenseUrl: string;
+        };
+        Aircraft: {
+            /**
+             * @description 24-bit ICAO address in lowercase hex; a leading "~" marks a non-ICAO address.
+             * @example 49530a
+             */
+            hex: string;
+            /** @example TAP215 */
+            callsign?: string;
+            /** @example CS-TXK */
+            registration?: string;
+            /**
+             * @description ICAO aircraft type designator.
+             * @example A21N
+             */
+            typeCode?: string;
+            /** Format: double */
+            lon: number;
+            /** Format: double */
+            lat: number;
+            /** @description Barometric altitude in feet. Absent on the ground or when not reported. */
+            altitudeFt?: number;
+            onGround: boolean;
+            /** Format: double */
+            groundSpeedKt?: number;
+            /**
+             * Format: double
+             * @description True track over ground, 0–360.
+             */
+            trackDeg?: number;
+            verticalRateFpm?: number;
+            /** @example 7700 */
+            squawk?: string;
+            /** @description ADS-B emergency status (general, lifeguard, minfuel, nordo, unlawful, downed, reserved). Absent when none. */
+            emergency?: string;
+            /** @description The feed database's military flag. */
+            military: boolean;
+            /**
+             * Format: date-time
+             * @description When this position was received; at most 60 s before the feed's answer.
+             */
+            positionAt: string;
         };
         FireFeatureCollection: {
             /** @enum {string} */
@@ -872,6 +950,36 @@ export interface operations {
                 };
                 content: {
                     "application/geo+json": components["schemas"]["FireFeatureCollection"];
+                };
+            };
+            304: components["responses"]["NotModified"];
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listAircraft: {
+        parameters: {
+            query?: {
+                /** @description minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian. */
+                bbox?: components["parameters"]["BBox"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aircraft in the view. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control": components["headers"]["CacheControl"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AircraftList"];
                 };
             };
             304: components["responses"]["NotModified"];

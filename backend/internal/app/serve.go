@@ -6,11 +6,15 @@ import (
 	"log/slog"
 	"os"
 	"sort"
+	"time"
 
+	"shield/internal/aircraft"
 	"shield/internal/config"
 	"shield/internal/features"
+	"shield/internal/fetch"
 	"shield/internal/realtime"
 	"shield/internal/server"
+	"shield/internal/sources/adsblol"
 )
 
 func serve(ctx context.Context, cfg config.Base, logger *slog.Logger) error {
@@ -24,13 +28,19 @@ func serve(ctx context.Context, cfg config.Base, logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	// Live flights: the API calls the feed itself, on demand, through a
+	// cache (the worker never polls it). Its own client, so the 1 s gap
+	// the hazard feeds share does not slow a viewport's cells.
+	flightsHTTP := fetch.New(fetch.Options{UserAgent: c.userAgent(), Timeout: 8 * time.Second, MaxBody: 8 << 20, HostGap: 200 * time.Millisecond})
+	flights := aircraft.New(adsblol.New(flightsHTTP, cfg.AircraftFeedURL), aircraft.Options{Logger: logger})
+
 	health := server.NewHealth()
 	server.AddDatabaseCheck(health, c.pool, logger)
 	srv, err := server.New(
 		&server.Deps{Config: cfg, Logger: logger, Health: health},
 		features.All(features.Deps{
 			Countries: c.repos.Countries, Events: c.repos.Events, Fires: c.repos.Fires, Sources: c.repos.Sources,
-			Stream: hub, Logger: logger,
+			Stream: hub, Aircraft: flights, Logger: logger,
 		}),
 	)
 	if err != nil {

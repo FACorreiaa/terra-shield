@@ -5,6 +5,7 @@ package features
 import (
 	"log/slog"
 
+	"shield/internal/features/aircraft"
 	"shield/internal/features/countries"
 	"shield/internal/features/events"
 	"shield/internal/features/fires"
@@ -23,6 +24,7 @@ type Deps struct {
 	Fires     fires.Repository
 	Sources   sources.Lister
 	Stream    stream.Broker
+	Aircraft  aircraft.Finder
 	Logger    *slog.Logger
 }
 
@@ -35,5 +37,6 @@ func All(d Deps) []server.Feature {
 		fires.New(d.Fires),
 		sources.New(d.Sources),
 		stream.New(d.Stream, d.Logger),
+		aircraft.New(d.Aircraft),
 	}
 }
