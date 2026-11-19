@@ -10,6 +10,9 @@ struct EventRow: View {
     var source: Source?
     var isStale = false
     var isSelected = false
+    /// Where it is, when the list around it doesn't say: "Near Chile, 38 km offshore" in Chile's
+    /// overview (ADR 4).
+    var place: String? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: ShieldSpace.s3) {
@@ -22,6 +25,12 @@ struct EventRow: View {
                     .foregroundStyle(isStale ? Color.muted : Color.ink)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                if let place {
+                    Label(place, systemImage: "location")
+                        .font(ShieldFont.meta)
+                        .foregroundStyle(Color.muted)
+                        .labelStyle(.titleAndIcon)
+                }
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: ShieldSpace.s2) { kindAndSource }
                     VStack(alignment: .leading, spacing: ShieldSpace.s1) { kindAndSource }
@@ -64,6 +73,7 @@ struct EventRow: View {
                     : "updated \(Freshness.relative(event.updatedAt))",
         ]
         parts.append("source \(source?.name ?? event.source)")
+        if let place { parts.insert(place, at: 0) }
         return "\(event.title). " + parts.joined(separator: ", ")
     }
 }

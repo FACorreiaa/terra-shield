@@ -5,8 +5,8 @@ import SwiftUI
 /// Search on the live map (DESIGN.md §10 shells: peek search field, macOS ⌘F). No search
 /// endpoint exists, so it covers what the app can answer itself (owner, 2026-11-19):
 /// - places, through MapKit's completer (Apple's geocoder, no key), which move the map;
+/// - countries, from `/v1/countries`, which open the country's overview (S3.4);
 /// - events in the current view, by title.
-/// Countries arrive with the country picker (S3.4).
 @MainActor @Observable
 final class MapSearch: NSObject {
     /// What the person typed.
@@ -18,6 +18,9 @@ final class MapSearch: NSObject {
     var isActive: Bool { isEditing || !text.isEmpty }
 
     private(set) var places: [Place] = []
+    /// Every country the API has a boundary for; empty until loaded, and search works without
+    /// them.
+    var countries: [Country] = []
     private(set) var placesFailed = false
     /// A place is being resolved to a region after a tap.
     private(set) var resolvingPlace: Place.ID?
@@ -63,6 +66,9 @@ final class MapSearch: NSObject {
         return snapshot.events.filter { $0.title.localizedStandardContains(trimmed) }
     }
 
+    /// Countries whose name or ISO code matches the text.
+    var countryMatches: [Country] { Country.matching(text, in: countries) }
+
     /// The region that frames `place`, or nil if MapKit can't place it.
     func region(for place: Place) async -> MKCoordinateRegion? {
         resolvingPlace = place.id
@@ -97,6 +103,18 @@ extension MapSearch: MKLocalSearchCompleterDelegate {
             places = []
             placesFailed = (error as? MKError)?.code != .placemarkNotFound
         }
+    }
+}
+
+extension MKCoordinateRegion {
+    /// The region around `box`, also when it crosses ±180°. A box as wide as the world keeps
+    /// just under 360° of longitude, which MapKit accepts.
+    init(_ box: GeoBox) {
+        let lonSpan = min(box.longitudeSpan, 359)
+        var centerLon = box.minLongitude + box.longitudeSpan / 2
+        if centerLon > 180 { centerLon -= 360 }
+        self.init(center: CLLocationCoordinate2D(latitude: (box.minLatitude + box.maxLatitude) / 2, longitude: centerLon),
+                  span: MKCoordinateSpan(latitudeDelta: min(box.maxLatitude - box.minLatitude, 170), longitudeDelta: lonSpan))
     }
 }
 
@@ -174,15 +192,27 @@ struct MapSearchResults: View {
     let model: LiveMapModel
     var selectEvent: (HazardEvent) -> Void
     var selectPlace: (MapSearch.Place) -> Void
+    var selectCountry: (Country) -> Void
 
     var body: some View {
         let events = search.events(in: model.snapshot)
+        let countries = search.countryMatches
         let clustered = model.snapshot?.clusters.reduce(0) { $0 + $1.count } ?? 0
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if search.text.trimmingCharacters(in: .whitespaces).isEmpty {
-                    hint("Type a place to move the map, or part of an event’s title.")
+                    hint("Type a country, a place to move the map, or part of an event’s title.")
                 } else {
+                    // Only when something matches: a country list that failed to load mustn't
+                    // read as "no such country".
+                    if !countries.isEmpty {
+                        section("Countries") {
+                            ForEach(countries) { country in
+                                Button { selectCountry(country) } label: { countryRow(country) }
+                                    .buttonStyle(.plain)
+                            }
+                        }
+                    }
                     section("Events in view") {
                         if events.isEmpty {
                             hint("No event in view matches.")
@@ -232,6 +262,30 @@ struct MapSearchResults: View {
                 .accessibilityAddTraits(.isHeader)
             content()
         }
+    }
+
+    private func countryRow(_ country: Country) -> some View {
+        HStack(spacing: ShieldSpace.s3) {
+            Image(systemName: "flag")
+                .foregroundStyle(Color.muted)
+                .frame(width: 32)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(country.name).font(ShieldFont.body).foregroundStyle(Color.ink)
+                Text(country.activeEvents == 0 ? "No active events"
+                     : country.activeEvents == 1 ? "1 active event" : "\(country.activeEvents) active events")
+                    .font(ShieldFont.meta).foregroundStyle(Color.muted)
+            }
+            Spacer(minLength: 0)
+            if let worst = country.maxSeverity {
+                SeverityBadge(severity: worst)
+            }
+        }
+        .padding(.horizontal, ShieldSpace.s5)
+        .padding(.vertical, ShieldSpace.s2)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the country’s overview")
     }
 
     private func placeRow(_ place: MapSearch.Place) -> some View {

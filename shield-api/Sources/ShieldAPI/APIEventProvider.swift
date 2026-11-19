@@ -149,6 +149,45 @@ public struct APIEventProvider: HazardEventProvider {
     }
 }
 
+extension APIEventProvider {
+    public func countries() async throws -> [Country] {
+        switch try await unwrapping { try await client.listCountries() } {
+        case .ok(let ok):
+            return try ok.body.json.countries.map(Country.init)
+        case .notModified:
+            throw APIError.unexpectedNotModified
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
+        case .default(let status, let r):
+            throw APIError.server(status: status, try? r.body.json.reason)
+        }
+    }
+
+    public func countrySummary(iso2: String) async throws -> CountrySummary? {
+        // The API answers 400 to anything but two capitals; a code that can't be one has no
+        // boundary either.
+        guard let code = Country.normalizedCode(iso2) else { return nil }
+        switch try await unwrapping({ try await client.getCountrySummary(path: .init(iso2: code)) }) {
+        case .ok(let ok):
+            return try CountrySummary(ok.body.json)
+        case .notFound:
+            return nil
+        case .badRequest(let r):
+            throw APIError.server(status: 400, try? r.body.json.reason)
+        case .notModified:
+            throw APIError.unexpectedNotModified
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
+        case .default(let status, let r):
+            throw APIError.server(status: status, try? r.body.json.reason)
+        }
+    }
+}
+
 /// The generated client wraps transport and decoding failures in `ClientError`, whose
 /// description is a debug dump. The UI words failures from the underlying error (`URLError`
 /// for "offline" vs "server not responding"), so unwrap it here.

@@ -66,6 +66,50 @@ public enum SampleData {
     public static let countryNames: [String: String] = [
         "GP": "Guadeloupe", "CL": "Chile", "IT": "Italy", "PT": "Portugal", "IS": "Iceland",
     ]
+
+    /// The sample countries, with rough bounds, counted from `events(now:)`.
+    public static func countries(now: Date = .now) -> [Country] {
+        let events = events(now: now)
+        let shapes: [(iso2: String, iso3: String, box: GeoBox)] = [
+            ("CL", "CHL", GeoBox(minLongitude: -75.6, minLatitude: -55.9, maxLongitude: -66.4, maxLatitude: -17.5)),
+            ("GP", "GLP", GeoBox(minLongitude: -61.8, minLatitude: 15.8, maxLongitude: -61.0, maxLatitude: 16.5)),
+            ("IS", "ISL", GeoBox(minLongitude: -24.5, minLatitude: 63.3, maxLongitude: -13.5, maxLatitude: 66.6)),
+            ("IT", "ITA", GeoBox(minLongitude: 6.6, minLatitude: 36.6, maxLongitude: 18.5, maxLatitude: 47.1)),
+            ("PT", "PRT", GeoBox(minLongitude: -9.5, minLatitude: 36.9, maxLongitude: -6.2, maxLatitude: 42.2)),
+        ]
+        return shapes.map { shape in
+            let mine = events.filter { $0.countries.contains { $0.iso2 == shape.iso2 } }
+            return Country(iso2: shape.iso2, iso3: shape.iso3, name: countryNames[shape.iso2] ?? shape.iso2,
+                           activeEvents: mine.count, maxSeverity: mine.map(\.severity).max(), bbox: shape.box)
+        }
+        .sorted { $0.name < $1.name }
+    }
+
+    /// A sample overview for one of `countries(now:)`. Italy and Portugal have Meteoalarm, the
+    /// others only the worldwide sources, so both coverage states can be seen.
+    public static func countrySummary(iso2: String, now: Date = .now) -> CountrySummary? {
+        guard let country = countries(now: now).first(where: { $0.iso2 == iso2 }) else { return nil }
+        let events = events(now: now).filter { $0.countries.contains { $0.iso2 == iso2 } }.sortedForDisplay()
+        var counts: [SeverityCount] = []
+        for e in events {
+            if let i = counts.firstIndex(where: { $0.type == e.type && $0.severity == e.severity }) {
+                counts[i].count += 1
+            } else {
+                counts.append(SeverityCount(type: e.type, severity: e.severity, count: 1))
+            }
+        }
+        let european = ["IT", "PT"].contains(iso2)
+        let changes: [RecentChange] = iso2 == "PT" ? [
+            RecentChange(eventID: events.first { $0.type == .wildfire }?.id ?? UUID(), title: "Wildfire near Leiria",
+                         at: now.addingTimeInterval(-40 * 60),
+                         changes: [.severity(from: .minor, to: .moderate), .geometry]),
+        ] : []
+        return CountrySummary(
+            country: country, counts: counts,
+            coverage: Coverage(officialWarnings: european,
+                               sources: ["eonet", "firms", "gdacs"] + (european ? ["meteoalarm"] : []) + ["usgs"]),
+            events: events, recentChanges: changes, generatedAt: now)
+    }
 }
 
 /// A provider over `SampleData`. Always reports `isSampleData == true`.
@@ -103,5 +147,13 @@ public struct SampleEventProvider: HazardEventProvider {
 
     public func sources() async throws -> [Source] {
         SampleData.sources(now: now())
+    }
+
+    public func countries() async throws -> [Country] {
+        SampleData.countries(now: now())
+    }
+
+    public func countrySummary(iso2: String) async throws -> CountrySummary? {
+        SampleData.countrySummary(iso2: iso2, now: now())
     }
 }

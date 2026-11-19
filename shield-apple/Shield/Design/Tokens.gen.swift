@@ -33,6 +33,7 @@ enum ShieldAlpha {
     static let stale: Double = 0.45
     static let scrim: Double = 0.6
     static let pressed: Double = 0.85
+    static let matrixTint: Double = 0.25
 }
 
 /// Motion (DESIGN.md §13). Callers fall back to a cross-fade under Reduce Motion.

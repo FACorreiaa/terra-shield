@@ -48,15 +48,14 @@ and later once in Svelte with the same name and props. Props are named after API
 | `MapSearchField` + `MapSearchResults` | `search: MapSearch`, `model` | Search places (MapKit completer, moves the map) and events in view (title); iPhone peek and macOS sidebar (⌘F) | MapKit; events in view |
 | `FilterChips` | `query, openFilters, remove` | A Filters button (count when on), then one removable chip per filter that differs from the default; iPhone under the capsule, Mac top-centre | local |
 | `FilterSheet` | `model` | Type grid, min severity (shapes), kinds + the heat layer, time window; "Reset" when not default. Status waits for multi-value `status` on `/v1/events` (backend, after S1.5) | local (`FilterStore`) |
-| `EventRow` | `event, source?, isStale, isSelected` | Glyph-in-shape, title, kind chip, source, freshness | events, sources |
+| `EventRow` | `event, source?, isStale, isSelected, place?` | Glyph-in-shape, title, kind chip, source, freshness; `place` says "Near Chile, 38 km offshore" where the list around it is a country (ADR 4) | events, sources |
 | `EventList` | `model` | The viewport's `EventRow`s, severity then recency, with loading, empty and failed states; one view for the iOS sheet and the sidebar, because the list is the accessible alternative to the map (DESIGN §14) | events |
 | `EventSheet` / `EventInspector` | `eventId` | Event detail layout (DESIGN §10.3); one view, two hosts | `GET /v1/events/{id}` |
 | `KeyFigures` | `type, attrs` | Type-specific figures; render only those present | events.attrs |
 | `RevisionTimeline` | `revisions[]` | Changes in words + time, newest first | events/{id}.revisions |
-| `CountrySummaryCard` | `summary` | Country header + stat strip | countries summary |
-| `TypeSeverityMatrix` | `matrix, onSelect` | Type × severity counts | countries summary |
-| `CoverageNotice` | `coverage[], uncovered[]` | "Absence of data is not safety" | countries summary, sources |
-| `RecentChanges` | `changes[]` | Last 24 h of revisions in a place | countries summary |
+| `CountryView` | `overview, model, close, selectEvent` | The overview (built as one view, the catalog's `CountrySummaryCard` + `RecentChanges`): name, ISO code, freshness; Active · Severe+ · Official warnings; matrix; coverage; changes in the last 24 h; the events. Loading, not-found ("We have no boundary for this place"), failed, and failed-with-data states | countries summary |
+| `TypeSeverityMatrix` | `rows, selection` | Type × severity counts; columns show shape + name; a cell with events is tinted (`alpha.matrixTint`) and filters the list; one line per type where it fits, else name above cells (Mac sidebar, AX sizes) | countries summary |
+| `CoverageNotice` | `countryName, coverage, sources` | Official warnings yes/no, the sources by name, "Absence of data is not safety." Names no missing service: the API doesn't say which | countries summary, sources |
 | `SourceRow` | `source` | Name, coverage, licence, attribution, health dot | `GET /v1/sources` |
 | `DisclaimerBanner` | `style: inline \| footer` | Fixed disclaimer copy (DESIGN §2) | none |
 | `NewEventToast` | `event` | One-line top toast for severe+ arrivals in view | stream |
@@ -122,7 +121,7 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      The map repeats the empty and truncated notices only when the sidebar is hidden.
    - Search (`MapSearch`) has no endpoint behind it: places come from MapKit's completer
      (address results only) and move the map; events match by title among those in view, so
-     clustered events are not searched (a hint says so). Countries arrive with S3.4.
+     clustered events are not searched (a hint says so). Countries were added with S3.4.
    - The sample-data badge is the map's own, so it stays in view in every sheet state; the
      strip no longer repeats it. Extreme markers pulse on the map only, not in rows. The full shell (sidebar navigation,
      inspector, shortcuts) is still S3.8.
@@ -141,6 +140,37 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
    - DEBUG: `SHIELD_RESET_FILTERS=1`, `SHIELD_FILTER_DEMO=1`, `SHIELD_SHOW_FILTERS=1`.
    - Open for the owner: "Observed events" still counts every kind once a kind filter is on.
 4. **S3.4 Country.** `CountrySummaryCard`, `TypeSeverityMatrix`, `CoverageNotice`, `RecentChanges`.
+   **Built** (2026-11-19), from search only:
+   - shield-core: `Country`, `CountrySummary` (matrix, `highSeverityCount`, `warningCount`,
+     `notableChanges`), `Change.parse` with the words ("Raised to Severe · area updated"),
+     `Country.matching` (codes, then name prefixes, then contains; accents ignored),
+     `Country.mapBox(for:)`, and `CountryOverview` (one per country opened, so a late answer
+     for another can't land; failed reloads keep the last summary). All tested, plus API tests
+     against a real `/v1/countries/HR/summary`.
+   - Numbers: Active and Severe+ come from the counts, so they're exact. Official warnings come
+     from the listed events, which the server caps at 100, so they read "100+" when capped. The
+     list then says "Showing the 100 most severe of 156 events."
+   - Events offshore of the country say "Near Chile, 38 km offshore", never "in" (ADR 4).
+   - A bbox crossing ±180° (US, RU, FJ, NZ, KI, AQ: nearly 360° wide) frames the country's
+     events instead, by the smallest arc of longitude; with none, its band of latitude.
+   - Revisions that only renamed their event are hidden. S1.5 gave every MeteoAlarm title its
+     area, and fifty "renamed" rows buried the one real change.
+   - An event opened from the overview goes back to it on close. `LiveMapModel.select(_:)`
+     shows an event even when the map's filters or a cluster leave it out.
+   - The map frames the country above the sheet. Doing so exposed a MapKit trap: with the safe
+     area added to the map's layout margins, a medium sheet (seen with a country open) left the
+     margins taller than the map, a region with no height, and no events. Only the sheet's cover
+     and the home indicator count now.
+   - Mac: the overview replaces the sidebar's strip and list; Escape closes it.
+   - DEBUG: `SHIELD_COUNTRY=PT`.
+   - **Not built:** the long-press entry (needs a gesture that can't be checked here), the country
+     name in event detail (S3.5), the Countries sidebar (S3.8), and the mascot `EmptyState`
+     (S3.7). "No active events in X" carries that state for now.
+   - **Deviations for the owner** (DESIGN §10.2):
+     - The overview opens at medium, not large, so the country stays in view.
+     - No 60% scrim outside the country: that needs its boundary, and the API gives a bbox.
+     - The coverage notice names no missing service ("Not covered: national flood service"):
+       nothing in the data says which one is missing.
 5. **S3.5 Detail.** `EventSheet`/`EventInspector`, `KeyFigures`, `RevisionTimeline`, and the
    type backgrounds (DESIGN §12).
 6. **S3.6 Live.** `NewEventToast`, the arrive animation, and stale handling driven by SSE + sources.
