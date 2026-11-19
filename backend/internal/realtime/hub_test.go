@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	promtest "github.com/prometheus/client_golang/prometheus/testutil"
+
 	"shield/internal/domain"
 	"shield/internal/metrics"
 
@@ -148,7 +150,9 @@ func TestHubFansOutMatchingChanges(t *testing.T) {
 	}
 }
 
-func TestHubDropsSlowSubscriberAndCaps(t *testing.T) {
+// A subscriber whose queue overflows is not dropped: it is marked lagged,
+// skipped until it resumes, and told the cursor to replay up to.
+func TestHubLagsSlowSubscriberAndCaps(t *testing.T) {
 	src := newFakeSource()
 	h, cancel := start(t, src, Options{Buffer: 1, MaxSubscribers: 2})
 
@@ -157,6 +161,7 @@ func TestHubDropsSlowSubscriberAndCaps(t *testing.T) {
 	if _, err := h.Subscribe(Filter{}, "ip"); !errors.Is(err, ErrFull) {
 		t.Fatalf("third subscriber: %v", err)
 	}
+	lagged := promtest.ToFloat64(metrics.StreamLagged)
 	src.append(quake(1, "a", 0, 0, "minor"))
 	recv(t, fast)
 	if _, idle := slow.Idle(); idle {
@@ -164,11 +169,32 @@ func TestHubDropsSlowSubscriberAndCaps(t *testing.T) {
 	}
 	src.append(quake(2, "b", 0, 0, "minor"))
 	recv(t, fast)
-	<-slow.C // the queued change
-	if _, ok := <-slow.C; ok {
-		t.Fatal("slow subscriber not dropped")
+	select {
+	case <-slow.Lag:
+	case <-time.After(2 * time.Second):
+		t.Fatal("overflow not signaled")
 	}
-	slow.Close() // idempotent after a drop
+	if _, idle := slow.Idle(); idle {
+		t.Fatal("a lagged subscriber is never idle: the heartbeat must not skip the gap")
+	}
+	src.append(quake(3, "c", 0, 0, "minor"))
+	recv(t, fast)
+	if got := promtest.ToFloat64(metrics.StreamLagged) - lagged; got != 1 {
+		t.Errorf("lagged counted %v times, want 1", got)
+	}
+	if upTo := slow.Resume(); upTo != 3 {
+		t.Fatalf("resume up to %d, want 3", upTo)
+	}
+	if len(slow.C) != 0 {
+		t.Fatal("resume left stale changes queued")
+	}
+	src.append(quake(4, "d", 0, 0, "minor"))
+	if c := recv(t, slow); c.Seq != 4 {
+		t.Fatalf("after resume got %d, want 4", c.Seq)
+	}
+	recv(t, fast)
+	slow.Close()
+	slow.Close() // idempotent
 
 	cancel()
 	if _, ok := <-fast.C; ok {

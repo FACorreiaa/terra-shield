@@ -149,8 +149,10 @@ func (h *Hub) cursor() int64 {
 }
 
 // publish advances the cursor and queues c for every matching subscriber.
-// A subscriber whose queue is full is dropped rather than slowing the
-// others; it reconnects with Last-Event-ID and catches up.
+// A subscriber whose queue is full is not waited for: it is marked lagged,
+// gets nothing more until its reader calls Resume, and replays what it
+// missed from the change log (a burst, such as a country's first load of
+// warnings, costs a replay instead of a reconnect).
 func (h *Hub) publish(c *domain.StreamChange) {
 	if c.Event != nil {
 		metrics.EventPublish.Observe(max(0, time.Since(c.Event.FetchedAt).Seconds()))
@@ -159,14 +161,18 @@ func (h *Hub) publish(c *domain.StreamChange) {
 	defer h.mu.Unlock()
 	h.seq = c.Seq
 	for s := range h.subs {
-		if !s.filter.Match(c) {
+		if s.lagged || !s.filter.Match(c) {
 			continue
 		}
 		select {
 		case s.ch <- *c:
 		default:
-			h.removeLocked(s)
-			metrics.StreamDropped.Inc()
+			s.lagged = true
+			select {
+			case s.lag <- struct{}{}:
+			default:
+			}
+			metrics.StreamLagged.Inc()
 		}
 	}
 }
@@ -211,7 +217,8 @@ func (h *Hub) Subscribe(f Filter, client string) (*Subscription, error) {
 		return nil, ErrClientLimit
 	}
 	ch := make(chan domain.StreamChange, h.opts.Buffer)
-	s := &Subscription{C: ch, Start: h.seq, ch: ch, hub: h, filter: f, client: client}
+	lag := make(chan struct{}, 1)
+	s := &Subscription{C: ch, Lag: lag, Start: h.seq, ch: ch, lag: lag, hub: h, filter: f, client: client}
 	h.subs[s] = struct{}{}
 	h.clients[client]++
 	metrics.StreamSubscribers.Inc()
@@ -245,15 +252,38 @@ func (h *Hub) CatchUp(ctx context.Context, after, upTo int64, maxChanges int) ([
 // Subscription is one stream client.
 type Subscription struct {
 	// C carries matching changes in cursor order. It is closed when the
-	// subscriber is dropped for falling behind or the hub shuts down.
+	// hub shuts down.
 	C <-chan domain.StreamChange
+	// Lag signals that C overflowed and the hub stopped filling it: the
+	// reader calls Resume and replays the gap from the change log.
+	Lag <-chan struct{}
 	// Start is the cursor at registration.
 	Start int64
 
 	ch     chan domain.StreamChange
+	lag    chan struct{}
+	lagged bool // guarded by hub.mu
 	hub    *Hub
 	filter Filter
 	client string
+}
+
+// Resume ends a lag: it discards what C still holds and returns the hub
+// cursor upTo. Every change after upTo arrives on C again; the reader
+// must replay everything after the last change it sent, up to upTo,
+// with CatchUp. Only C's reader may call it.
+func (s *Subscription) Resume() (upTo int64) {
+	s.hub.mu.Lock()
+	defer s.hub.mu.Unlock()
+	for len(s.ch) > 0 {
+		<-s.ch
+	}
+	select {
+	case <-s.lag:
+	default:
+	}
+	s.lagged = false
+	return s.hub.seq
 }
 
 // Close unregisters the subscription; safe to call more than once.
@@ -270,8 +300,9 @@ func (s *Subscription) Idle() (cursor int64, ok bool) {
 	s.hub.mu.Lock()
 	defer s.hub.mu.Unlock()
 	// publish sends under the same lock that advances seq, so an empty
-	// queue here means everything up to seq was already read.
-	return s.hub.seq, len(s.ch) == 0
+	// queue here means everything up to seq was already read, unless the
+	// subscription is lagged and changes were skipped.
+	return s.hub.seq, len(s.ch) == 0 && !s.lagged
 }
 
 // Filter selects changes; zero fields match everything. Removals always
