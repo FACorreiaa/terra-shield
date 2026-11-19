@@ -56,7 +56,7 @@
 - [ ] S4.3 Strangers-count tracked in demand-hour. **Gate: 10 strangers before Phase 2+ polish.**
 
 ### Later phases
-- **Phase 2 — Web, now first to launch (ADR 22, owner 2026-11-19):** React + TypeScript (Vite+) + MapLibre GL JS 6 in `shield-app-web/`, on the same API (ADR 19). It launches before the App Store and gates S3.9a. Hosting still open: static behind Caddy, or embedded in the Go binary; decide before S3.9a.
+- **Phase 2 — Web, now first to launch (ADR 22, owner 2026-11-19):** React + TypeScript (Vite+) + MapLibre GL JS 6 in `shield-app-web/`, on the same API (ADR 19). It launches before the App Store and gates S3.9a. Hosted on **Cloudflare** (Worker via `wrangler`, Aaru's `web-deploy.yml` pattern; secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`). API hostname chosen by the owner when the web app is done.
 - **Phase 3 — Personal monitoring:** follow countries/regions, saved filters, APNs push (reuse `norviq-backend-v2/internal/platform/push/`), "what changed in 24h", optional sign-in with **Apple + Google + Email** (norviq `internal/auth` pattern; map, countries and detail keep working signed out per App Store 5.1.1(v); Apple ships with Google per 4.8; `DELETE /v1/me` for account deletion). Owner confirmed 2026-11-16: no accounts in the MVP.
 - **Phase 4 — Android:** Kotlin + Compose + MapLibre Native.
 - **AI agent (ADR 23, owner 2026-11-19), after the MVP backlog is done:** an Anthropic adapter in the backend on the official Go SDK, then the API surface, web and Apple UI for an AI agent as a first-class part of the app. Read `platform/infra/docs/llm-haiku-trial.md` first.

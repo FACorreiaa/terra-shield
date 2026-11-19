@@ -44,7 +44,7 @@
     - API client: `openapi-typescript` + `openapi-fetch` in `shield-app-web/packages/api-client`, generated from `backend/api/openapi.yaml`, like the Swift `shield-api` package.
     - Tooling: Vitest + Playwright; oxlint with every stable category; TS-Go type checking via `vp check`.
     - **Spec changes ship with both regenerated clients.** `ci-web.yml`'s `generated` job fails when `openapi.yaml` changes without `packages/api-client/src/schema.gen.ts` (regenerate with `bun run generate` in that package); `ci-apple.yml`'s `api` job does the same for Swift.
-    - Hosting is still open: a static build behind Caddy, or embedded in the Go binary (Postitheka pattern).
+    - Hosting: **Cloudflare** (owner, 2026-11-19; see ADR 22).
     - Supersedes the SvelteKit plan in the original architecture.
 20. **Live stream: a change cursor in Postgres, NOTIFY as a doorbell** (decided 2026-11-18, S1.7 + S2.6).
     - Every insert or real change of an event takes the next `event_change_seq` value into `events.change_seq`, with `change_op` (created, updated, resolved). A deletion leaves a row in `event_tombstones` on the same sequence. Tombstones are kept: deletions are rare, and keeping them makes every cursor resumable.
@@ -61,7 +61,8 @@
 22. **The web app ships first** (owner, 2026-11-19). A web page is the easiest thing to show and market before there is an App Store listing, so `shield-app-web/` launches before the Apple app reaches the store. The Apple app keeps going in parallel; nothing in M3 is cut.
     - **API go-live (S3.9a) is gated on the web launch**, not on a TestFlight build: hostname, DNS, `image.yml` with `INFRA_TOKEN`, and the `platform/infra` apps.
     - Until then the web app runs locally against a local API, configured by local environment variables. No Cloudflare token is needed yet; it is only needed if the web app ends up hosted on Cloudflare.
-    - Hosting is still open (ADR 19): a static build behind Caddy, or embedded in the Go binary. Decide before S3.9a.
+    - **Hosting: Cloudflare** (owner, 2026-11-19), following the house pattern in Aaru's `web-deploy.yml`: a Worker deployed with `wrangler` from CI, beta on green `main` and production on manual dispatch. CI needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub secrets. The API itself stays on maat.
+    - **The API hostname** is chosen by the owner once the web app is done; DNS and CORS follow from it.
 23. **AI is a first-class agent, through Anthropic** (owner, 2026-11-19). It comes after the MVP backlog is done, and the API, web and Apple app will each need work for it. Backend: an Anthropic adapter on the official Go SDK (`github.com/anthropics/anthropic-sdk-go`, https://platform.claude.com/docs/en/cli-sdks-libraries/sdks/go).
     - House rules apply (`platform/infra/docs/llm-haiku-trial.md`, read it before writing the adapter). Use the same env contract as the other apps (`ANTHROPIC_API_KEY` as a sealed secret in `horus`, `ANTHROPIC_MODEL` and the other `ANTHROPIC_*` values as literals). Send no non-default `temperature`/`top_p`/`top_k` and no assistant prefill, because Haiku 5.5 rejects them with a 400. Name types for the wire format, not the vendor. Tests use stub servers and never a real key.
 24. **Apple signing shared with Khepri; Sentry and PostHog in their own projects** (owner, 2026-11-19).
