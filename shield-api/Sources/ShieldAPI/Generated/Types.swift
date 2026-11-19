@@ -49,12 +49,14 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /v1/events/{id}`.
     /// - Remark: Generated from `#/paths//v1/events/{id}/get(getEvent)`.
     func getEvent(_ input: Operations.GetEvent.Input) async throws -> Operations.GetEvent.Output
-    /// Every country with its count of active events.
+    /// Every country with its count of active hazards (conflicts not counted, ADR 27).
     ///
     /// - Remark: HTTP `GET /v1/countries`.
     /// - Remark: Generated from `#/paths//v1/countries/get(listCountries)`.
     func listCountries(_ input: Operations.ListCountries.Input) async throws -> Operations.ListCountries.Output
     /// What is happening in one country, how serious, and how well it is covered.
+    ///
+    /// Counts, events and recent changes cover hazards; conflicts are not included (ADR 27).
     ///
     /// - Remark: HTTP `GET /v1/countries/{iso2}/summary`.
     /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)`.
@@ -143,7 +145,7 @@ extension APIProtocol {
             headers: headers
         ))
     }
-    /// Every country with its count of active events.
+    /// Every country with its count of active hazards (conflicts not counted, ADR 27).
     ///
     /// - Remark: HTTP `GET /v1/countries`.
     /// - Remark: Generated from `#/paths//v1/countries/get(listCountries)`.
@@ -151,6 +153,8 @@ extension APIProtocol {
         try await listCountries(Operations.ListCountries.Input(headers: headers))
     }
     /// What is happening in one country, how serious, and how well it is covered.
+    ///
+    /// Counts, events and recent changes cover hazards; conflicts are not included (ADR 27).
     ///
     /// - Remark: HTTP `GET /v1/countries/{iso2}/summary`.
     /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)`.
@@ -458,6 +462,9 @@ public enum Components {
                 ])
             }
         }
+        /// What happened. `conflict` is an armed-conflict event (UCDP, ADR 27), not a hazard: list, stream and country endpoints leave conflicts out unless `type` or `category` names them.
+        ///
+        ///
         /// - Remark: Generated from `#/components/schemas/EventType`.
         @frozen public enum EventType: String, Codable, Hashable, Sendable, CaseIterable {
             case earthquake = "earthquake"
@@ -473,6 +480,69 @@ public enum Components {
             case wind = "wind"
             case snowIce = "snow_ice"
             case tsunami = "tsunami"
+            case other = "other"
+            case conflict = "conflict"
+        }
+        /// A Category, or one added after this client was built; treat unknown values as "other".
+        ///
+        /// - Remark: Generated from `#/components/schemas/OpenCategory`.
+        public struct OpenCategory: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/OpenCategory/value1`.
+            public var value1: Components.Schemas.Category?
+            /// - Remark: Generated from `#/components/schemas/OpenCategory/value2`.
+            public var value2: Swift.String?
+            /// Creates a new `OpenCategory`.
+            ///
+            /// - Parameters:
+            ///   - value1:
+            ///   - value2:
+            public init(
+                value1: Components.Schemas.Category? = nil,
+                value2: Swift.String? = nil
+            ) {
+                self.value1 = value1
+                self.value2 = value2
+            }
+            public init(from decoder: any Swift.Decoder) throws {
+                var errors: [any Swift.Error] = []
+                do {
+                    self.value1 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                do {
+                    self.value2 = try decoder.decodeFromSingleValueContainer()
+                } catch {
+                    errors.append(error)
+                }
+                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                    [
+                        self.value1,
+                        self.value2
+                    ],
+                    type: Self.self,
+                    codingPath: decoder.codingPath,
+                    errors: errors
+                )
+            }
+            public func encode(to encoder: any Swift.Encoder) throws {
+                try encoder.encodeFirstNonNilValueToSingleValueContainer([
+                    self.value1,
+                    self.value2
+                ])
+            }
+        }
+        /// The map's menus, in menu order. quakes: earthquake, tsunami. weather: storm, tropical_cyclone, heavy_rain, wind, snow_ice, heat, cold, drought. floods: flood. fires: wildfire. volcanoes: volcano. conflicts: conflict. other: other.
+        ///
+        ///
+        /// - Remark: Generated from `#/components/schemas/Category`.
+        @frozen public enum Category: String, Codable, Hashable, Sendable, CaseIterable {
+            case quakes = "quakes"
+            case weather = "weather"
+            case floods = "floods"
+            case fires = "fires"
+            case volcanoes = "volcanoes"
+            case conflicts = "conflicts"
             case other = "other"
         }
         /// What kind of statement the record is (ADR 3). A detection is never a confirmed event.
@@ -573,6 +643,10 @@ public enum Components {
             public var source: Swift.String
             /// - Remark: Generated from `#/components/schemas/Event/type`.
             public var _type: Components.Schemas.OpenEventType
+            /// The map menu this event belongs to. Always sent by this server; optional only so older fixtures decode.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Event/category`.
+            public var category: Components.Schemas.OpenCategory?
             /// - Remark: Generated from `#/components/schemas/Event/kind`.
             public var kind: Components.Schemas.EventKind
             /// - Remark: Generated from `#/components/schemas/Event/status`.
@@ -651,6 +725,7 @@ public enum Components {
             ///   - id:
             ///   - source: Source id, as in /v1/sources.
             ///   - _type:
+            ///   - category: The map menu this event belongs to. Always sent by this server; optional only so older fixtures decode.
             ///   - kind:
             ///   - status:
             ///   - severity:
@@ -672,6 +747,7 @@ public enum Components {
                 id: Swift.String,
                 source: Swift.String,
                 _type: Components.Schemas.OpenEventType,
+                category: Components.Schemas.OpenCategory? = nil,
                 kind: Components.Schemas.EventKind,
                 status: Components.Schemas.EventStatus,
                 severity: Components.Schemas.Severity,
@@ -693,6 +769,7 @@ public enum Components {
                 self.id = id
                 self.source = source
                 self._type = _type
+                self.category = category
                 self.kind = kind
                 self.status = status
                 self.severity = severity
@@ -715,6 +792,7 @@ public enum Components {
                 case id
                 case source
                 case _type = "type"
+                case category
                 case kind
                 case status
                 case severity
@@ -1576,6 +1654,11 @@ public enum Components {
     }
     /// Types generated from the `#/components/parameters` section of the OpenAPI document.
     public enum Parameters {
+        /// Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for.
+        ///
+        ///
+        /// - Remark: Generated from `#/components/parameters/Category`.
+        public typealias Category = Swift.String
         /// minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian.
         ///
         ///
@@ -2488,7 +2571,12 @@ public enum Operations {
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/zoom`.
                 public var zoom: Components.Parameters.Zoom?
-                /// Comma-separated event types.
+                /// Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for.
+                ///
+                ///
+                /// - Remark: Generated from `#/paths/v1/events/GET/query/category`.
+                public var category: Components.Parameters.Category?
+                /// Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both.
                 ///
                 /// - Remark: Generated from `#/paths/v1/events/GET/query/type`.
                 public var _type: Swift.String?
@@ -2535,7 +2623,8 @@ public enum Operations {
                 /// - Parameters:
                 ///   - bbox: minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian.
                 ///   - zoom: Map zoom level; drives clustering and geometry simplification.
-                ///   - _type: Comma-separated event types.
+                ///   - category: Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for.
+                ///   - _type: Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both.
                 ///   - severity: Comma-separated severities.
                 ///   - kind: Comma-separated kinds.
                 ///   - status: Comma-separated statuses (active, resolved). Defaults to active; `active,resolved` includes both.
@@ -2549,6 +2638,7 @@ public enum Operations {
                 public init(
                     bbox: Components.Parameters.BBox? = nil,
                     zoom: Components.Parameters.Zoom? = nil,
+                    category: Components.Parameters.Category? = nil,
                     _type: Swift.String? = nil,
                     severity: Swift.String? = nil,
                     kind: Swift.String? = nil,
@@ -2563,6 +2653,7 @@ public enum Operations {
                 ) {
                     self.bbox = bbox
                     self.zoom = zoom
+                    self.category = category
                     self._type = _type
                     self.severity = severity
                     self.kind = kind
@@ -3164,7 +3255,7 @@ public enum Operations {
             }
         }
     }
-    /// Every country with its count of active events.
+    /// Every country with its count of active hazards (conflicts not counted, ADR 27).
     ///
     /// - Remark: HTTP `GET /v1/countries`.
     /// - Remark: Generated from `#/paths//v1/countries/get(listCountries)`.
@@ -3416,6 +3507,8 @@ public enum Operations {
         }
     }
     /// What is happening in one country, how serious, and how well it is covered.
+    ///
+    /// Counts, events and recent changes cover hazards; conflicts are not included (ADR 27).
     ///
     /// - Remark: HTTP `GET /v1/countries/{iso2}/summary`.
     /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)`.
@@ -4037,7 +4130,12 @@ public enum Operations {
                 ///
                 /// - Remark: Generated from `#/paths/v1/stream/GET/query/bbox`.
                 public var bbox: Components.Parameters.BBox?
-                /// Comma-separated event types.
+                /// Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for.
+                ///
+                ///
+                /// - Remark: Generated from `#/paths/v1/stream/GET/query/category`.
+                public var category: Components.Parameters.Category?
+                /// Comma-separated event types; as on /v1/events, hazards only unless conflict is named.
                 ///
                 /// - Remark: Generated from `#/paths/v1/stream/GET/query/type`.
                 public var _type: Swift.String?
@@ -4055,18 +4153,21 @@ public enum Operations {
                 ///
                 /// - Parameters:
                 ///   - bbox: minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian.
-                ///   - _type: Comma-separated event types.
+                ///   - category: Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for.
+                ///   - _type: Comma-separated event types; as on /v1/events, hazards only unless conflict is named.
                 ///   - severity: Comma-separated severities.
                 ///   - country:
                 ///   - lastEventId: Same as the Last-Event-ID header, for a first connection that cannot set headers.
                 public init(
                     bbox: Components.Parameters.BBox? = nil,
+                    category: Components.Parameters.Category? = nil,
                     _type: Swift.String? = nil,
                     severity: Swift.String? = nil,
                     country: Swift.String? = nil,
                     lastEventId: Swift.String? = nil
                 ) {
                     self.bbox = bbox
+                    self.category = category
                     self._type = _type
                     self.severity = severity
                     self.country = country

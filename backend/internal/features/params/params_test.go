@@ -2,8 +2,11 @@ package params
 
 import (
 	"net/url"
+	"slices"
 	"testing"
 	"time"
+
+	"shield/internal/domain"
 )
 
 func TestBBox(t *testing.T) {
@@ -62,6 +65,34 @@ func TestNear(t *testing.T) {
 		{"radiusKm": {"10"}},
 	} {
 		if _, err := Near(v); err == nil {
+			t.Errorf("accepted %v", v)
+		}
+	}
+}
+
+func TestTypesAndCategories(t *testing.T) {
+	cases := []struct {
+		v    url.Values
+		want []domain.EventType
+	}{
+		{url.Values{}, domain.HazardTypes()},
+		{url.Values{"type": {"conflict"}}, []domain.EventType{domain.TypeConflict}},
+		{url.Values{"category": {"conflicts"}}, []domain.EventType{domain.TypeConflict}},
+		{url.Values{"category": {"quakes,floods"}}, []domain.EventType{domain.TypeEarthquake, domain.TypeTsunami, domain.TypeFlood}},
+		{url.Values{"category": {"weather"}, "type": {"storm,earthquake"}}, []domain.EventType{domain.TypeStorm}},
+	}
+	for _, c := range cases {
+		got, err := Types(c.v)
+		if err != nil || !slices.Equal(got, c.want) {
+			t.Errorf("%v: %v %v, want %v", c.v, got, err, c.want)
+		}
+	}
+	for _, v := range []url.Values{
+		{"category": {"sport"}},
+		{"category": {"weather"}, "type": {"earthquake"}}, // nothing in common
+		{"type": {"quake"}},
+	} {
+		if _, err := Types(v); err == nil {
 			t.Errorf("accepted %v", v)
 		}
 	}

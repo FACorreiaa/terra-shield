@@ -88,3 +88,46 @@ func TestCountryStatsAndSummary(t *testing.T) {
 		t.Fatalf("unknown country: %v", err)
 	}
 }
+
+// Conflicts are not hazards: country counts, summaries and changes leave
+// them out (ADR 27), while a list naming the type still finds them.
+func TestCountryStatsLeaveOutConflicts(t *testing.T) {
+	pool := testutil.DB(t)
+	events := seedEvents(t, pool)
+	ctx := context.Background()
+	countries := store.NewCountryRepository(pool)
+	before, err := countries.Summary(ctx, "PT", listNow.Add(-24*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clash := quake("clash-pt", -8.5, 39.5, 0, listNow)
+	clash.Type, clash.Severity = domain.TypeConflict, "extreme"
+	if _, err := events.Upsert(ctx, "test", []domain.Event{clash}); err != nil {
+		t.Fatal(err)
+	}
+	clash.Title = "clash, revised"
+	if _, err := events.Upsert(ctx, "test", []domain.Event{clash}); err != nil {
+		t.Fatal(err)
+	}
+
+	all, err := countries.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pt := all[0] // by name: Portugal, Spain
+	if pt.ISO2 != "PT" || pt.ActiveEvents != before.Country.ActiveEvents || pt.MaxSeverity != before.Country.MaxSeverity {
+		t.Fatalf("PT %+v %v; before %+v", pt, err, before.Country)
+	}
+	after, err := countries.Summary(ctx, "PT", listNow.Add(-24*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(after.Counts, before.Counts) || !slices.Equal(ids(after.Events), ids(before.Events)) || len(after.RecentChanges) != len(before.RecentChanges) {
+		t.Errorf("summary changed: %+v / %v / %d changes", after.Counts, ids(after.Events), len(after.RecentChanges))
+	}
+	recs, _, err := events.List(ctx, domain.EventQuery{Types: []domain.EventType{domain.TypeConflict}, Country: "PT", Limit: 10})
+	if err != nil || !slices.Equal(ids(recs), []string{"clash-pt"}) {
+		t.Errorf("conflict list %v %v", ids(recs), err)
+	}
+}

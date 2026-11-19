@@ -470,6 +470,13 @@ public struct Client: APIProtocol {
                     in: &request,
                     style: .form,
                     explode: true,
+                    name: "category",
+                    value: input.query.category
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
                     name: "type",
                     value: input.query._type
                 )
@@ -894,7 +901,7 @@ public struct Client: APIProtocol {
             }
         )
     }
-    /// Every country with its count of active events.
+    /// Every country with its count of active hazards (conflicts not counted, ADR 27).
     ///
     /// - Remark: HTTP `GET /v1/countries`.
     /// - Remark: Generated from `#/paths//v1/countries/get(listCountries)`.
@@ -1041,6 +1048,8 @@ public struct Client: APIProtocol {
         )
     }
     /// What is happening in one country, how serious, and how well it is covered.
+    ///
+    /// Counts, events and recent changes cover hazards; conflicts are not included (ADR 27).
     ///
     /// - Remark: HTTP `GET /v1/countries/{iso2}/summary`.
     /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)`.
@@ -1451,6 +1460,13 @@ public struct Client: APIProtocol {
                     explode: true,
                     name: "bbox",
                     value: input.query.bbox
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "category",
+                    value: input.query.category
                 )
                 try converter.setQueryItemAsURI(
                     in: &request,

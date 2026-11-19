@@ -63,7 +63,7 @@ const countryRecentChanges = `-- name: CountryRecentChanges :many
 SELECT r.event_id, e.title, r.at, r.changes
 FROM event_revisions r
 JOIN events e ON e.id = r.event_id
-WHERE r.at >= $1
+WHERE r.at >= $1 AND e.type <> 'conflict'
   AND EXISTS (SELECT 1 FROM event_countries ec WHERE ec.event_id = r.event_id AND ec.iso2 = $2::text)
 ORDER BY r.at DESC, r.id DESC
 LIMIT $3
@@ -111,7 +111,7 @@ const countrySeverityCounts = `-- name: CountrySeverityCounts :many
 SELECT e.type, e.severity, count(*)::integer AS events
 FROM events e
 JOIN event_countries ec ON ec.event_id = e.id
-WHERE ec.iso2 = $1::text AND e.status = 'active'
+WHERE ec.iso2 = $1::text AND e.status = 'active' AND e.type <> 'conflict'
 GROUP BY e.type, e.severity
 ORDER BY array_position(ARRAY['minor', 'moderate', 'severe', 'extreme'], e.severity) DESC, events DESC, e.type
 `
@@ -122,8 +122,8 @@ type CountrySeverityCountsRow struct {
 	Events   int32
 }
 
-// Active events in or near the country, by type and severity; most severe
-// first.
+// Active hazards in or near the country, by type and severity; most
+// severe first. Conflicts are not hazards (ADR 27).
 func (q *Queries) CountrySeverityCounts(ctx context.Context, iso2 string) ([]CountrySeverityCountsRow, error) {
 	rows, err := q.db.Query(ctx, countrySeverityCounts, iso2)
 	if err != nil {
