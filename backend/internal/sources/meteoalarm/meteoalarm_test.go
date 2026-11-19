@@ -34,10 +34,11 @@ func read(t *testing.T, name string) []byte {
 // feed (English and German blocks kept): one per awareness type, plus the
 // red and orange ones.
 func TestParseRecordedFeed(t *testing.T) {
-	warnings, _, err := Parse(read(t, "feeds-germany.json"), recordedAt)
+	feed, err := Parse(read(t, "feeds-germany.json"), recordedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
+	warnings := feed.Warnings
 	if len(warnings) != 8 {
 		t.Fatalf("%d warnings, want 8", len(warnings))
 	}
@@ -98,9 +99,14 @@ const edgeCases = `{"warnings": [
 ]}`
 
 func TestParseEdgeCases(t *testing.T) {
-	warnings, skipped, err := Parse([]byte(edgeCases), recordedAt)
+	feed, err := Parse([]byte(edgeCases), recordedAt)
 	if err != nil {
 		t.Fatal(err)
+	}
+	warnings, skipped := feed.Warnings, feed.Skipped
+	// Every identifier counts as listed, stored or not (green, exercise).
+	if !feed.Listed["green"] || !feed.Listed["exercise"] || !feed.Listed["pt-heat"] || feed.Listed["old-1"] {
+		t.Errorf("listed %v", feed.Listed)
 	}
 	// green is dropped by design and uncounted; the exercise is not a warning.
 	if len(skipped) != 1 || skipped[SkipNoArea] != 1 {
@@ -197,7 +203,15 @@ type fakeStore struct {
 	upserted []domain.Event
 	calls    int // Upsert calls: one per country that answered
 	deleted  []string
-	order    []string // "upsert" and "delete", in call order
+	order    []string            // "upsert" and "delete", in call order
+	active   map[string][]string // country → active ids, for ActiveIDsWithAttr
+}
+
+func (f *fakeStore) ActiveIDsWithAttr(_ context.Context, _, key, value string) ([]string, error) {
+	if key != "country" {
+		return nil, fmt.Errorf("unexpected attr %q", key)
+	}
+	return f.active[value], nil
 }
 
 func (f *fakeStore) Upsert(_ context.Context, _ string, events []domain.Event) (int, error) {
@@ -320,5 +334,41 @@ func TestWarningTitle(t *testing.T) {
 		if got != c.want || used != c.used {
 			t.Errorf("%s: %q used=%v, want %q used=%v", c.name, got, used, c.want, c.used)
 		}
+	}
+}
+
+// TestPollReconcilesSnapshot: an active warning the country's feed no
+// longer lists is removed; a replaced one the feed still lists is not
+// stored again; an empty feed removes nothing.
+func TestPollReconcilesSnapshot(t *testing.T) {
+	replacedStillListed := `{"warnings": [
+ {"alert": {"identifier": "old-yellow", "status": "Actual", "msgType": "Alert", "sent": "2026-11-16T09:00:00Z", "info": [
+   {"language": "en", "headline": "Wind", "expires": "2026-11-17T00:00:00Z", "parameter": [{"valueName": "awareness_level", "value": "2; yellow; Moderate"}],
+    "area": [{"areaDesc": "A", "geocode": [{"valueName": "EMMA_ID", "value": "PT001"}]}]}]}},
+ {"alert": {"identifier": "new-orange", "status": "Actual", "msgType": "Update", "sent": "2026-11-16T10:00:00Z",
+   "references": "sender,old-yellow,2026-11-16T09:00:00Z", "info": [
+   {"language": "en", "headline": "Wind", "expires": "2026-11-17T00:00:00Z", "parameter": [{"valueName": "awareness_level", "value": "3; orange; Severe"}],
+    "area": [{"areaDesc": "A", "geocode": [{"valueName": "EMMA_ID", "value": "PT001"}]}]}]}}
+]}`
+	s, store := newTestSource(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/feeds-portugal":
+			_, _ = w.Write([]byte(replacedStillListed))
+		case "/feeds-spain":
+			_, _ = w.Write([]byte(`{"warnings": []}`))
+		}
+	}, Country{"PT", "portugal"}, Country{"ES", "spain"})
+	store.active = map[string][]string{
+		"PT": {"new-orange", "old-yellow", "vanished"},
+		"ES": {"es-1"},
+	}
+	if _, err := s.Poll(t.Context(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.upserted) != 1 || store.upserted[0].SourceEventID != "new-orange" {
+		t.Fatalf("upserted %v, want only new-orange", store.upserted)
+	}
+	if got := fmt.Sprint(store.deleted); got != "[old-yellow vanished]" {
+		t.Fatalf("deleted %s, want the replaced and the vanished PT warnings, nothing from the empty ES feed", got)
 	}
 }

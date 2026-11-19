@@ -127,19 +127,26 @@ type AreaResolver interface {
 	Resolve(ctx context.Context, areas []Area) (geom json.RawMessage, ok bool, err error)
 }
 
+// Store is what the adapter writes to: events, plus the active ones it
+// stored for a country, to reconcile against each full-snapshot feed.
+type Store interface {
+	ingest.EventStore
+	ActiveIDsWithAttr(ctx context.Context, sourceID, key, value string) ([]string, error)
+}
+
 // Source is the MeteoAlarm adapter.
 type Source struct {
 	base      string
 	countries []Country
 	client    *fetch.Client
-	store     ingest.EventStore
+	store     Store
 	areas     AreaResolver
 	logger    *slog.Logger
 	now       func() time.Time
 }
 
 // New builds the adapter over every member feed.
-func New(client *fetch.Client, store ingest.EventStore, areas AreaResolver, logger *slog.Logger) *Source {
+func New(client *fetch.Client, store Store, areas AreaResolver, logger *slog.Logger) *Source {
 	return &Source{
 		base: FeedBase, countries: Countries, client: client, store: store,
 		areas: areas, logger: logger, now: time.Now,
@@ -173,6 +180,11 @@ func (s *Source) Info() domain.SourceInfo {
 // after, so an updated warning never sits beside its old version while the
 // other countries are read. All of Europe in one transaction would hold
 // the stream's change lock long enough to delay every other source.
+//
+// Each feed is a full snapshot (expired warnings included), so an active
+// warning a country's feed no longer lists has been withdrawn or replaced:
+// it is removed too. On 2026-11-19, 43 Croatian warnings left the feed
+// that way with nothing referencing them.
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	now := s.now()
 	var (
@@ -185,16 +197,24 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 			events     []domain.Event
 			superseded []string
 		)
-		warnings, err := s.country(ctx, c, now)
+		feed, err := s.country(ctx, c, now)
 		if err != nil {
 			s.logger.Warn("meteoalarm country failed", "country", c.ISO2, "error", err)
 			failures = append(failures, fmt.Errorf("%s: %w", c.ISO2, err))
 			continue
 		}
-		for i := range warnings {
-			w := &warnings[i]
-			superseded = append(superseded, w.Supersedes...)
-			if w.Cancel {
+		replaced := map[string]bool{}
+		for i := range feed.Warnings {
+			for _, id := range feed.Warnings[i].Supersedes {
+				replaced[id] = true
+				superseded = append(superseded, id)
+			}
+		}
+		for i := range feed.Warnings {
+			w := &feed.Warnings[i]
+			// A replaced warning the feed still lists would be stored and
+			// then deleted on every poll.
+			if w.Cancel || replaced[w.SourceEventID] {
 				continue
 			}
 			geom, ok, err := s.areas.Resolve(ctx, w.Areas)
@@ -212,7 +232,11 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		if err != nil {
 			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
 		}
-		d, err := s.store.Delete(ctx, ID, superseded)
+		gone, err := s.unlisted(ctx, c, feed.Listed, replaced)
+		if err != nil {
+			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
+		}
+		d, err := s.store.Delete(ctx, ID, append(superseded, gone...))
 		if err != nil {
 			return ingest.Result{}, fmt.Errorf("%s: %w", c.ISO2, err)
 		}
@@ -228,25 +252,50 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 	return ingest.Result{Upserted: changed}, nil
 }
 
-func (s *Source) country(ctx context.Context, c Country, now time.Time) ([]Warning, error) {
+// unlisted returns the country's active warnings its feed no longer lists,
+// leaving out those a record in it replaces (already being removed). An
+// empty feed proves nothing (a member outage can look like one), so it
+// removes nothing.
+func (s *Source) unlisted(ctx context.Context, c Country, listed, replaced map[string]bool) ([]string, error) {
+	if len(listed) == 0 {
+		return nil, nil
+	}
+	active, err := s.store.ActiveIDsWithAttr(ctx, ID, "country", c.ISO2)
+	if err != nil {
+		return nil, err
+	}
+	var gone []string
+	for _, id := range active {
+		if !listed[id] && !replaced[id] {
+			gone = append(gone, id)
+		}
+	}
+	if len(gone) > 0 {
+		s.logger.Info("meteoalarm warnings left the feed", "country", c.ISO2, "count", len(gone))
+	}
+	return gone, nil
+}
+
+func (s *Source) country(ctx context.Context, c Country, now time.Time) (Parsed, error) {
 	resp, err := s.client.Get(ctx, s.base+c.Slug, domain.Validators{})
 	if err != nil {
-		return nil, err
+		return Parsed{}, err
 	}
-	warnings, skipped, err := Parse(resp.Body, now)
+	feed, err := Parse(resp.Body, now)
 	if err != nil {
-		return nil, err
+		return Parsed{}, err
 	}
-	for reason, n := range skipped {
+	for reason, n := range feed.Skipped {
 		metrics.SourceSkipped.WithLabelValues(ID, reason).Add(float64(n))
 	}
+	warnings := feed.Warnings
 	for i := range warnings {
 		if !warnings[i].Cancel {
 			warnings[i].Attrs["country"] = c.ISO2
 			warnings[i].CountryRule = domain.CountryRule{Issuer: c.ISO2, MinShare: NeighborShare}
 		}
 	}
-	return warnings, nil
+	return feed, nil
 }
 
 // Warning is one parsed alert. Geometry is left empty for Poll to resolve
@@ -324,17 +373,28 @@ const (
 	SkipInvalid = "invalid" // no info block, unknown level, unparsable time
 )
 
+// Parsed is one country feed, normalized.
+type Parsed struct {
+	Warnings []Warning
+	Skipped  map[string]int  // records dropped, by reason
+	Listed   map[string]bool // every identifier in the feed, stored or not
+}
+
 // Parse normalizes one country feed. now decides which warnings have
-// expired. skipped counts the records dropped, by reason.
-func Parse(body []byte, now time.Time) (warnings []Warning, skipped map[string]int, err error) {
+// expired.
+func Parse(body []byte, now time.Time) (Parsed, error) {
 	var f feed
 	if err := json.Unmarshal(body, &f); err != nil {
-		return nil, nil, fmt.Errorf("meteoalarm: decode: %w", err)
+		return Parsed{}, fmt.Errorf("meteoalarm: decode: %w", err)
 	}
-	skipped = map[string]int{}
+	skipped := map[string]int{}
+	listed := make(map[string]bool, len(f.Warnings))
 	var out []Warning
 	for i := range f.Warnings {
 		a := &f.Warnings[i].Alert
+		if a.Identifier != "" {
+			listed[a.Identifier] = true
+		}
 		if a.Identifier == "" || !strings.EqualFold(a.Status, "Actual") {
 			continue // exercises, tests, drafts
 		}
@@ -368,7 +428,7 @@ func Parse(body []byte, now time.Time) (warnings []Warning, skipped map[string]i
 			out = append(out, w)
 		}
 	}
-	return out, skipped, nil
+	return Parsed{Warnings: out, Skipped: skipped, Listed: listed}, nil
 }
 
 const skipGreen = "green"

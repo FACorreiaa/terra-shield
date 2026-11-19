@@ -12,6 +12,39 @@ import (
 	"github.com/google/uuid"
 )
 
+const activeEventIDsWithAttr = `-- name: ActiveEventIDsWithAttr :many
+SELECT source_event_id FROM events
+WHERE source_id = $1 AND status = 'active' AND attrs ->> $2::text = $3::text
+`
+
+type ActiveEventIDsWithAttrParams struct {
+	SourceID  string
+	AttrKey   string
+	AttrValue string
+}
+
+// A source's active events whose attrs[key] is value; MeteoAlarm uses it
+// to find what a country's full-snapshot feed no longer lists.
+func (q *Queries) ActiveEventIDsWithAttr(ctx context.Context, arg ActiveEventIDsWithAttrParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, activeEventIDsWithAttr, arg.SourceID, arg.AttrKey, arg.AttrValue)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var source_event_id string
+		if err := rows.Scan(&source_event_id); err != nil {
+			return nil, err
+		}
+		items = append(items, source_event_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const assignEventCountries = `-- name: AssignEventCountries :exec
 WITH e AS (
     SELECT geom AS geog, geom::geometry AS g, ST_Area(geom) AS m2,
