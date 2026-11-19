@@ -27,6 +27,7 @@ type Event struct {
 	ID                  string           `json:"id"`
 	Source              string           `json:"source"`
 	Type                domain.EventType `json:"type"`
+	Category            domain.Category  `json:"category"`
 	Kind                domain.Kind      `json:"kind"`
 	Status              domain.Status    `json:"status"`
 	Severity            string           `json:"severity"`
@@ -117,6 +118,7 @@ func FromRecord(r *domain.EventRecord) Event {
 		ID:                  r.ID,
 		Source:              r.SourceID,
 		Type:                r.Type,
+		Category:            r.Type.Category(),
 		Kind:                r.Kind,
 		Status:              r.Status,
 		Severity:            r.Severity,

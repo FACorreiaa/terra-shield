@@ -5,7 +5,8 @@ import (
 	"time"
 )
 
-// EventType is the hazard. Values match the events.type check constraint.
+// EventType is what happened: a hazard, or an armed conflict (ADR 27).
+// Values match the events.type check constraint.
 type EventType string
 
 // Event types.
@@ -24,6 +25,7 @@ const (
 	TypeSnowIce         EventType = "snow_ice"
 	TypeTsunami         EventType = "tsunami"
 	TypeOther           EventType = "other"
+	TypeConflict        EventType = "conflict"
 )
 
 // Kind says what sort of statement a record is (ADR 3).
@@ -91,7 +93,7 @@ func PointGeometry(lon, lat float64) json.RawMessage {
 func (t EventType) Valid() bool {
 	switch t {
 	case TypeEarthquake, TypeWildfire, TypeFlood, TypeStorm, TypeTropicalCyclone, TypeVolcano, TypeDrought,
-		TypeHeat, TypeCold, TypeHeavyRain, TypeWind, TypeSnowIce, TypeTsunami, TypeOther:
+		TypeHeat, TypeCold, TypeHeavyRain, TypeWind, TypeSnowIce, TypeTsunami, TypeOther, TypeConflict:
 		return true
 	}
 	return false

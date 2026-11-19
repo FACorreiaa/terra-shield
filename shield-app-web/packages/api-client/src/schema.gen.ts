@@ -133,7 +133,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every country with its count of active events. */
+        /** Every country with its count of active hazards (conflicts not counted, ADR 27). */
         get: operations["listCountries"];
         put?: never;
         post?: never;
@@ -150,7 +150,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** What is happening in one country, how serious, and how well it is covered. */
+        /**
+         * What is happening in one country, how serious, and how well it is covered.
+         * @description Counts, events and recent changes cover hazards; conflicts are not included (ADR 27).
+         */
         get: operations["getCountrySummary"];
         put?: never;
         post?: never;
@@ -241,8 +244,18 @@ export interface components {
         };
         /** @description An EventType, or a type added after this client was built: treat unknown values as "other". New types are added without a new API version (ADR 18). */
         OpenEventType: components["schemas"]["EventType"] | string;
-        /** @enum {string} */
-        EventType: "earthquake" | "wildfire" | "flood" | "storm" | "tropical_cyclone" | "volcano" | "drought" | "heat" | "cold" | "heavy_rain" | "wind" | "snow_ice" | "tsunami" | "other";
+        /**
+         * @description What happened. `conflict` is an armed-conflict event (UCDP, ADR 27), not a hazard: list, stream and country endpoints leave conflicts out unless `type` or `category` names them.
+         * @enum {string}
+         */
+        EventType: "earthquake" | "wildfire" | "flood" | "storm" | "tropical_cyclone" | "volcano" | "drought" | "heat" | "cold" | "heavy_rain" | "wind" | "snow_ice" | "tsunami" | "other" | "conflict";
+        /** @description A Category, or one added after this client was built; treat unknown values as "other". */
+        OpenCategory: components["schemas"]["Category"] | string;
+        /**
+         * @description The map's menus, in menu order. quakes: earthquake, tsunami. weather: storm, tropical_cyclone, heavy_rain, wind, snow_ice, heat, cold, drought. floods: flood. fires: wildfire. volcanoes: volcano. conflicts: conflict. other: other.
+         * @enum {string}
+         */
+        Category: "quakes" | "weather" | "floods" | "fires" | "volcanoes" | "conflicts" | "other";
         /**
          * @description What kind of statement the record is (ADR 3). A detection is never a confirmed event.
          * @enum {string}
@@ -283,6 +296,8 @@ export interface components {
              */
             source: string;
             type: components["schemas"]["OpenEventType"];
+            /** @description The map menu this event belongs to. Always sent by this server; optional only so older fixtures decode. */
+            category?: components["schemas"]["OpenCategory"];
             kind: components["schemas"]["EventKind"];
             status: components["schemas"]["EventStatus"];
             severity: components["schemas"]["Severity"];
@@ -539,6 +554,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for. */
+        Category: string;
         /** @description minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian. */
         BBox: string;
         /** @description Map zoom level; drives clustering and geometry simplification. */
@@ -678,7 +695,9 @@ export interface operations {
                 bbox?: components["parameters"]["BBox"];
                 /** @description Map zoom level; drives clustering and geometry simplification. */
                 zoom?: components["parameters"]["Zoom"];
-                /** @description Comma-separated event types. */
+                /** @description Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for. */
+                category?: components["parameters"]["Category"];
+                /** @description Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both. */
                 type?: string;
                 /** @description Comma-separated severities. */
                 severity?: string;
@@ -852,7 +871,9 @@ export interface operations {
             query?: {
                 /** @description minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian. */
                 bbox?: components["parameters"]["BBox"];
-                /** @description Comma-separated event types. */
+                /** @description Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for. */
+                category?: components["parameters"]["Category"];
+                /** @description Comma-separated event types; as on /v1/events, hazards only unless conflict is named. */
                 type?: string;
                 /** @description Comma-separated severities. */
                 severity?: string;

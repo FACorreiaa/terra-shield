@@ -303,3 +303,25 @@ func TestStreamErrors(t *testing.T) {
 		t.Errorf("no broker: %d", w.Code)
 	}
 }
+
+// Conflicts are not hazards: a stream naming no type or category skips
+// them; category=conflicts carries them (ADR 27).
+func TestStreamDefaultsToHazards(t *testing.T) {
+	src := &fakeLog{up: make(chan struct{})}
+	ts := serve(t, src, time.Hour)
+	_, _, hazards := open(t, ts, "", "")
+	_, _, conflicts := open(t, ts, "?category=conflicts", "")
+	for _, next := range []func() msg{hazards, conflicts} {
+		next() // retry
+		if m := next(); m.event != "ready" {
+			t.Fatalf("ready %+v", m)
+		}
+	}
+	src.add(change(1, "clash", domain.TypeConflict, 0, 0), change(2, "quake", domain.TypeEarthquake, 0, 0))
+	if m := hazards(); m.id != "2" {
+		t.Fatalf("hazard stream got %+v, want the quake", m)
+	}
+	if m := conflicts(); m.id != "1" || !strings.Contains(m.data, `"category":"conflicts"`) {
+		t.Fatalf("conflict stream got %+v", m)
+	}
+}

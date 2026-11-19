@@ -44,11 +44,46 @@ func List[T comparable](v url.Values, name string, parse func(string) (T, bool))
 	return out, nil
 }
 
-// Types reads "type": known event types.
+// Types reads "type" (event types) and "category" (menus, each standing
+// for its types) into the types to match. Neither gives every hazard type:
+// conflicts appear only when named (ADR 27). Both match the types in
+// both; none in common is a 400, never "anything".
 func Types(v url.Values) ([]domain.EventType, error) {
-	return List(v, "type", func(s string) (domain.EventType, bool) {
+	types, err := List(v, "type", func(s string) (domain.EventType, bool) {
 		return domain.EventType(s), domain.EventType(s).Valid()
 	})
+	if err != nil {
+		return nil, err
+	}
+	cats, err := List(v, "category", func(s string) (domain.Category, bool) {
+		return domain.Category(s), domain.Category(s).Valid()
+	})
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case len(types) == 0 && len(cats) == 0:
+		return domain.HazardTypes(), nil
+	case len(cats) == 0:
+		return types, nil
+	}
+	var inCats []domain.EventType
+	for _, c := range cats {
+		inCats = append(inCats, c.Types()...)
+	}
+	if len(types) == 0 {
+		return inCats, nil
+	}
+	var both []domain.EventType
+	for _, t := range types {
+		if slices.Contains(inCats, t) {
+			both = append(both, t)
+		}
+	}
+	if len(both) == 0 {
+		return nil, httpx.BadRequest("type and category have no type in common")
+	}
+	return both, nil
 }
 
 // Severities reads "severity": minor, moderate, severe, extreme.

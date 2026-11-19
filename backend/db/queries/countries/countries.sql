@@ -8,12 +8,12 @@ SELECT * FROM country_stats ORDER BY name;
 SELECT * FROM country_stats WHERE iso2 = @iso2::text;
 
 -- name: CountrySeverityCounts :many
--- Active events in or near the country, by type and severity; most severe
--- first.
+-- Active hazards in or near the country, by type and severity; most
+-- severe first. Conflicts are not hazards (ADR 27).
 SELECT e.type, e.severity, count(*)::integer AS events
 FROM events e
 JOIN event_countries ec ON ec.event_id = e.id
-WHERE ec.iso2 = @iso2::text AND e.status = 'active'
+WHERE ec.iso2 = @iso2::text AND e.status = 'active' AND e.type <> 'conflict'
 GROUP BY e.type, e.severity
 ORDER BY array_position(ARRAY['minor', 'moderate', 'severe', 'extreme'], e.severity) DESC, events DESC, e.type;
 
@@ -31,7 +31,7 @@ ORDER BY s.id;
 SELECT r.event_id, e.title, r.at, r.changes
 FROM event_revisions r
 JOIN events e ON e.id = r.event_id
-WHERE r.at >= @since
+WHERE r.at >= @since AND e.type <> 'conflict'
   AND EXISTS (SELECT 1 FROM event_countries ec WHERE ec.event_id = r.event_id AND ec.iso2 = @iso2::text)
 ORDER BY r.at DESC, r.id DESC
 LIMIT @max_rows;

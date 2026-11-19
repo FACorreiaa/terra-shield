@@ -360,3 +360,17 @@ func TestListNear(t *testing.T) {
 		t.Fatalf("distance without near: %s", w.Body)
 	}
 }
+
+func TestListDefaultsToHazards(t *testing.T) {
+	l := &fakeLister{recs: []domain.EventRecord{rec("q", "minor", 0, 0)}}
+	w := get(t, l, "/v1/events", nil)
+	if w.Code != http.StatusOK || slices.Contains(l.got.Types, domain.TypeConflict) || len(l.got.Types) != len(domain.HazardTypes()) {
+		t.Fatalf("%d types %v", w.Code, l.got.Types)
+	}
+	if !strings.Contains(w.Body.String(), `"category":"quakes"`) {
+		t.Fatalf("no category in %s", w.Body)
+	}
+	if w := get(t, l, "/v1/events?category=conflicts", nil); w.Code != http.StatusOK || !slices.Equal(l.got.Types, []domain.EventType{domain.TypeConflict}) {
+		t.Fatalf("conflicts %d %v", w.Code, l.got.Types)
+	}
+}

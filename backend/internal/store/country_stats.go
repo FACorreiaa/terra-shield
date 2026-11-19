@@ -74,7 +74,7 @@ func (r *CountryRepository) Summary(ctx context.Context, iso2 string, since time
 	}
 
 	if s.Events, _, err = listEvents(ctx, tx, domain.EventQuery{
-		Country: iso2, Statuses: []domain.Status{domain.StatusActive}, Limit: summaryEvents,
+		Country: iso2, Types: domain.HazardTypes(), Statuses: []domain.Status{domain.StatusActive}, Limit: summaryEvents,
 	}); err != nil {
 		return s, err
 	}

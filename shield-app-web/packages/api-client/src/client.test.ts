@@ -62,5 +62,6 @@ describe(hazardType, () => {
   it("keeps known types and maps unknown ones to other", () => {
     expect(hazardType("volcano")).toBe("volcano");
     expect(hazardType("landslide")).toBe("other");
+    expect(hazardType("conflict")).toBe("other");
   });
 });
