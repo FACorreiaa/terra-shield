@@ -25,7 +25,7 @@ type listParams struct {
 // parseListParams validates every query parameter of GET /v1/events; a
 // bad one is a 400 naming it, never silently ignored.
 func parseListParams(v url.Values) (listParams, error) {
-	p := listParams{query: domain.EventQuery{Status: domain.StatusActive, Limit: defaultLimit}}
+	p := listParams{query: domain.EventQuery{Statuses: []domain.Status{domain.StatusActive}, Limit: defaultLimit}}
 	q := &p.query
 
 	var err error
@@ -53,11 +53,13 @@ func parseListParams(v url.Values) (listParams, error) {
 		return p, err
 	}
 
-	if s := v.Get("status"); s != "" {
-		if !domain.Status(s).Valid() {
-			return p, httpx.BadRequest("status must be active or resolved")
+	// Absent or empty keeps the default: active only.
+	if v.Get("status") != "" {
+		if q.Statuses, err = params.List(v, "status", func(s string) (domain.Status, bool) {
+			return domain.Status(s), domain.Status(s).Valid()
+		}); err != nil {
+			return p, err
 		}
-		q.Status = domain.Status(s)
 	}
 	if q.Country, err = params.Country(v); err != nil {
 		return p, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -82,7 +83,7 @@ func get(t *testing.T, l Repository, target string, header http.Header) *httptes
 func TestParseListParams(t *testing.T) {
 	p, err := parseListParams(url.Values{
 		"bbox": {"170,-20,-170,-10"}, "zoom": {"4"}, "type": {"earthquake, tsunami,,earthquake"},
-		"severity": {"severe,extreme"}, "kind": {"warning"}, "status": {"resolved"}, "source": {"usgs"},
+		"severity": {"severe,extreme"}, "kind": {"warning"}, "status": {"active,resolved"}, "source": {"usgs"},
 		"country": {"pt"}, "since": {"2026-11-15T00:00:00+01:00"}, "until": {"2026-11-16T00:00:00Z"}, "limit": {"20"},
 	})
 	if err != nil {
@@ -90,13 +91,13 @@ func TestParseListParams(t *testing.T) {
 	}
 	q := p.query
 	if *p.zoom != 4 || q.BBox.MinLon != 170 || q.BBox.MaxLon != -170 || len(q.Types) != 2 || q.Severities[1] != "extreme" ||
-		q.Kinds[0] != domain.KindWarning || q.Status != domain.StatusResolved || q.Sources[0] != "usgs" ||
+		q.Kinds[0] != domain.KindWarning || fmt.Sprint(q.Statuses) != "[active resolved]" || q.Sources[0] != "usgs" ||
 		q.Country != "PT" || !q.Since.Equal(time.Date(2026, 11, 14, 23, 0, 0, 0, time.UTC)) || q.Limit != 20 {
 		t.Fatalf("%+v zoom %v", q, *p.zoom)
 	}
 
 	defaults, _ := parseListParams(url.Values{})
-	if defaults.query.Status != domain.StatusActive || defaults.query.Limit != 500 || defaults.zoom != nil {
+	if fmt.Sprint(defaults.query.Statuses) != "[active]" || defaults.query.Limit != 500 || defaults.zoom != nil {
 		t.Fatalf("defaults %+v", defaults)
 	}
 

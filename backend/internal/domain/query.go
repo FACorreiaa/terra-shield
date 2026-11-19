@@ -47,7 +47,7 @@ type EventQuery struct {
 	Severities []string
 	Kinds      []Kind
 	Sources    []string
-	Status     Status // "" means any
+	Statuses   []Status
 	Country    string // ISO2
 	Since      *time.Time
 	Until      *time.Time

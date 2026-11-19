@@ -671,8 +671,8 @@ export interface operations {
                 severity?: string;
                 /** @description Comma-separated kinds. */
                 kind?: string;
-                /** @description Defaults to active. */
-                status?: components["schemas"]["EventStatus"];
+                /** @description Comma-separated statuses (active, resolved). Defaults to active; `active,resolved` includes both. */
+                status?: string;
                 /** @description Comma-separated source ids. */
                 source?: string;
                 /** @description ISO 3166-1 alpha-2; matches events within the country or nearby offshore. */

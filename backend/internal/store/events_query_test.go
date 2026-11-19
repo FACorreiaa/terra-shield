@@ -71,12 +71,22 @@ func TestEventListFiltersAndOrder(t *testing.T) {
 	}{
 		{
 			"active, severity then recency",
-			domain.EventQuery{Status: domain.StatusActive},
+			domain.EventQuery{Statuses: []domain.Status{domain.StatusActive}},
 			[]string{"fiji-east", "drought-es", "quake-pt", "quake-off-pt", "fiji-west"},
 		},
 		{
 			"any status",
 			domain.EventQuery{},
+			[]string{"resolved-pt", "fiji-east", "drought-es", "quake-pt", "quake-off-pt", "fiji-west"},
+		},
+		{
+			"resolved only",
+			domain.EventQuery{Statuses: []domain.Status{domain.StatusResolved}},
+			[]string{"resolved-pt"},
+		},
+		{
+			"active and resolved",
+			domain.EventQuery{Statuses: []domain.Status{domain.StatusActive, domain.StatusResolved}},
 			[]string{"resolved-pt", "fiji-east", "drought-es", "quake-pt", "quake-off-pt", "fiji-west"},
 		},
 		{
@@ -89,7 +99,7 @@ func TestEventListFiltersAndOrder(t *testing.T) {
 		{"sources", domain.EventQuery{Sources: []string{"nope"}}, nil},
 		{
 			"country includes nearby",
-			domain.EventQuery{Country: "PT", Status: domain.StatusActive},
+			domain.EventQuery{Country: "PT", Statuses: []domain.Status{domain.StatusActive}},
 			[]string{"quake-pt", "quake-off-pt"},
 		},
 		{

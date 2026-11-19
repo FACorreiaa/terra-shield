@@ -156,8 +156,8 @@ func listFilters(b *sqlBuilder, q *domain.EventQuery) string {
 	if len(q.Sources) > 0 {
 		where = append(where, "e.source_id = ANY("+b.arg(q.Sources)+")")
 	}
-	if q.Status != "" {
-		where = append(where, "e.status = "+b.arg(string(q.Status)))
+	if len(q.Statuses) > 0 {
+		where = append(where, "e.status = ANY("+b.arg(strs(q.Statuses))+")")
 	}
 	if q.Country != "" {
 		where = append(where, "EXISTS (SELECT 1 FROM event_countries ec WHERE ec.event_id = e.id AND ec.iso2 = "+b.arg(q.Country)+")")
