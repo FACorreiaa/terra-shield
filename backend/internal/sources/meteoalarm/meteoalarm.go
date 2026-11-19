@@ -135,6 +135,7 @@ type Store interface {
 	ingest.EventStore
 	ActiveIDsWithAttr(ctx context.Context, sourceID, key, value string) ([]string, error)
 	Resolve(ctx context.Context, sourceID string, sourceEventIDs []string, at time.Time) (int, error)
+	ResolveExpired(ctx context.Context, sourceID string, now time.Time) (int, error)
 }
 
 // Source is the MeteoAlarm adapter.
@@ -251,6 +252,14 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		}
 		changed += n + d + ended
 	}
+	// A country whose feed keeps failing would keep its warnings past
+	// their end (Ukraine and Switzerland failed on 2026-11-19). Swept even
+	// when every feed failed: that is when it matters most.
+	expired, err := s.store.ResolveExpired(ctx, ID, now)
+	if err != nil {
+		return ingest.Result{}, err
+	}
+	changed += expired
 	if len(failures) == len(s.countries) {
 		return ingest.Result{}, errors.Join(failures...)
 	}

@@ -8,10 +8,11 @@
 //	shield worker                    River ingestion worker (+ /metrics on METRICS_PORT)
 //	shield migrate [--yes] [--no-seed] | status
 //	                                 goose + River migrations; seeds countries when empty
-//	                                 and MeteoAlarm areas when their pin changed
+//	                                 and MeteoAlarm areas and NWS zones when their pin changed
 //	shield seed-countries [--file f] (re)load Natural Earth boundaries
 //	shield seed-warning-areas [--file f --aliases f]
 //	                                 (re)load MeteoAlarm warning areas
+//	shield seed-nws-zones [--file f] (re)load NWS forecast zones (tsunami warnings)
 //	shield routes                    print every route, for the spec test
 package app
 
@@ -62,6 +63,8 @@ func Run(ctx context.Context, argv []string, version string) error {
 		return seedCountriesCmd(ctx, cfg, logger, opts.countriesFile)
 	case "seed-warning-areas":
 		return seedWarningAreasCmd(ctx, cfg, logger, opts.countriesFile, opts.aliasesFile)
+	case "seed-nws-zones":
+		return seedNWSZonesCmd(ctx, cfg, logger, opts.countriesFile)
 	case "routes":
 		return printRoutes(cfg)
 	}
@@ -78,7 +81,7 @@ func parseArgs(argv []string) (string, options, error) {
 	fs.IntVar(&o.port, "port", 0, "listen port (overrides PORT)")
 	_ = fs.Bool("yes", false, "accepted for the chart's migrate job; migrations never prompt")
 	noSeed := fs.Bool("no-seed", false, "migrate: do not seed countries when the table is empty")
-	fs.StringVar(&o.countriesFile, "file", "", "seed-countries, seed-warning-areas: read this GeoJSON instead of downloading the pinned dataset")
+	fs.StringVar(&o.countriesFile, "file", "", "seed-countries, seed-warning-areas, seed-nws-zones: read this file instead of downloading the pinned dataset")
 	fs.StringVar(&o.aliasesFile, "aliases", "", "seed-warning-areas: read this alias CSV instead of downloading the pinned one")
 	if err := fs.Parse(argv); err != nil {
 		return "", options{}, err

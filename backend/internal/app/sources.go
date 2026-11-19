@@ -9,6 +9,7 @@ import (
 	"shield/internal/sources/firms"
 	"shield/internal/sources/gdacs"
 	"shield/internal/sources/meteoalarm"
+	"shield/internal/sources/tsunami"
 	"shield/internal/sources/usgs"
 )
 
@@ -27,6 +28,7 @@ func (c *container) sources() []ingest.Source {
 		eonet.New(feeds, c.repos.Events),
 		firms.New(bulk, c.repos.Fires),
 		meteoalarm.New(feeds, c.repos.Events, meteoalarm.NewResolver(c.repos.WarningAreas), c.logger),
+		tsunami.New(feeds, c.repos.Events, c.repos.NWSZones, c.logger),
 	}
 }
 

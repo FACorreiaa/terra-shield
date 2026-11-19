@@ -70,9 +70,15 @@ type Event struct {
 // CountryRule narrows country assignment (ADR 4) for an event whose area
 // a national service drew: Issuer is always assigned, and another country
 // only when it holds at least MinShare of the event's area.
+//
+// Listed, when set, replaces geometry altogether: the source names the
+// countries an event applies to (a tsunami threat forecast lists the
+// coasts it expects waves on, far from the marker at the epicenter).
+// Codes not in the countries table are ignored.
 type CountryRule struct {
-	Issuer   string  // ISO 3166-1 alpha-2
-	MinShare float64 // 0..1
+	Issuer   string   // ISO 3166-1 alpha-2
+	MinShare float64  // 0..1
+	Listed   []string // ISO 3166-1 alpha-2
 }
 
 // PointGeometry is a GeoJSON Point.
@@ -102,3 +108,13 @@ func (k Kind) Valid() bool {
 
 // Valid reports whether s is one of the statuses above.
 func (s Status) Valid() bool { return s == StatusActive || s == StatusResolved }
+
+// ForecastZone is one NWS public forecast zone (UGC code like HIZ001):
+// its rings as a GeoJSON MultiLineString, which the store assembles into
+// polygons.
+type ForecastZone struct {
+	UGC   string
+	State string
+	Name  string
+	Rings json.RawMessage
+}

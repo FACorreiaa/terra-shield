@@ -48,6 +48,13 @@ WHERE (events.type, events.kind, events.status, events.severity, events.source_s
    OR NOT ST_Equals(events.geom::geometry, EXCLUDED.geom::geometry)
 RETURNING id;
 
+-- name: AssignListedEventCountries :exec
+-- The countries a source names for an event (CountryRule.Listed), instead
+-- of those its geometry touches.
+INSERT INTO event_countries (event_id, iso2, relation, distance_km)
+SELECT @event_id::uuid, c.iso2, 'within', 0
+FROM countries c WHERE c.iso2 = ANY(@iso2s::text[]);
+
 -- name: ClearEventCountries :exec
 DELETE FROM event_countries WHERE event_id = @event_id;
 
@@ -103,6 +110,12 @@ SELECT @event_id::uuid AS event_id, iso2, 'nearby' AS relation, round((meters / 
 -- to find what a country's full-snapshot feed no longer lists.
 SELECT source_event_id FROM events
 WHERE source_id = @source_id AND status = 'active' AND attrs ->> @attr_key::text = @attr_value::text;
+
+-- name: ExpiredActiveEventIDs :many
+-- A source's active events whose attrs.expiresAt (RFC 3339) has passed.
+SELECT source_event_id FROM events
+WHERE source_id = @source_id AND status = 'active'
+  AND attrs ? 'expiresAt' AND (attrs ->> 'expiresAt')::timestamptz < @now::timestamptz;
 
 -- name: ResolveEvent :execrows
 -- Ends one active event its source no longer lists (owner, 2026-11-19).

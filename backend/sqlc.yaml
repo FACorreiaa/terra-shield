@@ -69,3 +69,13 @@ sql:
         sql_package: pgx/v5
         emit_pointers_for_null_types: true
         overrides: *overrides
+  - engine: postgresql
+    schema: db/migrations
+    queries: db/queries/nwszones
+    gen:
+      go:
+        package: nwszonesdb
+        out: internal/store/nwszonesdb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides: *overrides

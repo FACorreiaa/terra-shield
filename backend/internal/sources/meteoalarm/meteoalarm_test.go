@@ -213,6 +213,8 @@ func (f *fakeStore) Resolve(_ context.Context, _ string, ids []string, _ time.Ti
 	return len(ids), nil
 }
 
+func (*fakeStore) ResolveExpired(context.Context, string, time.Time) (int, error) { return 0, nil }
+
 func (f *fakeStore) ActiveIDsWithAttr(_ context.Context, _, key, value string) ([]string, error) {
 	if key != "country" {
 		return nil, fmt.Errorf("unexpected attr %q", key)

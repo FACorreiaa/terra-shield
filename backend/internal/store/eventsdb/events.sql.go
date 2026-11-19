@@ -104,6 +104,24 @@ func (q *Queries) AssignEventCountries(ctx context.Context, arg AssignEventCount
 	return err
 }
 
+const assignListedEventCountries = `-- name: AssignListedEventCountries :exec
+INSERT INTO event_countries (event_id, iso2, relation, distance_km)
+SELECT $1::uuid, c.iso2, 'within', 0
+FROM countries c WHERE c.iso2 = ANY($2::text[])
+`
+
+type AssignListedEventCountriesParams struct {
+	EventID uuid.UUID
+	Iso2s   []string
+}
+
+// The countries a source names for an event (CountryRule.Listed), instead
+// of those its geometry touches.
+func (q *Queries) AssignListedEventCountries(ctx context.Context, arg AssignListedEventCountriesParams) error {
+	_, err := q.db.Exec(ctx, assignListedEventCountries, arg.EventID, arg.Iso2s)
+	return err
+}
+
 const clearEventCountries = `-- name: ClearEventCountries :exec
 DELETE FROM event_countries WHERE event_id = $1
 `
@@ -183,6 +201,38 @@ func (q *Queries) EventSnapshot(ctx context.Context, arg EventSnapshotParams) (E
 		&i.GeomHash,
 	)
 	return i, err
+}
+
+const expiredActiveEventIDs = `-- name: ExpiredActiveEventIDs :many
+SELECT source_event_id FROM events
+WHERE source_id = $1 AND status = 'active'
+  AND attrs ? 'expiresAt' AND (attrs ->> 'expiresAt')::timestamptz < $2::timestamptz
+`
+
+type ExpiredActiveEventIDsParams struct {
+	SourceID string
+	Now      time.Time
+}
+
+// A source's active events whose attrs.expiresAt (RFC 3339) has passed.
+func (q *Queries) ExpiredActiveEventIDs(ctx context.Context, arg ExpiredActiveEventIDsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, expiredActiveEventIDs, arg.SourceID, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var source_event_id string
+		if err := rows.Scan(&source_event_id); err != nil {
+			return nil, err
+		}
+		items = append(items, source_event_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertEventRevision = `-- name: InsertEventRevision :exec

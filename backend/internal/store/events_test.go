@@ -171,6 +171,9 @@ func TestCountryAssignmentRules(t *testing.T) {
 		box("spans", -7, -5, pt),                      // ~40% in Spain: kept
 		box("offshore", -11, -10, pt),                 // touches nothing: issuer still assigned
 		box("wraps", 179, -179, domain.CountryRule{}), // across the antimeridian, ~170 km wide
+		// Named countries win over geometry: a forecast's marker sits at
+		// the epicenter, far from the coasts it lists. Unknown codes drop.
+		box("listed", -11, -10, domain.CountryRule{Listed: []string{"ES", "ZZ"}}),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -187,6 +190,7 @@ func TestCountryAssignmentRules(t *testing.T) {
 		"spans":    "[ES:within PT:within]",
 		"offshore": "[PT:within]",
 		"wraps":    "[]", // planar would wrap the long way and match PT and ES
+		"listed":   "[ES:within]",
 	} {
 		if got := iso(id); got != want {
 			t.Errorf("%s: %s, want %s", id, got, want)
