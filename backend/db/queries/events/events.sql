@@ -111,6 +111,12 @@ SELECT @event_id::uuid AS event_id, iso2, 'nearby' AS relation, round((meters / 
 SELECT source_event_id FROM events
 WHERE source_id = @source_id AND status = 'active' AND attrs ->> @attr_key::text = @attr_value::text;
 
+-- name: ActiveEventIDs :many
+-- A source's active events, for a source whose feed is a full window
+-- (USGS's past day): what the window no longer lists has ended.
+SELECT source_event_id FROM events
+WHERE source_id = @source_id AND status = 'active';
+
 -- name: ExpiredActiveEventIDs :many
 -- A source's active events whose attrs.expiresAt (RFC 3339) has passed.
 SELECT source_event_id FROM events

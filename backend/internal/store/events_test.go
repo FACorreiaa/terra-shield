@@ -197,3 +197,24 @@ func TestCountryAssignmentRules(t *testing.T) {
 		}
 	}
 }
+
+func TestEventActiveIDs(t *testing.T) {
+	pool := testutil.DB(t)
+	seedWorld(t, pool)
+	repo := store.NewEventRepository(pool)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if _, err := repo.Upsert(ctx, "test", []domain.Event{quake("a", -8, 39, 5, now), quake("b", -8, 39, 5, now)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.Resolve(ctx, "test", []string{"b"}, now); err != nil {
+		t.Fatal(err)
+	}
+	ids, err := repo.ActiveIDs(ctx, "test")
+	if err != nil || fmt.Sprint(ids) != "[a]" {
+		t.Fatalf("active %v %v", ids, err)
+	}
+	if ids, err := repo.ActiveIDs(ctx, "other"); err != nil || len(ids) != 0 {
+		t.Fatalf("other source %v %v", ids, err)
+	}
+}
