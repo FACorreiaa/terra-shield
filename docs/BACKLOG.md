@@ -69,6 +69,16 @@
   - **IPMA earthquakes** (Portugal, Azores, Madeira) below M2.5; its weather warnings already arrive through MeteoAlarm. API licence not found yet.
   - **Official cyclone forecasts:** NHC and JTWC tracks and cones (public domain), then other regional centres; GDACS gives impact only.
   - **Volcano advisories** (Smithsonian weekly reports, aviation ash centres) and **flood forecasts** (Copernicus GloFAS).
+- **Live flights and armed conflicts (ADR 27, owner 2026-11-19).** Two layers beside hazards; Shield takes over Skyvisor's flight idea. **No riots or protests layer** (owner). Licences re-checked on the live terms pages before any code; no key or account until the owner says (product first).
+  - **L1 Live flights:** aircraft positions from **adsb.lol** (free; data ODbL 1.0: attribution "© adsb.lol contributors", share-alike on any database we publish from it). OpenSky, ADS-B Exchange, airplanes.live and adsb.fi are non-commercial only; FlightAware AeroAPI Standard ($100/mo+) is the paid fallback.
+    - Not events: a separate ephemeral layer like `/v1/fires`. `GET /v1/aircraft?bbox=` (zoom ≥ 5 only), served from a short in-memory cache in the API, so one upstream call feeds every viewer of an area. Nothing persisted; no history, no per-aircraft tracking pages.
+    - To verify first: which endpoint covers a viewport (adsb.lol v2 `point/lat/lon/radius` caps at 250 nm), the no-key quota, and whether a live global snapshot is offered.
+    - Owner call: hide military aircraft (the `dbFlags` military bit) by default, given the conflicts layer beside it.
+    - Clients: a layer toggle, refresh every ~10 s while visible, heading-rotated glyph, callsign/altitude/speed in a sheet, source attribution.
+  - **L2 Armed conflicts:** **UCDP** (Uppsala; CC BY 4.0, citation required). GED Candidate events monthly (provisional), GED yearly. Each event is geocoded with a precision code, a date range, a violence type (state-based, non-state, one-sided) and fatality estimates. ACLED needs a paid corporate licence (EULA 2026-11-01); GDELT is free but machine-coded from news, so it is not used (it would contradict "trusted event data").
+    - As events: new type `conflict`, kind `observed`, resolved by date (shown as "past 90 days", never live), severity from the best fatality estimate (table in `docs/severity.md`, like every source). Low-precision geocodes (region/country) drawn at that precision, not as exact points.
+    - To verify first: the UCDP API needs an emailed token (3–5 working days); check whether the Candidate CSV downloads work without one.
+    - Copy: "Conflict data are monthly research estimates (UCDP), not live reports". App Store 1.1.7: the conflict layer is never monetised or promoted on its own.
 - **Phase 5 — Layers:** licensed rain radar/precipitation, smoke, storm tracks, timeline replay, `ST_AsMVT` vector tiles, Copernicus EFFIS, cross-source merging.
 
 
