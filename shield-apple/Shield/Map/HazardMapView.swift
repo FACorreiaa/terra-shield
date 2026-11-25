@@ -133,13 +133,22 @@ struct HazardMapView {
 
         func apply(snapshot: MapSnapshot?, selectedID: UUID?, localClustering: Bool, staleSources: Set<String>) {
             guard let map else { return }
-            let restyle = selectedID != self.selectedID || localClustering != self.localClustering
-                || staleSources != self.staleSources
+            let reclustering = localClustering != self.localClustering
+            let restyle = selectedID != self.selectedID || staleSources != self.staleSources
             self.selectedID = selectedID
             self.localClustering = localClustering
             self.staleSources = staleSources
 
-            if let snapshot { hazards.diff(snapshot, on: map) }
+            // A marker's `clusteringIdentifier` must never change while it is on the map: MapKit
+            // keeps clustered views under their identifier, and on macOS a stale entry later
+            // asks for an empty cluster with no identifier, which throws inside MapKit and
+            // crashed the app on "Show the whole world" (2026-11-25). Crossing zoom 6, every
+            // event marker is replaced instead, so `viewFor` configures fresh views.
+            if reclustering {
+                hazards.renewEvents().apply(to: map)
+                conflictSet.renewEvents().apply(to: map)
+            }
+            if let snapshot { hazards.diff(snapshot).apply(to: map) }
             if restyle { restyleVisibleMarkers(on: map) }
             syncSelection(on: map)
         }
@@ -147,7 +156,8 @@ struct HazardMapView {
         /// The conflicts layer's snapshot; nil (layer off) removes every conflict annotation.
         func apply(conflicts: MapSnapshot?) {
             guard let map else { return }
-            conflictSet.diff(conflicts ?? MapSnapshot(events: [], clusters: [], truncated: false, generatedAt: .now), on: map)
+            conflictSet.diff(conflicts ?? MapSnapshot(events: [], clusters: [], truncated: false, generatedAt: .now))
+                .apply(to: map)
             syncSelection(on: map)
         }
 
@@ -488,7 +498,29 @@ private struct AnnotationSet {
 
     init(isConflict: Bool) { self.isConflict = isConflict }
 
-    mutating func diff(_ snapshot: MapSnapshot, on map: MKMapView) {
+    /// What to take off the map and put on it. Applied by the caller once the set's mutation has
+    /// ended: removing the selected annotation calls `didDeselect` at once, which reads the
+    /// sets, and a read during a `mutating` call is an exclusivity violation (a trap).
+    @MainActor struct Changes {
+        var removed: [any MKAnnotation] = []
+        var added: [any MKAnnotation] = []
+
+        func apply(to map: MKMapView) {
+            if !removed.isEmpty { map.removeAnnotations(removed) }
+            if !added.isEmpty { map.addAnnotations(added) }
+        }
+    }
+
+    /// Replaces every event annotation with a new one for the same event, so MapKit drops the
+    /// old views and asks `viewFor` again. Replaced in the set before removal: `didDeselect`
+    /// then sees the old selected annotation is no longer the live one and keeps the selection.
+    mutating func renewEvents() -> Changes {
+        let old = Array(events.values)
+        events = events.mapValues { EventAnnotation($0.event) }
+        return Changes(removed: old, added: Array(events.values))
+    }
+
+    mutating func diff(_ snapshot: MapSnapshot) -> Changes {
         var removed: [any MKAnnotation] = []
         var added: [any MKAnnotation] = []
 
@@ -514,7 +546,6 @@ private struct AnnotationSet {
             added.append(annotation)
         }
 
-        if !removed.isEmpty { map.removeAnnotations(removed) }
-        if !added.isEmpty { map.addAnnotations(added) }
+        return Changes(removed: removed, added: added)
     }
 }
