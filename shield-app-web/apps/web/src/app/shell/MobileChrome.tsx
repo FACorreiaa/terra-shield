@@ -8,7 +8,7 @@ import { useLiveMap } from "./liveMapContext.ts";
 import { PhoneTopStack } from "./PhoneParts.tsx";
 import { SheetBody } from "./SheetBody.tsx";
 import type { Detent, Heights } from "./sheetDetents.ts";
-import { RestingDetent } from "./sheetDetents.ts";
+import { RestingDetent, SheetDetentSetter } from "./sheetDetents.ts";
 import { SheetHeader } from "./SheetHeader.tsx";
 import { StatusCapsule } from "./StatusCapsule.tsx";
 import { useSearchDetent } from "./useSearchDetent.ts";
@@ -25,18 +25,19 @@ interface MobileChromeProps {
  * to medium to show it; searching opens it to large.
  */
 function MobileChrome({ children, onInsets }: MobileChromeProps): ReactElement {
-  const { selected } = useLiveMap();
-  const [detent, setDetent] = useState<Detent>("peek");
-  const [shownId, setShownId] = useState(selected?.id);
+  const { selectedId } = useLiveMap();
+  // A shared link opens with its event at half height, as a selection made here would.
+  const [detent, setDetent] = useState<Detent>(selectedId === undefined ? "peek" : "medium");
+  const [shownId, setShownId] = useState(selectedId);
 
   // A new selection lifts the sheet from peek so the event shows (adjusted during render, not in an effect).
-  if (selected?.id !== shownId) {
-    setShownId(selected?.id);
-    if (selected !== undefined && detent === "peek") {
+  if (selectedId !== shownId) {
+    setShownId(selectedId);
+    if (selectedId !== undefined && detent === "peek") {
       setDetent("medium");
     }
   }
-  useSearchDetent(detent, setDetent, selected?.id);
+  useSearchDetent(detent, setDetent, selectedId);
 
   // The top inset holds from the start; the sheet's arrives once it has measured itself.
   useLayoutEffect(() => {
@@ -52,11 +53,13 @@ function MobileChrome({ children, onInsets }: MobileChromeProps): ReactElement {
 
   return (
     <RestingDetent value={detent}>
-      <StatusCapsule />
-      <PhoneTopStack />
-      <BottomSheet label="Events" Header={SheetHeader} detent={detent} onDetentChange={setDetent} onRest={rest}>
-        <SheetBody>{children}</SheetBody>
-      </BottomSheet>
+      <SheetDetentSetter value={setDetent}>
+        <StatusCapsule />
+        <PhoneTopStack />
+        <BottomSheet label="Events" Header={SheetHeader} detent={detent} onDetentChange={setDetent} onRest={rest}>
+          <SheetBody>{children}</SheetBody>
+        </BottomSheet>
+      </SheetDetentSetter>
     </RestingDetent>
   );
 }

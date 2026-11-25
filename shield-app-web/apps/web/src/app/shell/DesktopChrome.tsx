@@ -1,15 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
-import { useCallback, useLayoutEffect } from "react";
-
-import { EventSummary } from "@/features/events/EventSummary.tsx";
+import { useLayoutEffect } from "react";
 
 import { Brand } from "./Brand.tsx";
 import type { Insets } from "./insets.ts";
 import { INSPECTOR_WIDTH, MAP_GAP, SIDEBAR_WIDTH_CLASS } from "./insets.ts";
-import { useLiveMap } from "./liveMapContext.ts";
 import { MonitorHud } from "./MonitorHud.tsx";
 import { SECTIONS } from "./sections.ts";
+import { SelectedDetail } from "./SelectedDetail.tsx";
 import { SidebarBody } from "./SidebarBody.tsx";
 
 interface DesktopChromeProps {
@@ -17,6 +15,11 @@ interface DesktopChromeProps {
   children: ReactNode;
   inspectorOpen: boolean;
   onInsets: (insets: Insets) => void;
+}
+
+/** Changing section keeps the selected event open, as on the Mac. */
+function keepSelection(previous: { event?: string | undefined }): { event?: string | undefined } {
+  return { event: previous.event };
 }
 
 function SectionNav(): ReactElement {
@@ -27,6 +30,7 @@ function SectionNav(): ReactElement {
           <li key={section.id}>
             <Link
               to={section.to}
+              search={keepSelection}
               title={`${section.label} (${section.key})`}
               className="flex h-10 items-center gap-3 rounded-sm px-3 text-body text-muted hover:bg-ink/8 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent aria-[current=page]:bg-raised aria-[current=page]:text-ink"
             >
@@ -40,20 +44,13 @@ function SectionNav(): ReactElement {
   );
 }
 
-function Inspector(): ReactElement | undefined {
-  const { selected, select, now } = useLiveMap();
-  const close = useCallback(() => {
-    select(undefined);
-  }, [select]);
-  if (selected === undefined) {
-    return undefined;
-  }
+function Inspector(): ReactElement {
   return (
     <aside
       aria-label="Inspector"
       className="absolute top-3 right-3 bottom-3 z-10 w-[352px] overflow-y-auto rounded-lg border border-hairline-strong shadow-floating material-floating contrast-more:bg-panel contrast-more:backdrop-filter-none"
     >
-      <EventSummary event={selected} now={now} onClose={close} />
+      <SelectedDetail />
     </aside>
   );
 }

@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import type { RefObject } from "react";
 import { useEffect, useEffectEvent } from "react";
 
+import { officialUrl, sourceOf } from "@/features/detail/officialSource.ts";
 import { mapPrefs } from "@/features/map/mapPrefs.ts";
 import { fitWorld } from "@/features/map/useHazardMap.ts";
 
@@ -66,8 +67,9 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
     live.select(undefined);
     return live.selectedId !== undefined;
   },
-  source: ({ live }) => {
-    const url = live.selected?.url;
+  source: ({ live: { selected, sources, detail } }) => {
+    const source = selected === undefined ? undefined : sourceOf(selected, sources, detail);
+    const url = selected === undefined ? undefined : officialUrl(selected, source, detail?.kind === "gone");
     if (url !== undefined) {
       globalThis.open(url, "_blank", "noopener,noreferrer");
     }
@@ -101,7 +103,8 @@ function useShortcuts(targets: ShortcutTargets): void {
   const navigate = useNavigate();
   const run = useEffectEvent((shortcut: Shortcut): boolean => {
     const goTo = (to: "/map"): void => {
-      void navigate({ to });
+      // As the sidebar's links: the selected event stays open beside the section.
+      void navigate({ to, search: (previous) => ({ event: previous.event }) });
     };
     return HANDLERS[shortcut.action]({ ...targets, live, search, goTo }, shortcut);
   });

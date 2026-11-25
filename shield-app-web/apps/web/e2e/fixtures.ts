@@ -18,7 +18,19 @@ const EMPTY_TILEJSON = {
  * and tiles and glyphs are empty bodies. A test that wants the host down routes it again; the
  * later route wins.
  */
-const test = base.extend<{ stubTiles: undefined }>({
+const test = base.extend<{ stubTiles: undefined; stubApi: undefined }>({
+  /**
+   * The API calls a test doesn't route itself: no sources yet, and an event's detail unavailable,
+   * so nothing reaches the preview's proxy. A test's own route is registered later and wins.
+   */
+  stubApi: [
+    async ({ page }, use) => {
+      await page.route("**/v1/sources", (route) => route.fulfill({ json: { sources: [] } }));
+      await page.route("**/v1/events/*", (route) => route.fulfill({ status: 503, json: { error: "unavailable" } }));
+      await use(undefined);
+    },
+    { auto: true },
+  ],
   stubTiles: [
     async ({ page }, use) => {
       await page.route(TILE_HOST, (route) => {

@@ -40,5 +40,8 @@ function nextOnPress(detent: Detent): Detent {
 /** The phone sheet's resting detent, for the header, which the sheet draws without props. */
 const RestingDetent = createContext<Detent>("peek");
 
+/** Moves the phone sheet from inside it ("Show on map" lowers it); undefined on a wide screen. */
+const SheetDetentSetter = createContext<((detent: Detent) => void) | undefined>(undefined);
+
 export type { Detent, Heights };
-export { detentAt, detentHeights, DETENTS, nextOnPress, RestingDetent };
+export { detentAt, detentHeights, DETENTS, nextOnPress, RestingDetent, SheetDetentSetter };

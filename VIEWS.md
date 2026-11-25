@@ -343,6 +343,35 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - **A failed country list** shows no countries and no error; events stay searchable.
      - **Device check.** The field uses a 16 px font so iOS Safari doesn't zoom on focus. The soft
        keyboard over the sheet at full height still needs a check on a real phone.
+   - **W5, part 1: event detail.** `EventDetailView` after `EventDetailView.swift`, in the
+     inspector on a wide screen and in the sheet on a phone. Sections in order: what and where (marker,
+     title, every country, location note, the type's art at 30% under a vignette), `SEVERITY · AEGIS /
+     SOURCE`, kind with status and times, the source's summary, key figures, the area on a small
+     still map with "Show on map", the full source badge with "Open official source", the timeline,
+     then the disclaimer and Share. The selection lives in the address (`?event=<id>` on every
+     section), so Back closes it, a reload keeps it and switching section keeps it open beside the
+     section, as on the Mac; `/e/<id>` redirects there. A page opened on an event frames it on the map
+     once known, and on a phone opens the sheet at half height. The detail loads from
+     `/v1/events/{id}` and keeps the list's copy while it loads; a failed refresh keeps the last
+     detail. A 404 or 400 is gone: the event stays shown faded, with "This event is no longer
+     published by its source", "Open official source" pointing to the source's home page, and no
+     history. A stale source (from `/v1/sources`, every 60 s) adds the stale banner and fades the
+     marker; a resolved event shows its resolution in `ok` and a muted header.
+   - **Deviations for the owner:**
+     - **Countries are plain text** in the header until part 2's country overview (`/c/<iso2>`)
+       gives them somewhere to go.
+     - **A link to an event never seen here** that answers 404 shows only "This event is no longer
+       published by its source" and Close. The apps drop such a selection; on the web links are how
+       people arrive, so it says why the page is empty.
+     - **Share copies the web link** (`/e/<id>`) and says "Link copied"; there is no system share
+       sheet on desktop browsers.
+     - **The small map's credit** sits under it as plain links: MapLibre's control inside a button
+       would nest interactive elements.
+     - **Close replaces the history entry**, so opening then closing leaves one extra Back step
+       on the map (Back after opening closes in one step). Going back instead would pop pages the
+       user came from on a shared link. Owner call.
+     - **Header art** is drawn at 30% and fades out radially; over the dark panel the Wildfire art
+       reads as a soft red glow behind the title. Owner verdict wanted.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 
