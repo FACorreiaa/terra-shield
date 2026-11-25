@@ -232,7 +232,7 @@ export interface paths {
         };
         /**
          * Historic sites listed on Wikidata (forts, castles, bunkers, war cemeteries), a static layer separate from events.
-         * @description Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, and `memorial` (military museums and war cemeteries). Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned (`truncated` says when more matched). Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
+         * @description Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, `memorial` (military museums and war cemeteries), and `general` (palaces, cathedrals, basilicas, monasteries, temples, shrines, mausoleums, manor houses, town halls, lighthouses, gates, towers, windmills, Roman monuments, and every cultural UNESCO World Heritage Site not in another kind). Every site says whether it is a World Heritage Site (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned (`truncated` says when more matched). Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
          */
         get: operations["listHistoricSites"];
         put?: never;
@@ -568,7 +568,7 @@ export interface components {
             /** @description Wikidata's English description. */
             description?: string;
             /** @description Filter group. More kinds will come (general historic buildings): hide sites of a kind the client does not know, or draw them in a neutral style; never as military. */
-            kind: ("military" | "castle" | "memorial") | string;
+            kind: ("military" | "castle" | "memorial" | "general") | string;
             /**
              * @description Wikidata class in English.
              * @example star fort
@@ -579,6 +579,8 @@ export interface components {
              * @example PT
              */
             country?: string;
+            /** @description A UNESCO World Heritage Site, or a listed part of one, on Wikidata. */
+            worldHeritage?: boolean;
             /**
              * Format: uri
              * @description The Wikidata item.
@@ -1192,7 +1194,9 @@ export interface operations {
                 /** @description Map zoom level; drives clustering and geometry simplification. */
                 zoom?: components["parameters"]["Zoom"];
                 /** @description Comma-separated kinds to include; all when absent. */
-                kind?: ("military" | "castle" | "memorial")[];
+                kind?: ("military" | "castle" | "memorial" | "general")[];
+                /** @description true keeps only UNESCO World Heritage Sites (of the kinds asked for). */
+                worldHeritage?: boolean;
             };
             header?: never;
             path?: never;

@@ -42,7 +42,7 @@ const (
 	mimeGeoJSON = "application/geo+json"
 	// note: some barracks and castles here are still in use; the layer is
 	// a heritage view, not a list of what is or is not active.
-	note = "Historic sites listed on Wikidata: forts, castles, bunkers, barracks, war cemeteries and former bases. Some are ruins or memorials and some are still in use; for military installations listed as in use, see the bases layer."
+	note = "Historic sites and landmarks listed on Wikidata: forts, castles, bunkers, barracks, war cemeteries and former bases; palaces, cathedrals, temples, monasteries, manor houses, town halls, towers and other landmarks; and UNESCO World Heritage Sites. Some are ruins and many are still in use; for military installations listed as in use, see the bases layer."
 )
 
 // Feature mounts /v1/historic.
@@ -79,7 +79,11 @@ func (f *Feature) list(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	q := domain.HistoricQuery{BBox: bbox, Kinds: kinds}
+	wh, err := params.Bool(v, "worldHeritage")
+	if err != nil {
+		return err
+	}
+	q := domain.HistoricQuery{BBox: bbox, Kinds: kinds, WorldHeritage: wh}
 
 	ctx := c.Request().Context()
 	fc := collection{Type: "FeatureCollection", Attribution: "Wikidata", License: "CC0 1.0", Note: note}
@@ -120,7 +124,7 @@ func (f *Feature) list(c *echo.Context) error {
 			s := &pts[i]
 			fc.Features = append(fc.Features, feature{Type: "Feature", Geometry: at(s.Lon, s.Lat), Properties: Site{
 				ID: s.QID, Name: s.Name, Description: s.Description, Kind: string(s.Kind), Class: s.Class,
-				Country: s.ISO2, URL: "https://www.wikidata.org/wiki/" + s.QID,
+				Country: s.ISO2, WorldHeritage: s.WorldHeritage, URL: "https://www.wikidata.org/wiki/" + s.QID,
 			}})
 			if fc.UpdatedAt == nil || s.UpdatedAt.After(*fc.UpdatedAt) {
 				u := s.UpdatedAt.UTC()
@@ -171,7 +175,9 @@ type Site struct {
 	Kind        string `json:"kind"`
 	Class       string `json:"class"`
 	Country     string `json:"country,omitempty"`
-	URL         string `json:"url"`
+	// WorldHeritage: a UNESCO World Heritage Site, or a listed part of one.
+	WorldHeritage bool   `json:"worldHeritage"`
+	URL           string `json:"url"`
 }
 
 // Cell is the sites in one grid cell, in total and per kind.

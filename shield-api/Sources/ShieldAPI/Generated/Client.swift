@@ -1791,7 +1791,7 @@ public struct Client: APIProtocol {
     }
     /// Historic sites listed on Wikidata (forts, castles, bunkers, war cemeteries), a static layer separate from events.
     ///
-    /// Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, and `memorial` (military museums and war cemeteries). Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned (`truncated` says when more matched). Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
+    /// Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, `memorial` (military museums and war cemeteries), and `general` (palaces, cathedrals, basilicas, monasteries, temples, shrines, mausoleums, manor houses, town halls, lighthouses, gates, towers, windmills, Roman monuments, and every cultural UNESCO World Heritage Site not in another kind). Every site says whether it is a World Heritage Site (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned (`truncated` says when more matched). Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
     ///
     ///
     /// - Remark: HTTP `GET /v1/historic`.
@@ -1830,6 +1830,13 @@ public struct Client: APIProtocol {
                     explode: false,
                     name: "kind",
                     value: input.query.kind
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "worldHeritage",
+                    value: input.query.worldHeritage
                 )
                 converter.setAcceptHeader(
                     in: &request.headerFields,

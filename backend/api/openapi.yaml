@@ -314,8 +314,13 @@ paths:
         Named items with coordinates from Wikidata (CC0), refreshed weekly,
         in three kinds a client can filter: `military` (forts,
         fortifications, bunkers, barracks, arsenals, hillforts and military
-        bases no longer in use), `castle`, and `memorial` (military museums
-        and war cemeteries). Installations on `/v1/bases` are never here;
+        bases no longer in use), `castle`, `memorial` (military museums
+        and war cemeteries), and `general` (palaces, cathedrals, basilicas,
+        monasteries, temples, shrines, mausoleums, manor houses, town
+        halls, lighthouses, gates, towers, windmills, Roman monuments, and
+        every cultural UNESCO World Heritage Site not in another kind).
+        Every site says whether it is a World Heritage Site
+        (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here;
         some sites here are still in use (see `note`). Without `zoom` or
         below 8, sites are counted in grid cells (`HistoricCell` features,
         360/2^(zoom+5) degrees, with a count per kind, `bbox` required from
@@ -334,7 +339,11 @@ paths:
           explode: false
           schema:
             type: array
-            items: { type: string, enum: [military, castle, memorial] }
+            items: { type: string, enum: [military, castle, memorial, general] }
+        - name: worldHeritage
+          in: query
+          description: "true keeps only UNESCO World Heritage Sites (of the kinds asked for)."
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: Sites or cells.
@@ -823,10 +832,11 @@ components:
         kind:
           description: "Filter group. More kinds will come (general historic buildings): hide sites of a kind the client does not know, or draw them in a neutral style; never as military."
           anyOf:
-            - { type: string, enum: [military, castle, memorial] }
+            - { type: string, enum: [military, castle, memorial, general] }
             - { type: string }
         class: { type: string, description: "Wikidata class in English.", examples: [star fort] }
         country: { type: string, description: "ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.", examples: [PT] }
+        worldHeritage: { type: boolean, description: "A UNESCO World Heritage Site, or a listed part of one, on Wikidata." }
         url: { type: string, format: uri, description: "The Wikidata item." }
     HistoricCell:
       type: object

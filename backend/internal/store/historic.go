@@ -26,11 +26,13 @@ func NewHistoricRepository(pool *pgxpool.Pool) *HistoricRepository {
 	return &HistoricRepository{pool: pool, q: historicdb.New(pool)}
 }
 
-var historicColumns = []string{"qid", "name", "description", "kind", "class", "lat", "lon", "country_hint", "updated_at"}
+var historicColumns = []string{"qid", "name", "description", "kind", "class", "lat", "lon", "country_hint", "world_heritage", "updated_at"}
 
 // Replace swaps the whole layer for sites in one transaction. Countries
 // come from Shield's own geometry, with hints (QID to ISO code, from
-// Wikidata) as the fallback.
+// Wikidata) as the fallback. A site whose coordinates have not changed
+// keeps the country it had: the geometry lookup took 75 s for 53k sites,
+// and most of the layer does not move from week to week.
 func (r *HistoricRepository) Replace(ctx context.Context, sites []domain.HistoricSite, hints map[string]string, at time.Time) (int, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -38,24 +40,33 @@ func (r *HistoricRepository) Replace(ctx context.Context, sites []domain.Histori
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if _, err := tx.Exec(ctx, `DELETE FROM historic_sites`); err != nil {
+	if _, err := tx.Exec(ctx, `CREATE TEMP TABLE historic_stage (LIKE historic_sites INCLUDING DEFAULTS) ON COMMIT DROP`); err != nil {
 		return 0, err
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"historic_sites"}, historicColumns,
+	n, err := tx.CopyFrom(ctx, pgx.Identifier{"historic_stage"}, historicColumns,
 		pgx.CopyFromSlice(len(sites), func(i int) ([]any, error) {
 			s := &sites[i]
-			return []any{s.QID, s.Name, nonEmpty(s.Description), string(s.Kind), s.Class, s.Lat, s.Lon, nonEmpty(hints[s.QID]), at}, nil
+			return []any{s.QID, s.Name, nonEmpty(s.Description), string(s.Kind), s.Class, s.Lat, s.Lon, nonEmpty(hints[s.QID]), s.WorldHeritage, at}, nil
 		}))
 	if err != nil {
 		return 0, fmt.Errorf("copy historic sites: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE historic_sites h SET iso2 = COALESCE(
+	for _, stmt := range []string{
+		`UPDATE historic_stage s SET iso2 = h.iso2
+		 FROM historic_sites h
+		 WHERE h.qid = s.qid AND h.lat = s.lat AND h.lon = s.lon AND h.iso2 IS NOT NULL`,
+		`UPDATE historic_stage s SET iso2 = COALESCE(
 		    (SELECT c.iso2 FROM countries c
-		     WHERE ST_Intersects(c.geom, ST_SetSRID(ST_MakePoint(h.lon, h.lat), 4326)::geography)
+		     WHERE ST_Intersects(c.geom, ST_SetSRID(ST_MakePoint(s.lon, s.lat), 4326)::geography)
 		     LIMIT 1),
-		    h.country_hint)`); err != nil {
-		return 0, fmt.Errorf("assign historic site countries: %w", err)
+		    s.country_hint)
+		 WHERE s.iso2 IS NULL`,
+		`DELETE FROM historic_sites`,
+		`INSERT INTO historic_sites SELECT * FROM historic_stage`,
+	} {
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return 0, fmt.Errorf("replace historic sites: %w", err)
+		}
 	}
 	return int(n), tx.Commit(ctx)
 }
@@ -80,6 +91,9 @@ func historicFilters(b *sqlBuilder, q *domain.HistoricQuery) string {
 	where := "\nWHERE NOT EXISTS (SELECT 1 FROM military_bases m WHERE m.qid = h.qid)"
 	if len(q.Kinds) > 0 {
 		where += "\n  AND h.kind = ANY(" + b.arg(strs(q.Kinds)) + ")"
+	}
+	if q.WorldHeritage {
+		where += "\n  AND h.world_heritage"
 	}
 	if bb := q.BBox; bb != nil {
 		where += "\n  AND h.lat BETWEEN " + b.arg(bb.MinLat) + " AND " + b.arg(bb.MaxLat)
@@ -160,7 +174,7 @@ func (r *HistoricRepository) Points(ctx context.Context, q domain.HistoricQuery,
 	var b sqlBuilder
 	where := historicFilters(&b, &q)
 	rows, err := r.pool.Query(ctx, `
-SELECT h.qid, h.name, COALESCE(h.description, ''), h.kind, h.class, h.lat, h.lon, COALESCE(h.iso2, ''), h.updated_at
+SELECT h.qid, h.name, COALESCE(h.description, ''), h.kind, h.class, h.lat, h.lon, COALESCE(h.iso2, ''), h.world_heritage, h.updated_at
 FROM historic_sites h`+where+`
 ORDER BY h.qid
 LIMIT `+b.arg(limit+1), b.args...)
@@ -172,7 +186,7 @@ LIMIT `+b.arg(limit+1), b.args...)
 	for rows.Next() {
 		var s domain.HistoricSite
 		var kind string
-		if err := rows.Scan(&s.QID, &s.Name, &s.Description, &kind, &s.Class, &s.Lat, &s.Lon, &s.ISO2, &s.UpdatedAt); err != nil {
+		if err := rows.Scan(&s.QID, &s.Name, &s.Description, &kind, &s.Class, &s.Lat, &s.Lon, &s.ISO2, &s.WorldHeritage, &s.UpdatedAt); err != nil {
 			return nil, false, fmt.Errorf("historic points: %w", err)
 		}
 		s.Kind = domain.HistoricKind(kind)

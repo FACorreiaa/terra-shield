@@ -26,6 +26,16 @@ func binding(qid, label, wkt, desc, iso string) string {
 	return b + "}"
 }
 
+// withCriterion adds a World Heritage criterion to a binding.
+func withCriterion(b, cr string) string {
+	return strings.TrimSuffix(b, "}") + fmt.Sprintf(`,"cr":{"value":"http://www.wikidata.org/entity/%s"}}`, cr)
+}
+
+const (
+	cultural = "Q23038972" // criterion (i)
+	natural  = "Q23038981" // criterion (vii)
+)
+
 func answer(bs ...string) string { return `{"results":{"bindings":[` + strings.Join(bs, ",") + `]}}` }
 
 var castleClass = HistoricClasses[0]
@@ -80,7 +90,9 @@ type baseCount int
 func (b baseCount) Count(context.Context) (int, error) { return int(b), nil }
 
 // historicStub answers: Q10 is a castle and a fort (castle wins); Q11 a
-// fort; Q12 an air base (a bases-layer class); Q13 a war cemetery.
+// fort; Q12 an air base (a bases-layer class); Q13 a war cemetery. World
+// Heritage: Q10 (cultural), Q14 (a part of a serial site, no criteria), Q15
+// (natural only), Q16 (mixed).
 func historicStub(t *testing.T, asked map[string]int, mu *sync.Mutex) *httptest.Server {
 	t.Helper()
 	by := map[string]string{
@@ -88,6 +100,13 @@ func historicStub(t *testing.T, asked map[string]int, mu *sync.Mutex) *httptest.
 		"Q1785071": answer(binding("Q10", "Fort Castle", "Point(1 50)", "", ""), binding("Q11", "Old Fort", "Point(2 50)", "", "")),
 		"Q695850":  answer(binding("Q12", "RAF Old Field", "Point(0 52)", "", "GB")),
 		"Q1241568": answer(binding("Q13", "War Cemetery", "Point(3 50)", "", "")),
+		"Q9259": answer(
+			withCriterion(binding("Q10", "Fort Castle", "Point(1 50)", "", ""), cultural),
+			binding("Q14", "Old Town Hall", "Point(4 50)", "part of a World Heritage Site", "BE"),
+			withCriterion(binding("Q15", "Great Reef", "Point(150 -18)", "", ""), natural),
+			withCriterion(binding("Q16", "Holy Mountain", "Point(5 45)", "", ""), natural),
+			withCriterion(binding("Q16", "Holy Mountain", "Point(5 45)", "", ""), cultural),
+		),
 	}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("query")
@@ -129,7 +148,7 @@ func TestHistoricPoll(t *testing.T) {
 
 	h = newTestHistoric(srv.URL, store, baseCount(3000))
 	res, err := h.Poll(context.Background(), domain.Validators{})
-	if err != nil || res.Upserted != 4 {
+	if err != nil || res.Upserted != 6 {
 		t.Fatalf("%+v %v", res, err)
 	}
 	got := map[string]domain.HistoricSite{}
@@ -142,8 +161,22 @@ func TestHistoricPoll(t *testing.T) {
 	if got["Q12"].Kind != domain.HistoricMilitary || got["Q12"].Class != "air base" {
 		t.Errorf("a bases-layer class item: %+v", got["Q12"])
 	}
-	if got["Q13"].Kind != domain.HistoricMemorial {
+	if got["Q13"].Kind != domain.HistoricMemorial || got["Q13"].WorldHeritage {
 		t.Errorf("war cemetery: %+v", got["Q13"])
+	}
+	// World Heritage: flagged where a class took it, added as a general
+	// landmark where none did, unless it is purely natural.
+	if !got["Q10"].WorldHeritage || got["Q10"].Kind != domain.HistoricCastle {
+		t.Errorf("a World Heritage castle stays a castle, flagged: %+v", got["Q10"])
+	}
+	if s := got["Q14"]; !s.WorldHeritage || s.Kind != domain.HistoricGeneral || s.Class != "World Heritage Site" {
+		t.Errorf("a World Heritage part with no criteria is added: %+v", s)
+	}
+	if _, ok := got["Q15"]; ok {
+		t.Error("a natural World Heritage Site is not a landmark")
+	}
+	if !got["Q16"].WorldHeritage {
+		t.Errorf("a mixed site is added: %+v", got["Q16"])
 	}
 }
 
@@ -181,10 +214,40 @@ func TestHistoricClasses(t *testing.T) {
 			t.Errorf("class %s has kind %q", c.QID, c.Kind)
 		}
 	}
+	// QIDs once mistaken for landmark classes (2026-11-25).
+	for _, wrong := range []string{"Q1371", "Q1785733", "Q1303167"} {
+		if seen[wrong] {
+			t.Errorf("%s is not a landmark class", wrong)
+		}
+	}
+	if len(HistoricClasses) != 132 {
+		t.Errorf("%d classes, want 132 (with World Heritage, 133 queries a poll)", len(HistoricClasses))
+	}
 	if bases != len(Classes) || HistoricClasses[0].Kind != domain.HistoricCastle {
 		t.Errorf("bases classes %d of %d; first %+v", bases, len(Classes), HistoricClasses[0])
 	}
 	if q := HistoricQuery("Q23413"); strings.Contains(q, "P582") || !strings.Contains(q, "wdt:P31 wd:Q23413 ;") {
 		t.Errorf("historic query must be the lean one:\n%s", q)
+	}
+}
+
+func TestParseWorldHeritage(t *testing.T) {
+	if _, _, _, err := ParseWorldHeritage([]byte(answer())); err == nil {
+		t.Fatal("an empty World Heritage answer must fail the poll")
+	}
+	body := answer(
+		withCriterion(binding("Q20", "Old City", "Point(35.2 31.8)", "", "il"), cultural),
+		withCriterion(binding("Q21", "National Park", "Point(-110 44)", "", ""), natural),
+		binding("Q22", "Q22", "Point(1 1)", "", ""), // unnamed: flagged, not added
+	)
+	sites, hints, wh, err := ParseWorldHeritage([]byte(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sites) != 1 || sites[0].QID != "Q20" || !sites[0].WorldHeritage || hints["Q20"] != "IL" {
+		t.Fatalf("sites %+v hints %v", sites, hints)
+	}
+	if !wh["Q20"] || !wh["Q21"] || !wh["Q22"] || len(wh) != 3 {
+		t.Fatalf("every item is flagged: %v", wh)
 	}
 }

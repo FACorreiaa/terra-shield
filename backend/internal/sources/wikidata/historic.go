@@ -69,6 +69,8 @@ var HistoricClasses = func() []HistoricClass {
 		{"Q131263", "barracks", domain.HistoricMilitary, false},
 		{"Q81669", "arsenal", domain.HistoricMilitary, false},
 		{"Q744099", "hillfort", domain.HistoricMilitary, false},
+		{"Q20034791", "defensive tower", domain.HistoricMilitary, false},
+		{"Q947103", "watchtower", domain.HistoricMilitary, false},
 		{"Q57821", "fortification", domain.HistoricMilitary, false},
 	}
 	for _, c := range Classes {
@@ -84,8 +86,105 @@ var HistoricClasses = func() []HistoricClass {
 		HistoricClass{"Q66424110", "military mausoleum", domain.HistoricMemorial, false},
 		HistoricClass{"Q1241568", "war cemetery", domain.HistoricMemorial, false},
 		HistoricClass{"Q1707610", "military cemetery", domain.HistoricMemorial, false},
+		// General landmarks (L4 step 2, owner 2026-11-25: "Landmarks",
+		// plus mausoleums, basilicas, Roman monuments and Shinto shrines).
+		// Subclasses come before their parent so the item keeps the more
+		// precise class. Left out as bulk imports rather than landmarks
+		// (few heritage-listed): plain church buildings, mosques, Spanish
+		// casas consistoriales, sector lights, dovecotes, water towers,
+		// gurdwaras; and excavation sites (Q839954, 62k), the owner's call.
+		HistoricClass{"Q16560", "palace", domain.HistoricGeneral, false},
+		HistoricClass{"Q2651004", "palazzo", domain.HistoricGeneral, false},
+		HistoricClass{"Q15848826", "city palace", domain.HistoricGeneral, false},
+		HistoricClass{"Q53536964", "royal palace", domain.HistoricGeneral, false},
+		HistoricClass{"Q5383482", "episcopal palace", domain.HistoricGeneral, false},
+		HistoricClass{"Q751876", "château", domain.HistoricGeneral, false},
+		HistoricClass{"Q16823155", "Schloss", domain.HistoricGeneral, false},
+		HistoricClass{"Q1424449", "hunting lodge", domain.HistoricGeneral, false},
+		HistoricClass{"Q2977", "cathedral", domain.HistoricGeneral, false},
+		HistoricClass{"Q56242215", "Catholic cathedral", domain.HistoricGeneral, false},
+		HistoricClass{"Q56242225", "Eastern Orthodox cathedral", domain.HistoricGeneral, false},
+		HistoricClass{"Q2577114", "co-cathedral", domain.HistoricGeneral, false},
+		HistoricClass{"Q124936", "major basilica", domain.HistoricGeneral, false},
+		HistoricClass{"Q2713379", "papal basilica", domain.HistoricGeneral, false},
+		HistoricClass{"Q120560", "minor basilica", domain.HistoricGeneral, false},
+		HistoricClass{"Q163687", "basilica", domain.HistoricGeneral, false},
+		HistoricClass{"Q160742", "abbey", domain.HistoricGeneral, false},
+		HistoricClass{"Q817056", "Benedictine abbey", domain.HistoricGeneral, false},
+		HistoricClass{"Q91315817", "Cistercian monastery", domain.HistoricGeneral, false},
+		HistoricClass{"Q2750108", "priory", domain.HistoricGeneral, false},
+		HistoricClass{"Q20672229", "friary", domain.HistoricGeneral, false},
+		HistoricClass{"Q11784935", "Eastern Orthodox monastery", domain.HistoricGeneral, false},
+		HistoricClass{"Q54074585", "Tibetan Buddhist monastery", domain.HistoricGeneral, false},
+		HistoricClass{"Q1701174", "monastery ruins", domain.HistoricGeneral, false},
+		HistoricClass{"Q96371565", "former monastery", domain.HistoricGeneral, false},
+		HistoricClass{"Q44613", "monastery", domain.HistoricGeneral, false},
+		HistoricClass{"Q867143", "Roman temple", domain.HistoricGeneral, false},
+		HistoricClass{"Q267596", "ancient Greek temple", domain.HistoricGeneral, false},
+		HistoricClass{"Q618618", "temple of Confucius", domain.HistoricGeneral, false},
+		HistoricClass{"Q2680845", "Chinese temple", domain.HistoricGeneral, false},
+		HistoricClass{"Q2736554", "candi", domain.HistoricGeneral, false},
+		HistoricClass{"Q427287", "wat", domain.HistoricGeneral, false},
+		HistoricClass{"Q199451", "pagoda", domain.HistoricGeneral, false},
+		HistoricClass{"Q180987", "stupa", domain.HistoricGeneral, false},
+		HistoricClass{"Q5393308", "Buddhist temple", domain.HistoricGeneral, false},
+		HistoricClass{"Q842402", "Hindu temple", domain.HistoricGeneral, false},
+		HistoricClass{"Q44539", "temple", domain.HistoricGeneral, false},
+		HistoricClass{"Q845945", "Shinto shrine", domain.HistoricGeneral, false},
+		HistoricClass{"Q34627", "synagogue", domain.HistoricGeneral, false},
+		HistoricClass{"Q162875", "mausoleum", domain.HistoricGeneral, false},
+		HistoricClass{"Q175582", "Egyptian pyramid", domain.HistoricGeneral, false},
+		HistoricClass{"Q12516", "pyramid", domain.HistoricGeneral, false},
+		HistoricClass{"Q7362268", "Roman amphitheatre", domain.HistoricGeneral, false}, //nolint:misspell // Wikidata's English label
+		HistoricClass{"Q54831", "amphitheatre", domain.HistoricGeneral, false},         //nolint:misspell // Wikidata's English label
+		HistoricClass{"Q19757", "Roman theatre", domain.HistoricGeneral, false},        //nolint:misspell // Wikidata's English label
+		HistoricClass{"Q474", "aqueduct", domain.HistoricGeneral, false},
+		HistoricClass{"Q143912", "triumphal arch", domain.HistoricGeneral, false},
+		HistoricClass{"Q82117", "city gate", domain.HistoricGeneral, false},
+		HistoricClass{"Q16748868", "city walls", domain.HistoricGeneral, false},
+		HistoricClass{"Q879050", "manor house", domain.HistoricGeneral, false},
+		HistoricClass{"Q21092604", "manor house", domain.HistoricGeneral, false},
+		HistoricClass{"Q16974307", "dwór", domain.HistoricGeneral, false},
+		HistoricClass{"Q1408475", "fortified house", domain.HistoricGeneral, false},
+		HistoricClass{"Q569879", "Ansitz", domain.HistoricGeneral, false},
+		HistoricClass{"Q1523545", "seigniorial home", domain.HistoricGeneral, false},
+		HistoricClass{"Q16884952", "country house", domain.HistoricGeneral, false},
+		HistoricClass{"Q1802963", "mansion", domain.HistoricGeneral, false},
+		HistoricClass{"Q1655611", "plantation house", domain.HistoricGeneral, false},
+		HistoricClass{"Q2927789", "buitenplaats", domain.HistoricGeneral, false},
+		HistoricClass{"Q2087181", "historic house museum", domain.HistoricGeneral, false},
+		HistoricClass{"Q543654", "Rathaus", domain.HistoricGeneral, false},
+		HistoricClass{"Q65177565", "former town hall", domain.HistoricGeneral, false},
+		HistoricClass{"Q25550691", "city hall", domain.HistoricGeneral, false},
+		HistoricClass{"Q39715", "lighthouse", domain.HistoricGeneral, false},
+		HistoricClass{"Q200334", "bell tower", domain.HistoricGeneral, false},
+		HistoricClass{"Q853854", "clock tower", domain.HistoricGeneral, false},
+		HistoricClass{"Q1440300", "observation tower", domain.HistoricGeneral, false},
+		HistoricClass{"Q44844", "Bismarck tower", domain.HistoricGeneral, false},
+		HistoricClass{"Q12518", "tower", domain.HistoricGeneral, false},
+		HistoricClass{"Q180997", "post mill", domain.HistoricGeneral, false},
+		HistoricClass{"Q1534870", "smock mill", domain.HistoricGeneral, false},
+		HistoricClass{"Q819774", "smock mill on a hill", domain.HistoricGeneral, false},
+		HistoricClass{"Q647704", "tower mill", domain.HistoricGeneral, false},
+		HistoricClass{"Q38720", "windmill", domain.HistoricGeneral, false},
 	)
 }()
+
+// WorldHeritageQuery asks for every UNESCO World Heritage item with
+// coordinates, with its selection criteria, or its parent's for a part of a
+// serial site (1,731 of the 1,986 items without criteria of their own).
+const WorldHeritageQuery = `SELECT ?b ?c ?label ?desc ?iso ?cr WHERE {
+  ?b wdt:P1435 wd:Q9259 ; wdt:P625 ?c ; rdfs:label ?label . FILTER(LANG(?label) = "en")
+  OPTIONAL { ?b schema:description ?desc FILTER(LANG(?desc) = "en") }
+  OPTIONAL { ?b wdt:P17/wdt:P297 ?iso }
+  OPTIONAL { { ?b wdt:P2614 ?cr } UNION { ?b wdt:P361 ?p . ?p wdt:P2614 ?cr } }
+}`
+
+// worldHeritageKey names the World Heritage answer in the pacer.
+const worldHeritageKey = "world-heritage"
+
+// naturalCriteria are World Heritage selection criteria (vii) to (x).
+var naturalCriteria = map[string]bool{"Q23038981": true, "Q23038983": true, "Q23038985": true, "Q23038986": true}
 
 // HistoricQuery is the SPARQL for one class: every named item with
 // coordinates, closed or not. Castles, the largest class (20,622 items),
@@ -112,6 +211,7 @@ type BaseCounter interface {
 type historicAnswer struct {
 	sites []domain.HistoricSite
 	hints map[string]string
+	wh    map[string]bool // World Heritage items, the WorldHeritageQuery answer only
 }
 
 // Historic is the historic layer's ingest adapter.
@@ -138,7 +238,7 @@ func (*Historic) Info() domain.SourceInfo {
 		PollInterval: PollInterval,
 		Enabled:      true,
 		NonHazard:    true,
-		Scope:        "Forts, castles, bunkers, war cemeteries and other historic sites listed on Wikidata",
+		Scope:        "Forts, castles, war cemeteries, palaces, cathedrals, temples and other historic sites and landmarks listed on Wikidata, with World Heritage Sites",
 		TermsURL:     "https://www.wikidata.org/wiki/Wikidata:Licensing",
 		Cadence:      "edited continuously by volunteers; Shield refreshes weekly",
 	}
@@ -147,9 +247,10 @@ func (*Historic) Info() domain.SourceInfo {
 // PollAttempts implements ingest.PatientSource: a retry resumes.
 func (*Historic) PollAttempts() int { return pollAttempts }
 
-// PollTimeout implements ingest.SlowSource: 56 queries of up to a minute,
-// each preceded by a wait as long as the last. A full poll measured about
-// 12 minutes (2026-11-25, 36 queries); a retry resumes where it failed.
+// PollTimeout implements ingest.SlowSource: 133 queries (132 classes and
+// World Heritage) of up to a minute, each preceded by a wait as long as
+// the last. 56 queries took about 12 minutes (2026-11-25); a retry
+// resumes where it failed.
 func (*Historic) PollTimeout() time.Duration { return 2 * time.Hour }
 
 // Poll implements ingest.Source. It replaces the whole layer, or nothing.
@@ -172,7 +273,7 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 	for _, c := range HistoricClasses {
 		a, err := h.q.run(ctx, c.QID, c.Label, HistoricQuery(c.QID), func(body []byte) (historicAnswer, error) {
 			s, hs, err := ParseHistoric(body, c)
-			return historicAnswer{s, hs}, err
+			return historicAnswer{sites: s, hints: hs}, err
 		})
 		if err != nil {
 			return ingest.Result{}, err
@@ -187,6 +288,29 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 			if iso := a.hints[q]; iso != "" {
 				hints[q] = iso
 			}
+		}
+	}
+	// World Heritage: flag the sites already here, then add the cultural
+	// ones no class took (owner, 2026-11-25), as general landmarks.
+	wa, err := h.q.run(ctx, worldHeritageKey, "World Heritage Sites", WorldHeritageQuery, func(body []byte) (historicAnswer, error) {
+		s, hs, wh, err := ParseWorldHeritage(body)
+		return historicAnswer{sites: s, hints: hs, wh: wh}, err
+	})
+	if err != nil {
+		return ingest.Result{}, err
+	}
+	for i := range all {
+		all[i].WorldHeritage = wa.wh[all[i].QID]
+	}
+	for i := range wa.sites {
+		q := wa.sites[i].QID
+		if seen[q] {
+			continue
+		}
+		seen[q] = true
+		all = append(all, wa.sites[i])
+		if iso := wa.hints[q]; iso != "" {
+			hints[q] = iso
 		}
 	}
 	if err := h.checkShrink(ctx, all); err != nil {
@@ -260,4 +384,66 @@ func ParseHistoric(body []byte, c HistoricClass) ([]domain.HistoricSite, map[str
 		})
 	}
 	return out, hints, nil
+}
+
+// ParseWorldHeritage reads the WorldHeritageQuery answer: every World
+// Heritage item's QID (for the flag), and as sites the named ones on Earth
+// that are not purely natural, as general landmarks. An empty answer is an
+// error: the list never shrinks to nothing, and the flag would vanish.
+func ParseWorldHeritage(body []byte) ([]domain.HistoricSite, map[string]string, map[string]bool, error) {
+	var r response
+	if err := json.Unmarshal(body, &r); err != nil {
+		return nil, nil, nil, fmt.Errorf("%w: %w", errShape, err)
+	}
+	if r.Results == nil || len(r.Results.Bindings) == 0 {
+		return nil, nil, nil, fmt.Errorf("%w: no World Heritage Sites", errShape)
+	}
+	type item struct {
+		site              domain.HistoricSite
+		ok                bool
+		cultural, natural bool
+	}
+	items := map[string]*item{}
+	var order []string
+	hints := map[string]string{}
+	for _, b := range r.Results.Bindings {
+		qid := strings.TrimPrefix(b["b"].Value, "http://www.wikidata.org/entity/")
+		if !strings.HasPrefix(qid, "Q") {
+			continue
+		}
+		it := items[qid]
+		if it == nil {
+			it = &item{}
+			items[qid] = it
+			order = append(order, qid)
+			name := strings.TrimSpace(b["label"].Value)
+			if lon, lat, ok := point(b["c"].Value); ok && name != "" && name != qid {
+				it.ok = true
+				it.site = domain.HistoricSite{
+					QID: qid, Name: name, Description: strings.TrimSpace(b["desc"].Value),
+					Kind: domain.HistoricGeneral, Class: "World Heritage Site", Lon: lon, Lat: lat, WorldHeritage: true,
+				}
+			}
+		}
+		if iso := b["iso"].Value; len(iso) == 2 && hints[qid] == "" {
+			hints[qid] = strings.ToUpper(iso)
+		}
+		if cr := strings.TrimPrefix(b["cr"].Value, "http://www.wikidata.org/entity/"); cr != "" {
+			if naturalCriteria[cr] {
+				it.natural = true
+			} else {
+				it.cultural = true
+			}
+		}
+	}
+	wh := make(map[string]bool, len(items))
+	var out []domain.HistoricSite
+	for _, qid := range order {
+		it := items[qid]
+		wh[qid] = true
+		if it.ok && (it.cultural || !it.natural) {
+			out = append(out, it.site)
+		}
+	}
+	return out, hints, wh, nil
 }

@@ -23,7 +23,7 @@ func TestHistoricReplaceGridAndPoints(t *testing.T) {
 	}
 	repo := store.NewHistoricRepository(pool)
 	sites := []domain.HistoricSite{
-		{QID: "Q1", Name: "Burg A", Kind: domain.HistoricCastle, Class: "castle", Lon: 10.2, Lat: 50.2, Description: "castle"},
+		{QID: "Q1", Name: "Burg A", Kind: domain.HistoricCastle, Class: "castle", Lon: 10.2, Lat: 50.2, Description: "castle", WorldHeritage: true},
 		{QID: "Q2", Name: "Burg B", Kind: domain.HistoricCastle, Class: "castle", Lon: 10.3, Lat: 50.3},
 		{QID: "Q3", Name: "Fort C", Kind: domain.HistoricMilitary, Class: "fort", Lon: 10.4, Lat: 50.4},
 		{QID: "Q100", Name: "Active Fort", Kind: domain.HistoricMilitary, Class: "fort", Lon: 10.1, Lat: 50.1},
@@ -74,5 +74,21 @@ func TestHistoricReplaceGridAndPoints(t *testing.T) {
 	across, _, err := repo.Points(ctx, domain.HistoricQuery{BBox: &domain.BBox{MinLon: 170, MinLat: -20, MaxLon: -170, MaxLat: -10}}, 10)
 	if err != nil || len(across) != 1 || across[0].QID != "Q5" {
 		t.Fatalf("antimeridian %+v %v", across, err)
+	}
+	whs, _, err := repo.Points(ctx, domain.HistoricQuery{WorldHeritage: true}, 10)
+	if err != nil || len(whs) != 1 || whs[0].QID != "Q1" || !whs[0].WorldHeritage {
+		t.Fatalf("World Heritage only: %+v %v", whs, err)
+	}
+
+	// Next week: Q1 has not moved and keeps its country without a hint;
+	// Q2 moved and takes its new hint (the template has no country shapes).
+	sites[0].WorldHeritage = false
+	sites[1].Lon, sites[1].Lat = 10.31, 50.31
+	if _, err := repo.Replace(ctx, sites, map[string]string{"Q2": "FR"}, at.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	again, _, err := repo.Points(ctx, domain.HistoricQuery{Kinds: []domain.HistoricKind{domain.HistoricCastle}}, 10)
+	if err != nil || len(again) != 2 || again[0].ISO2 != "DE" || again[1].ISO2 != "FR" || again[0].WorldHeritage {
+		t.Fatalf("countries carried forward: %+v %v", again, err)
 	}
 }
