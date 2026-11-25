@@ -13,8 +13,8 @@ struct FilterSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ShieldSpace.s6) {
-                section("Hazard type", trailing: model.query.types.count < HazardType.allCases.count
-                        ? AnyView(Button("All") { model.query.types = Set(HazardType.allCases) }
+                section("Hazard type", trailing: model.query.types.count < HazardType.hazards.count
+                        ? AnyView(Button("All") { model.query.types = Set(HazardType.hazards) }
                             .buttonStyle(.plain).foregroundStyle(Color.accent).font(ShieldFont.meta.weight(.semibold)))
                         : nil) {
                     typeGrid
@@ -51,7 +51,7 @@ struct FilterSheet: View {
 
     private var typeGrid: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: ShieldSpace.s2)], spacing: ShieldSpace.s2) {
-            ForEach(HazardType.allCases, id: \.self) { type in
+            ForEach(HazardType.hazards, id: \.self) { type in
                 let on = model.query.types.contains(type)
                 Button {
                     // The last type can't be turned off: a map filtered to nothing helps no one.

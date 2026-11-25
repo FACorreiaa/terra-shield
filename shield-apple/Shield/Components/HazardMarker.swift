@@ -17,6 +17,9 @@ struct HazardMarker: View {
     var baseSize: CGFloat = 28
     /// The extreme-severity halo. On the map only (DESIGN.md §8, §13); lists and cards hold still.
     var pulses = true
+    /// A conflict geocoded only roughly (district, province, area): a dashed ring says the point
+    /// is not exact (docs/attrs.md, `locationPrecision`).
+    var isApproximate = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -62,6 +65,13 @@ struct HazardMarker: View {
                 .offset(y: size * shape.glyphOffsetY)
         }
         .frame(width: size, height: size)
+        .background {
+            if isApproximate {
+                Circle()
+                    .strokeBorder(severity.color.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+                    .frame(width: size * 1.6, height: size * 1.6)
+            }
+        }
         .scaleEffect(isSelected ? 1.15 : 1)
         .shadow(color: .black.opacity(0.45), radius: 3, y: 1)
         .animation(ShieldMotion.spring, value: isSelected)

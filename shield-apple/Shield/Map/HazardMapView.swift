@@ -57,6 +57,7 @@ struct HazardMapView {
             localClustering: model.viewport.zoom >= MapViewport.detailZoom,
             staleSources: Set(model.sources.values.filter { $0.isStale() }.map(\.id))
         )
+        coordinator.apply(conflicts: model.conflicts)
         coordinator.apply(detections: model.detections)
         coordinator.apply(area: model.selectedGeometry, of: model.selectedEvent)
         if fitWorldRequest != coordinator.fitWorldRequest {
@@ -102,8 +103,10 @@ struct HazardMapView {
         weak var map: MKMapView?
         var fitWorldRequest = 0
 
-        private var events: [UUID: EventAnnotation] = [:]
-        private var clusters: [String: ServerClusterAnnotation] = [:]
+        private var hazards = AnnotationSet(isConflict: false)
+        /// The conflicts layer (ADR 27): its own events and clusters, never mixed with hazards.
+        private var conflictSet = AnnotationSet(isConflict: true)
+        private var events: [UUID: EventAnnotation] { hazards.events.merging(conflictSet.events) { a, _ in a } }
         private var selectedID: UUID?
         private var localClustering = false
         private var staleSources: Set<String> = []
@@ -124,8 +127,15 @@ struct HazardMapView {
             self.localClustering = localClustering
             self.staleSources = staleSources
 
-            if let snapshot { diff(snapshot, on: map) }
+            if let snapshot { hazards.diff(snapshot, on: map) }
             if restyle { restyleVisibleMarkers(on: map) }
+            syncSelection(on: map)
+        }
+
+        /// The conflicts layer's snapshot; nil (layer off) removes every conflict annotation.
+        func apply(conflicts: MapSnapshot?) {
+            guard let map else { return }
+            conflictSet.diff(conflicts ?? MapSnapshot(events: [], clusters: [], truncated: false, generatedAt: .now), on: map)
             syncSelection(on: map)
         }
 
@@ -153,37 +163,6 @@ struct HazardMapView {
             area = (geometry, event, stale, overlay)
             // Index 0: below the detection layer (DESIGN.md §9, layer order).
             map.insertOverlay(overlay, at: 0, level: .aboveRoads)
-        }
-
-        /// Only changed annotations are touched, so a refresh doesn't flicker the map.
-        private func diff(_ snapshot: MapSnapshot, on map: MKMapView) {
-            var removed: [any MKAnnotation] = []
-            var added: [any MKAnnotation] = []
-
-            let incoming = Dictionary(snapshot.events.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            for (id, annotation) in events where incoming[id] != annotation.event {
-                removed.append(annotation)
-                events[id] = nil
-            }
-            for (id, event) in incoming where events[id] == nil {
-                let annotation = EventAnnotation(event)
-                events[id] = annotation
-                added.append(annotation)
-            }
-
-            let incomingClusters = Dictionary(snapshot.clusters.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            for (id, annotation) in clusters where incomingClusters[id] != annotation.cluster {
-                removed.append(annotation)
-                clusters[id] = nil
-            }
-            for (id, cluster) in incomingClusters where clusters[id] == nil {
-                let annotation = ServerClusterAnnotation(cluster)
-                clusters[id] = annotation
-                added.append(annotation)
-            }
-
-            if !removed.isEmpty { map.removeAnnotations(removed) }
-            if !added.isEmpty { map.addAnnotations(added) }
         }
 
         private func restyleVisibleMarkers(on map: MKMapView) {
@@ -323,7 +302,7 @@ struct HazardMapView {
                 return view
             case let a as ServerClusterAnnotation:
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: ServerClusterView.reuseID, for: a)
-                (view as? ServerClusterView)?.configure(a.cluster)
+                (view as? ServerClusterView)?.configure(a.cluster, isConflict: a.isConflict)
                 return view
             case let a as MKClusterAnnotation:
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: LocalClusterView.reuseID, for: a)
@@ -395,3 +374,44 @@ extension HazardMapView: NSViewRepresentable {
     func updateNSView(_ nsView: MKMapView, context: Context) { update(context.coordinator) }
 }
 #endif
+
+/// One layer's annotations by id. Only changed ones are touched, so a refresh doesn't flicker
+/// the map.
+@MainActor
+private struct AnnotationSet {
+    let isConflict: Bool
+    var events: [UUID: EventAnnotation] = [:]
+    var clusters: [String: ServerClusterAnnotation] = [:]
+
+    init(isConflict: Bool) { self.isConflict = isConflict }
+
+    mutating func diff(_ snapshot: MapSnapshot, on map: MKMapView) {
+        var removed: [any MKAnnotation] = []
+        var added: [any MKAnnotation] = []
+
+        let incoming = Dictionary(snapshot.events.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for (id, annotation) in events where incoming[id] != annotation.event {
+            removed.append(annotation)
+            events[id] = nil
+        }
+        for (id, event) in incoming where events[id] == nil {
+            let annotation = EventAnnotation(event)
+            events[id] = annotation
+            added.append(annotation)
+        }
+
+        let incomingClusters = Dictionary(snapshot.clusters.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for (id, annotation) in clusters where incomingClusters[id] != annotation.cluster {
+            removed.append(annotation)
+            clusters[id] = nil
+        }
+        for (id, cluster) in incomingClusters where clusters[id] == nil {
+            let annotation = ServerClusterAnnotation(cluster, isConflict: isConflict)
+            clusters[id] = annotation
+            added.append(annotation)
+        }
+
+        if !removed.isEmpty { map.removeAnnotations(removed) }
+        if !added.isEmpty { map.addAnnotations(added) }
+    }
+}

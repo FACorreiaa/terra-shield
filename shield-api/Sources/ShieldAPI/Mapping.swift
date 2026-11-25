@@ -54,6 +54,7 @@ extension Source {
         // A bad terms link only loses the link: the row falls back to the home page.
         termsUrl = s.termsUrl.flatMap(URL.init(string:))
         cadence = s.cadence
+        onDemand = s.onDemand
     }
 }
 

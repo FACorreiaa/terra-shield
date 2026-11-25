@@ -27,6 +27,7 @@ export const hazardTypeTokens = {
   snow_ice: { label: "Snow and ice", icon: "snowflake" },
   tsunami: { label: "Tsunami", icon: "waves-arrow-up" },
   other: { label: "Other hazard", icon: "triangle-alert" },
+  conflict: { label: "Armed conflict", icon: "crosshair" },
 } as const;
 export type HazardTypeKey = keyof typeof hazardTypeTokens;
 

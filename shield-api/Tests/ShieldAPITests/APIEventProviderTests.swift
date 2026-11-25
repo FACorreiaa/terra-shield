@@ -48,7 +48,10 @@ private let sources = """
  {"id": "ucdp", "name": "UCDP Candidate Events", "url": "https://ucdp.uu.se/",
   "license": "CC BY 4.0", "attribution": "UCDP", "pollIntervalSeconds": 21600, "enabled": true,
   "stale": false, "coverage": "Armed-conflict events with deaths, worldwide",
-  "termsUrl": "https://ucdp.uu.se/downloads/", "cadence": "monthly release"}]}
+  "termsUrl": "https://ucdp.uu.se/downloads/", "cadence": "monthly release"},
+ {"id": "adsblol", "name": "adsb.lol", "url": "https://adsb.lol/", "license": "ODbL 1.0",
+  "attribution": "© adsb.lol contributors", "pollIntervalSeconds": 60, "enabled": true,
+  "stale": false, "onDemand": true}]}
 """
 
 /// "now" just after the sample payload, so the default 24 h window keeps everything.
@@ -137,6 +140,7 @@ private let now = Date(timeIntervalSince1970: 1_794_838_800) // 2026-11-16T14:20
         #expect(list[0].coverage == "Earthquakes worldwide" && list[0].termsUrl == nil)
         #expect(list[1].termsUrl == URL(string: "https://ucdp.uu.se/downloads/"))
         #expect(list[1].cadence == "monthly release")
+        #expect(list[0].onDemand != true && list[2].onDemand == true)
     }
 }
 

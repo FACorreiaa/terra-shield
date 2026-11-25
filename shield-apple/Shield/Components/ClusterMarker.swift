@@ -9,6 +9,8 @@ struct ClusterMarker: View {
     var maxSeverity: Severity
     /// Most severe first, summing to 1. From the server's counts or the members of a local cluster.
     var shares: [(severity: Severity, share: Double)] = []
+    /// A cluster of armed conflicts (ADR 27): a dashed outer ring, so it never reads as hazards.
+    var isConflict = false
 
     /// Grows with the count, slowly: 36 pt for 2 events, 56 pt from about a thousand.
     private var size: CGFloat {
@@ -19,7 +21,11 @@ struct ClusterMarker: View {
     var body: some View {
         ZStack {
             Circle().fill(Color.panel)
-            Circle().strokeBorder(maxSeverity.color, lineWidth: 2)
+            if isConflict {
+                Circle().strokeBorder(maxSeverity.color, style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
+            } else {
+                Circle().strokeBorder(maxSeverity.color, lineWidth: 2)
+            }
             ForEach(Array(arcs.enumerated()), id: \.offset) { _, arc in
                 Circle()
                     .trim(from: arc.start, to: arc.end)
@@ -35,6 +41,16 @@ struct ClusterMarker: View {
                 .padding(.horizontal, 6)
         }
         .frame(width: size, height: size)
+        .overlay(alignment: .topTrailing) {
+            if isConflict {
+                Image(systemName: HazardType.conflict.sfSymbol)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Color.canvas)
+                    .frame(width: 16, height: 16)
+                    .background(maxSeverity.color, in: Circle())
+                    .offset(x: 2, y: -2)
+            }
+        }
         .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
@@ -53,7 +69,7 @@ struct ClusterMarker: View {
     }
 
     private var accessibilityText: String {
-        "\(count) events, highest severity \(maxSeverity.label.lowercased())"
+        "\(count) \(isConflict ? "armed-conflict events" : "events"), highest severity \(maxSeverity.label.lowercased())"
     }
 }
 

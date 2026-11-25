@@ -80,7 +80,7 @@ private func freshStore(_ name: String = #function) -> FilterStore {
         UserDefaults(suiteName: store.suiteName)!.set(Data(old.utf8), forKey: store.key)
         let loaded = store.load().query
         #expect(!loaded.types.contains(.flood))
-        #expect(loaded.types.count == HazardType.allCases.count - 1)
+        #expect(loaded.types.count == HazardType.hazards.count - 1)
     }
 
     @Test func anUnreadableBlobGivesTheDefaults() {
@@ -91,7 +91,7 @@ private func freshStore(_ name: String = #function) -> FilterStore {
         defaults.set(Data(#"{"version":2}"#.utf8), forKey: store.key)
         #expect(store.load() == SavedFilters())
         // Everything excluded: never restore a query that shows nothing.
-        let all = HazardType.allCases.map { "\"\($0.rawValue)\"" }.joined(separator: ",")
+        let all = HazardType.hazards.map { "\"\($0.rawValue)\"" }.joined(separator: ",")
         defaults.set(Data(#"{"version":1,"excludedTypes":[\#(all)],"minimumSeverity":"bogus","excludedKinds":["observed","warning","forecast"],"window":null,"showsDetections":false}"#.utf8), forKey: store.key)
         let q = store.load().query
         #expect(q.types == EventQuery().types)

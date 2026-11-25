@@ -51,6 +51,17 @@ import Testing
                 == "Monthly release · checked every 6 h")
     }
 
+    @Test func anOnDemandSourceIsFetchedWhileSomeoneWatches() {
+        // adsb.lol (#43): no schedule, never stale; 60 s is its fastest refresh.
+        var s = source(poll: 60, success: nil, stale: false, cadence: "positions every few seconds")
+        s.onDemand = true
+        #expect(s.interval == "Fetched only while the flights layer is shown, at most once a minute")
+        #expect(s.statusLine(now: now) == "Not fetched yet")
+        #expect(s.health(now: now) == .ok)
+        s.lastSuccessAt = now.addingTimeInterval(-300)
+        #expect(s.statusLine(now: now) == "Fetched 5 min ago · 17:35 UTC")
+    }
+
     @Test func onlyActiveSourcesAreListed() {
         let list = [source(success: 0), source(success: 0, enabled: false)]
         #expect(Source.listed(list).count == 1)

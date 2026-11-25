@@ -16,6 +16,9 @@ public enum HazardType: String, Codable, Sendable, CaseIterable, Hashable {
     case snowIce = "snow_ice"
     case tsunami
     case other
+    /// An armed-conflict event (UCDP, ADR 27): its own layer, never a hazard. The hazard filters
+    /// use `hazards`; only the conflicts layer asks for this type.
+    case conflict
 
     /// An unknown future value decodes as `.other` instead of failing the whole payload.
     public init(from decoder: any Decoder) throws {
@@ -92,6 +95,10 @@ extension HazardType {
         case .snowIce: "Snow and ice"
         case .tsunami: "Tsunami"
         case .other: "Other hazard"
+        case .conflict: "Armed conflict"
         }
     }
+
+    /// Every type but `conflict`: what the hazard filters offer and "all types" means.
+    public static let hazards: [HazardType] = allCases.filter { $0 != .conflict }
 }

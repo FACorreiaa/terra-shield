@@ -19,6 +19,8 @@ struct ShieldApp: App {
         // Screenshot automation: start with heat detections on (`SHIELD_DETECTIONS=1`) …
         let env = ProcessInfo.processInfo.environment
         if env["SHIELD_DETECTIONS"] == "1" { model.showsDetections = true }
+        // … with the armed-conflicts layer on (`SHIELD_CONFLICTS=1`).
+        if env["SHIELD_CONFLICTS"] == "1" { model.showsConflicts = true }
         // … and with an event selected (`SHIELD_SELECT=<event id>`).
         if let id = env["SHIELD_SELECT"].flatMap(UUID.init(uuidString:)) { model.selectedEventID = id }
         // … and with a set of filters on (`SHIELD_FILTER_DEMO=1`): moderate and up, warnings

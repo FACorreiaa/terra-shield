@@ -19,6 +19,9 @@ public struct Source: Codable, Sendable, Hashable, Identifiable {
     public var termsUrl: URL?
     /// How often the source itself publishes, when that differs from our poll ("monthly release").
     public var cadence: String?
+    /// Fetched only while someone views its layer (adsb.lol, live flights), not on a schedule:
+    /// `pollIntervalSeconds` is its fastest refresh, and it is never stale.
+    public var onDemand: Bool?
 
     public init(
         id: String,
@@ -83,6 +86,10 @@ extension Source {
     /// "Checked 2 min ago · 17:38 UTC", "Last check failed 3 min ago · last good check 1 h ago",
     /// "Stale · last good check 19 h ago · 22:40 UTC".
     public func statusLine(now: Date = .now) -> String {
+        if onDemand == true, !lastCheckFailed {
+            guard let lastSuccessAt else { return "Not fetched yet" }
+            return "Fetched \(Freshness.stamp(lastSuccessAt, now: now))"
+        }
         if lastCheckFailed, let lastErrorAt {
             let good = lastSuccessAt.map { "last good check \(Freshness.relative($0, now: now))" } ?? "no good check yet"
             return "Last check failed \(Freshness.relative(lastErrorAt, now: now)) · \(good)"
@@ -95,6 +102,7 @@ extension Source {
     /// Our poll, not the data's age: "Checked every 6 h", or with the source's own rhythm,
     /// "Monthly release · checked every 6 h".
     public var interval: String {
+        if onDemand == true { return "Fetched only while the flights layer is shown, at most once a minute" }
         let n = pollIntervalSeconds
         let every = switch n {
         case ..<60: "\(n) s"
