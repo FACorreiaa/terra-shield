@@ -77,6 +77,7 @@ struct ShieldApp: App {
         #if os(macOS)
         .defaultSize(width: 1200, height: 800)
         #endif
+        .commands { SidebarCommands() }
 
         #if os(macOS) && DEBUG
         Window("Component Gallery", id: "gallery") {
