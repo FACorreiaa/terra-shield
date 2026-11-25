@@ -11,17 +11,17 @@ routes are those in `docs/ARCHITECTURE.md` §4. If a route changes there, update
 
 ## Surface map
 
-| Surface | iOS | macOS | Web (Phase 2) | Route(s) | Phase |
+| Surface | iOS | macOS | Web (launches first, ADR 22) | Route(s) | Phase |
 |---|---|---|---|---|---|
-| Monitor (live map) | Root: full-screen map + sheet | Sidebar "Monitor" → map canvas | `/` | `GET /v1/events`, `GET /v1/stream`, `GET /v1/fires` | MVP |
+| Monitor (live map) | Root: full-screen map + sheet | Sidebar "Monitor" → map canvas | `/map` | `GET /v1/events`, `GET /v1/stream`, `GET /v1/fires` | MVP |
 | Event detail | Sheet (large detent) | Inspector | Right panel / sheet; deep link `/e/{id}` | `GET /v1/events/{id}` | MVP |
 | Country overview | Sheet (large) | Sidebar "Countries" list → content + inspector | `/c/{iso2}` | `GET /v1/countries`, `GET /v1/countries/{iso2}/summary` | MVP |
 | Filters | Sheet over sheet | Toolbar popover | Popover / sheet | (local state) | MVP |
 | Sources & attribution | From capsule menu | Sidebar "Sources" | `/sources` | `GET /v1/sources` | MVP |
-| Onboarding | First run, 3 cards | First run window | Landing hero | none | MVP |
+| Onboarding | First run, 3 cards | First run window | Landing hero at `/` (owner, 2026-11-19), replaces the cards | none | MVP |
 | Settings | From capsule | ⌘, window | `/settings` | (local) | MVP |
-| Saved regions | Sheet header bookmark | Sidebar "Saved regions" | `/saved` | Phase 3 API (TBD) | **Phase 3, gated** |
-| Alert center | Sheet header bell | Sidebar "Alerts" | `/alerts` | Phase 3 API (TBD) | **Phase 3, gated** |
+| Saved regions | Sheet header bookmark | Sidebar "Saved regions" | `/saved`, browser-local (owner, 2026-11-19) | Phase 3 API (TBD); web: none | **Phase 3, gated**; web built now |
+| Alert center | Sheet header bell | Sidebar "Alerts" | `/alerts`, browser-local (owner, 2026-11-19) | Phase 3 API (TBD); web: `/v1/stream` | **Phase 3, gated**; web built now |
 
 The iPhone has no tab bar: the map keeps the screen and everything else is a sheet route. The macOS sidebar order
 is Monitor · Countries · Saved regions · Alerts, with Sources pinned at the bottom (⌘1–⌘5).
@@ -31,7 +31,7 @@ is Monitor · Countries · Saved regions · Alerts, with Sources pinned at the b
 ## Component catalog
 
 Each component is built once in SwiftUI (in the app target's `Design/` folder, using `shield-core` models)
-and later once in Svelte with the same name and props. Props are named after API fields.
+and once in React (`shield-app-web/`, ADR 19) with the same name and props. Props are named after API fields.
 
 | Component | Props | Job | Source |
 |---|---|---|---|
@@ -256,7 +256,7 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      takes the height it is given (minimum 480): the window opens at 1200 × 800 and shrinks to 592.
      The 4647 pt width no longer reproduces from a clean state (fresh bundle id, no saved frame).
    - DEBUG: `SHIELD_SECTION=2` selects a section at launch (screenshots on iPad).
-9. **Phase 2 Web.** The same catalog in Svelte, plus the MapLibre style (DESIGN §9).
+9. **Web (launches first, ADR 22).** The same catalog in React + TypeScript (ADR 19), plus the MapLibre style (DESIGN §9). Plan and slices W1–W9: `shield-app-web/docs/PLAN.md`.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 
-import { relative, utcClock } from "./freshness.ts";
+import { relative, utcClock } from "@/domain/freshness.ts";
 
 /** "Updated 12 min ago · 14:02 UTC" (DESIGN.md §2). */
 function FreshnessLabel({ updatedAt, now }: { updatedAt: string; now: Date }): ReactElement {

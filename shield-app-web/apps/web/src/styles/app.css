@@ -21,6 +21,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* A DOM marker on the far side of the globe: MapLibre fades it to `opacityWhenCovered` (0);
+   hiding it also takes the cluster button out of clicks and the tab order. */
+.maplibregl-marker-covered {
+  visibility: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -28,32 +34,4 @@ body {
     animation: none !important;
     transition: none !important;
   }
-}
-
-/* Server clusters (ADR 9): panel disc, ring in the highest severity, mono count. */
-.hazard-cluster {
-  display: grid;
-  place-items: center;
-  min-width: 2.25rem;
-  height: 2.25rem;
-  padding: 0 0.5rem;
-  border-radius: 9999px;
-  border: 2px solid var(--color-severity-minor);
-  background: var(--color-panel);
-  color: var(--color-ink);
-  font: 600 var(--text-meta) / 1 var(--font-mono);
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
-}
-
-.hazard-cluster[data-severity="moderate"] {
-  border-color: var(--color-severity-moderate);
-}
-
-.hazard-cluster[data-severity="severe"] {
-  border-color: var(--color-severity-severe);
-}
-
-.hazard-cluster[data-severity="extreme"] {
-  border-color: var(--color-severity-extreme);
 }

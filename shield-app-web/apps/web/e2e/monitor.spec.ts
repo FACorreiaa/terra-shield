@@ -26,7 +26,7 @@ const eventList = {
 
 test("shows events from the API with both severities and the disclaimer", async ({ page }) => {
   await page.route("**/v1/events?**", (route) => route.fulfill({ json: eventList }));
-  await page.goto("/");
+  await page.goto("/map");
   await expect(page.getByText("M 6.1 - 38 km W of Coquimbo, Chile")).toBeVisible();
   await expect(page.getByText("Severe", { exact: true })).toBeVisible();
   await expect(page.getByText("M 6.1 mww, PAGER yellow")).toBeVisible();
@@ -39,6 +39,6 @@ test("says so when the API is unreachable instead of showing anything", async ({
   await page.route("**/v1/events?**", (route) =>
     route.fulfill({ status: 503, json: { error: true, code: "unavailable", reason: "database down" } }),
   );
-  await page.goto("/");
+  await page.goto("/map");
   await expect(page.getByText("Can’t reach Shield’s API.")).toBeVisible({ timeout: 10_000 });
 });

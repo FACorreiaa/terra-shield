@@ -5,11 +5,11 @@ import { useCallback } from "react";
 
 import { Icon } from "@/design/icons.ts";
 import { hazardTypeTokens } from "@/design/tokens.gen.ts";
+import { place } from "@/domain/place.ts";
 import { cn } from "@/lib/utils.ts";
 
 import { FreshnessLabel } from "./FreshnessLabel.tsx";
 import { KindChip } from "./KindChip.tsx";
-import { place } from "./place.ts";
 import { SeverityBadge } from "./SeverityBadge.tsx";
 
 interface EventRowProps {

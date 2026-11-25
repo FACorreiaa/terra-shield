@@ -11,12 +11,6 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.4.1",
-    "@deck.gl/layers": "^9.4.1",
-    "@deck.gl/mapbox": "^9.4.1",
-    "@hookform/resolvers": "^7.0.6",
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.2",
     "@shield/api-client": "workspace:*",
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
@@ -26,14 +20,15 @@
     "maplibre-gl": "^6.18.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-hook-form": "^7.92.0",
     "tailwind-merge": "^3.7.0",
-    "three": "^0.187.0",
+    "terra-draw": "^1.40.0",
+    "terra-draw-maplibre-gl-adapter": "^1.5.0",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.5",
     "@tanstack/router-plugin": "^1.169.0",
@@ -42,7 +37,6 @@
     "@types/geojson": "^7946.0.16",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/three": "^0.187.0",
     "@types/topojson-client": "^3.1.5",
     "@types/topojson-specification": "^1.0.5",
     "@vitejs/plugin-react": "^6.3.0",
