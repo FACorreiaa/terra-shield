@@ -223,6 +223,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/historic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historic sites listed on Wikidata (forts, castles, bunkers, war cemeteries), a static layer separate from events.
+         * @description Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, and `memorial` (military museums and war cemeteries). Installations in use are never here: they are on `/v1/bases`. Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind); from zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned (`truncated` says when more matched). Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
+         */
+        get: operations["listHistoricSites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/stream": {
         parameters: {
             query?: never;
@@ -535,6 +555,78 @@ export interface components {
             geometry: components["schemas"]["Geometry"];
             /** @description A FireDetection, or a FireCell when the collection's aggregation is "grid". */
             properties: components["schemas"]["FireDetection"] | components["schemas"]["FireCell"];
+        };
+        /** @description One historic site (zoom 8 and above). */
+        HistoricSite: {
+            /**
+             * @description Wikidata item ID.
+             * @example Q1076034
+             */
+            id: string;
+            /** @example Castelo de São Jorge */
+            name: string;
+            /** @description Wikidata's English description. */
+            description?: string;
+            /** @description Filter group. Treat unknown values as military. */
+            kind: ("military" | "castle" | "memorial") | string;
+            /**
+             * @description Wikidata class in English.
+             * @example star fort
+             */
+            class: string;
+            /**
+             * @description ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.
+             * @example PT
+             */
+            country?: string;
+            /**
+             * Format: uri
+             * @description The Wikidata item.
+             */
+            url: string;
+        };
+        /** @description Sites counted in one grid cell (zoom below 8). */
+        HistoricCell: {
+            count: number;
+            /** @description Sites per kind in the cell. */
+            kinds: {
+                [key: string]: number;
+            };
+        };
+        HistoricFeature: {
+            /** @enum {string} */
+            type: "Feature";
+            geometry: components["schemas"]["Geometry"];
+            /** @description A HistoricSite, or a HistoricCell when the collection's aggregation is "grid". */
+            properties: components["schemas"]["HistoricSite"] | components["schemas"]["HistoricCell"];
+        };
+        HistoricFeatureCollection: {
+            /** @enum {string} */
+            type: "FeatureCollection";
+            /**
+             * @description grid when features are HistoricCells.
+             * @enum {string}
+             */
+            aggregation: "none" | "grid";
+            /**
+             * Format: double
+             * @description Grid cell size, when aggregation is grid.
+             */
+            cellDegrees?: number;
+            features: components["schemas"]["HistoricFeature"][];
+            /** @description More sites matched than were returned (points only). */
+            truncated: boolean;
+            /**
+             * Format: date-time
+             * @description When Shield last refreshed the sites returned (points only).
+             */
+            updatedAt?: string;
+            /** @example Wikidata */
+            attribution: string;
+            /** @example CC0 1.0 */
+            license: string;
+            /** @description What the layer is; show it with the layer. */
+            note: string;
         };
         BaseList: {
             bases: components["schemas"]["MilitaryBase"][];
@@ -1083,6 +1175,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BaseList"];
+                };
+            };
+            304: components["responses"]["NotModified"];
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listHistoricSites: {
+        parameters: {
+            query?: {
+                /** @description minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian. */
+                bbox?: components["parameters"]["BBox"];
+                /** @description Map zoom level; drives clustering and geometry simplification. */
+                zoom?: components["parameters"]["Zoom"];
+                /** @description Comma-separated kinds to include; all when absent. */
+                kind?: ("military" | "castle" | "memorial")[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sites or cells. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control": components["headers"]["CacheControl"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/geo+json": components["schemas"]["HistoricFeatureCollection"];
                 };
             };
             304: components["responses"]["NotModified"];

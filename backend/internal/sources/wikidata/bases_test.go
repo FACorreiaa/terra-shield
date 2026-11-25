@@ -127,9 +127,8 @@ func TestPoll(t *testing.T) {
 	defer srv.Close()
 	store := &fakeStore{}
 	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), store)
-	s.endpoint = srv.URL
-	var pauses int
-	s.pause = func(context.Context, time.Duration) error { pauses++; return nil }
+	s.q.endpoint = srv.URL
+	s.q.pause = func(context.Context, time.Duration) error { return nil }
 	res, err := s.Poll(context.Background(), domain.Validators{})
 	if err != nil || res.Upserted != 2 {
 		t.Fatalf("%+v %v", res, err)
@@ -140,14 +139,11 @@ func TestPoll(t *testing.T) {
 	if store.hints["Q11790255"] != "US" {
 		t.Errorf("hints %v", store.hints)
 	}
-	if pauses != len(Classes)-1 {
-		t.Errorf("%d pauses, want one between each pair of queries", pauses)
-	}
 
 	// One class failing fails the poll and keeps the stored layer.
 	failing := stub(t, "Q695850")
 	defer failing.Close()
-	s.endpoint = failing.URL
+	s.q.endpoint = failing.URL
 	if _, err := s.Poll(context.Background(), domain.Validators{}); err == nil || len(store.bases) != 2 {
 		t.Fatalf("a failed class must fail the poll: %v", err)
 	}
@@ -158,8 +154,8 @@ func TestPollRefusesToShrink(t *testing.T) {
 	defer srv.Close()
 	store := &fakeStore{held: 10}
 	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), store)
-	s.endpoint = srv.URL
-	s.pause = func(context.Context, time.Duration) error { return nil }
+	s.q.endpoint = srv.URL
+	s.q.pause = func(context.Context, time.Duration) error { return nil }
 	if _, err := s.Poll(context.Background(), domain.Validators{}); err == nil || store.bases != nil {
 		t.Fatalf("2 bases against 10 stored must not replace: %v", err)
 	}
@@ -178,5 +174,136 @@ func TestQueryNamesOneClass(t *testing.T) {
 			t.Errorf("class %s listed twice", c.QID)
 		}
 		seen[c.QID] = true
+	}
+}
+
+// A retried poll asks only for the classes it has not answered yet.
+func TestPollResumes(t *testing.T) {
+	var mu sync.Mutex
+	asked := map[string]int{}
+	failOnce := true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("query")
+		var cls string
+		for _, c := range Classes {
+			if strings.Contains(q, "wd:"+c.QID+" ") {
+				cls = c.QID
+				break
+			}
+		}
+		mu.Lock()
+		asked[cls]++
+		fail := cls == "Q695850" && failOnce
+		if fail {
+			failOnce = false
+		}
+		mu.Unlock()
+		if fail {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+		_, _ = w.Write([]byte(`{"results":{"bindings":[]}}`))
+	}))
+	defer srv.Close()
+	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), &fakeStore{})
+	s.q.endpoint = srv.URL
+	s.q.pause = func(context.Context, time.Duration) error { return nil }
+
+	if _, err := s.Poll(context.Background(), domain.Validators{}); err == nil {
+		t.Fatal("the air base class failed: the poll must fail")
+	}
+	if _, err := s.Poll(context.Background(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	for i, c := range Classes {
+		want := 1
+		if c.QID == "Q695850" {
+			want = 2
+		}
+		if asked[c.QID] != want {
+			t.Errorf("class %d %s asked %d times, want %d", i, c.Label, asked[c.QID], want)
+		}
+	}
+	// A completed poll forgets its answers: the next one asks again.
+	if _, err := s.Poll(context.Background(), domain.Validators{}); err != nil || asked["Q245016"] != 2 {
+		t.Fatalf("after a completed poll: %v, military base asked %d times", err, asked["Q245016"])
+	}
+}
+
+func TestPacerForgetsOldAnswers(t *testing.T) {
+	now := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
+	p := newPacer[int](nil)
+	p.now = func() time.Time { return now }
+	p.begin()
+	p.done["x"] = 1
+	now = now.Add(resumeFor - time.Minute)
+	p.begin()
+	if _, ok := p.done["x"]; !ok {
+		t.Fatal("an answer within resumeFor must be kept")
+	}
+	now = now.Add(2 * time.Minute)
+	p.begin()
+	if _, ok := p.done["x"]; ok {
+		t.Fatal("an answer older than resumeFor must be dropped")
+	}
+}
+
+// The bases query is pinned: a change must be deliberate, and timed against
+// the service (ADR 29: the larger classes take 5-16 s).
+func TestBasesQueryPinned(t *testing.T) {
+	want := `SELECT ?b ?c ?label ?desc ?iso ?opLabel ?ended WHERE {
+  ?b wdt:P31 wd:Q695850 ; wdt:P625 ?c ; rdfs:label ?label . FILTER(LANG(?label) = "en")
+  FILTER NOT EXISTS { ?b wdt:P576|wdt:P3999|wdt:P582|wdt:P730 [] }
+  OPTIONAL { ?b p:P31 ?st . ?st ps:P31 wd:Q695850 ; pq:P582 ?ended }
+  FILTER NOT EXISTS { ?b wdt:P5817 ?s . VALUES ?s { wd:Q11639308 wd:Q56651571 wd:Q104664889 wd:Q63065035 wd:Q111802839 } }
+  OPTIONAL { ?b schema:description ?desc FILTER(LANG(?desc) = "en") }
+  OPTIONAL { ?b wdt:P17/wdt:P297 ?iso }
+  OPTIONAL { ?b wdt:P137 ?op . ?op rdfs:label ?opLabel FILTER(LANG(?opLabel) = "en") }
+}`
+	if got := Query("Q695850"); got != want {
+		t.Fatalf("bases query changed:\n%s", got)
+	}
+}
+
+// The gate makes each query wait until the previous one's duration has
+// passed since it ended, across every source in the process.
+func TestGatePaces(t *testing.T) {
+	now := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
+	clock := func() time.Time { return now }
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		now = now.Add(10 * time.Second) // each query takes 10 s
+		_, _ = w.Write([]byte(`{"results":{"bindings":[]}}`))
+	}))
+	defer srv.Close()
+	g := &gate{}
+	var waits []time.Duration
+	mk := func() *pacer[int] {
+		p := newPacer[int](fetch.New(fetch.Options{HostGap: time.Millisecond}))
+		p.endpoint, p.gate, p.now = srv.URL, g, clock
+		p.pause = func(_ context.Context, d time.Duration) error { waits = append(waits, d); now = now.Add(d); return nil }
+		p.begin()
+		return p
+	}
+	a, b := mk(), mk() // two sources sharing the service
+	parse := func([]byte) (int, error) { return 0, nil }
+	ctx := context.Background()
+	if _, err := a.run(ctx, "1", "one", "q1", parse); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.run(ctx, "2", "two", "q2", parse); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(4 * time.Second)
+	if _, err := a.run(ctx, "3", "three", "q3", parse); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(time.Minute)
+	if _, err := b.run(ctx, "4", "four", "q4", parse); err != nil {
+		t.Fatal(err)
+	}
+	// No wait before the first; 10 s before the second (other source);
+	// 6 s before the third (4 s had passed); none after a quiet minute.
+	if len(waits) != 2 || waits[0] != 10*time.Second || waits[1] != 6*time.Second {
+		t.Fatalf("waits %v", waits)
 	}
 }

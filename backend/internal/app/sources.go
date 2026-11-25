@@ -24,7 +24,7 @@ func (c *container) sources() []ingest.Source {
 	// FIRMS' global CSVs are 6–7 MB each today and grow in fire season.
 	bulk := fetch.New(fetch.Options{UserAgent: c.userAgent(), MaxBody: 64 << 20, Timeout: 2 * time.Minute})
 	// Wikidata's query service may take its full 60 s per query.
-	sparql := fetch.New(fetch.Options{UserAgent: c.userAgent(), Timeout: wikidata.QueryTimeout})
+	sparql := fetch.New(fetch.Options{UserAgent: c.userAgent(), Timeout: wikidata.QueryTimeout, MaxBody: 64 << 20})
 
 	return []ingest.Source{
 		usgs.New(feeds, c.repos.Events),
@@ -35,6 +35,7 @@ func (c *container) sources() []ingest.Source {
 		tsunami.New(feeds, c.repos.Events, c.repos.NWSZones, c.logger),
 		ucdp.New(feeds, c.repos.Events),
 		wikidata.New(sparql, c.repos.Bases),
+		wikidata.NewHistoric(sparql, c.repos.Historic, c.repos.Bases),
 	}
 }
 
