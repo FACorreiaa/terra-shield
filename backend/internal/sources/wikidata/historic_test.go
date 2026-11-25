@@ -47,12 +47,13 @@ func TestParseHistoric(t *testing.T) {
 		binding("Q2", "Q2", "Point(1 1)", "", ""),                           // unnamed
 		binding("Q3", "Moon Castle", "<http://www.wikidata.org/entity/Q405> Point(1 1)", "", ""),
 		binding("Q4", "Former Castle", "Point(2 50)", "former castle, now ruins", ""), // kept: history is the point
+		binding("Q6", "Mirror Castle", "POINT(3 51)", "", ""),                         // WKT is case-insensitive
 	)
 	sites, hints, err := ParseHistoric([]byte(body), castleClass)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(sites) != 2 || sites[0].QID != "Q1" || sites[1].QID != "Q4" {
+	if len(sites) != 3 || sites[0].QID != "Q1" || sites[1].QID != "Q4" || sites[2].QID != "Q6" || sites[2].Lat != 51 {
 		t.Fatalf("%+v", sites)
 	}
 	s := sites[0]

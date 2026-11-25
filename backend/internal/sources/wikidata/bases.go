@@ -207,8 +207,10 @@ var (
 	notInService = regexp.MustCompile(`(?i)^\s*(a |an |the )?(former|formerly|closed|disused|defunct|historic|historical|abandoned|decommissioned|demolished|ruins?)\b` +
 		`|\bsite of (a |the )?former\b|\bworld war\b|\bruin(s|ed)?\b|\bhistoric (site|location|forts?)\b` +
 		`|\blocal authority\b|\bmuseum\b|\binternment\b|\bprisoner`)
-	// wktPoint is an Earth point; other globes carry an IRI prefix.
-	wktPoint = regexp.MustCompile(`^Point\(\s*(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s+(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s*\)$`)
+	// wktPoint is an Earth point; other globes carry an IRI prefix. WKT
+	// keywords are case-insensitive: the Query Service writes "Point",
+	// a mirror such as QLever "POINT".
+	wktPoint = regexp.MustCompile(`^(?i:point)\(\s*(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s+(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s*\)$`)
 )
 
 // errShape is a response that is not a SPARQL JSON result.
