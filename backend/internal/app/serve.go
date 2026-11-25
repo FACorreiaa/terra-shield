@@ -44,7 +44,7 @@ func serve(ctx context.Context, cfg config.Base, logger *slog.Logger) error {
 		&server.Deps{Config: cfg, Logger: logger, Health: health},
 		features.All(features.Deps{
 			Countries: c.repos.Countries, Events: c.repos.Events, Fires: c.repos.Fires, Sources: c.repos.Sources,
-			Stream: hub, Aircraft: flights, Logger: logger,
+			Stream: hub, Aircraft: flights, Bases: c.repos.Bases, Logger: logger,
 		}),
 	)
 	if err != nil {

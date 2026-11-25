@@ -76,6 +76,8 @@ New product (2026-11-16): a global natural-hazard monitor answering *"What's hap
 | `GET /v1/events/{id}` | Detail + revisions + countries + source |
 | `GET /v1/countries` / `GET /v1/countries/{iso2}/summary` | Active counts; type × severity matrix, coverage notes, recent changes |
 | `GET /v1/fires?bbox=&zoom=&since=` | FIRMS layer (GeoJSON): grid cells below zoom 6, points from zoom 6 |
+| `GET /v1/aircraft?bbox=` | Live flights from adsb.lol, fetched on demand per 5° cell; at most 4 cells (ADR 28) |
+| `GET /v1/bases?bbox=` | Military installations listed on Wikidata, a static layer refreshed weekly; worldwide without `bbox` (ADR 29) |
 | `GET /v1/sources` | Health, freshness, license, attribution |
 | `GET /v1/stream?bbox=&type=` | SSE `event.created \| updated \| resolved`, heartbeat, `Last-Event-ID` |
 | `/health/live`, `/health/ready`, `/metrics`, `/openapi.yaml` | Ops (paths match the `norviq-app` chart's default probes) |
