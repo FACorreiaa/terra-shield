@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { aircraftAllowed, aircraftCells, apiZoom, severityShares, viewOf } from "./viewport.ts";
+import { aircraftAllowed, aircraftCells, apiZoom, globeZoom, severityShares, viewOf } from "./viewport.ts";
 
 const WORLD = "-180,-85,180,85";
 
@@ -100,5 +100,27 @@ describe(severityShares, () => {
 
   it("invents no split when the server sent none", () => {
     expect(severityShares({ severities: {} })).toStrictEqual([]);
+  });
+});
+
+function diameterAt(zoom: number, latitude: number): number {
+  return (512 / Math.PI) * Math.cos((latitude * Math.PI) / 180) * 2 ** zoom;
+}
+
+describe(globeZoom, () => {
+  it("fills most of a phone's width", () => {
+    const zoom = globeZoom({ width: 390, height: 743 }, 25);
+    expect(diameterAt(zoom, 25)).toBeCloseTo(390 * 0.9);
+  });
+
+  it("leaves room around the globe on a wide screen", () => {
+    const zoom = globeZoom({ width: 1155, height: 951 }, 25);
+    expect(diameterAt(zoom, 25)).toBeCloseTo(951 * 0.62);
+    expect(zoom).toBeCloseTo(2, 0);
+  });
+
+  it("stays in range for an empty or huge map", () => {
+    expect(globeZoom({ width: 0, height: 0 }, 25)).toBe(0.5);
+    expect(globeZoom({ width: 20_000, height: 20_000 }, 0)).toBe(3);
   });
 });

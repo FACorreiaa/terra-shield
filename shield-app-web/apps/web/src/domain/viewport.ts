@@ -149,8 +149,35 @@ function severityShares(cluster: Pick<EventCluster, "severities">): SeverityShar
   });
 }
 
-export type { Bounds, SeverityShare, View };
-export { AIRCRAFT_MAX_CELLS, aircraftAllowed, aircraftCells, apiZoom, severityShares, viewOf };
+/** MapLibre's globe at zoom 0 is a 512 px world wrapped round a sphere: 512 / π across at the equator. */
+const WORLD_PIXELS_AT_Z0 = 512;
+const GLOBE_DIAMETER_AT_Z0 = WORLD_PIXELS_AT_Z0 / Math.PI;
+/** Share of the limiting side the globe fills: most of a phone's width, less of a wide screen's height. */
+const GLOBE_FILL = { portrait: 0.9, landscape: 0.62 } as const;
+const GLOBE_ZOOM = { min: 0.5, max: 3 } as const;
+const DEGREES_TO_RADIANS = Math.PI / HALF_TURN;
+
+interface Size {
+  width: number;
+  height: number;
+}
+
+/**
+ * The starting zoom that shows the whole globe in a map of this size, centred on `centerLatitude`.
+ * MapLibre scales the globe by cos(latitude) so the centre matches the flat map; this undoes that.
+ */
+function globeZoom({ width, height }: Size, centerLatitude: number): number {
+  const fill = width < height ? GLOBE_FILL.portrait : GLOBE_FILL.landscape;
+  const target = Math.min(width, height) * fill;
+  const atZ0 = GLOBE_DIAMETER_AT_Z0 * Math.cos(centerLatitude * DEGREES_TO_RADIANS);
+  if (!(target > 0) || !(atZ0 > 0)) {
+    return GLOBE_ZOOM.min;
+  }
+  return clamp(Math.log2(target / atZ0), GLOBE_ZOOM.min, GLOBE_ZOOM.max);
+}
+
+export type { Bounds, SeverityShare, Size, View };
+export { AIRCRAFT_MAX_CELLS, aircraftAllowed, aircraftCells, apiZoom, globeZoom, severityShares, viewOf };
 // The box helpers, where the brief for this module put them.
 export type { GeoBox } from "./geo.ts";
 export { contains, crossesAntimeridian, geoBox, longitudeSpan, unwrapped, WORLD, wrapLongitude } from "./geo.ts";

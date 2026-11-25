@@ -4,7 +4,7 @@ import type { RefObject } from "react";
 import { useEffect, useEffectEvent, useState } from "react";
 
 import type { View } from "@/domain/viewport.ts";
-import { viewOf } from "@/domain/viewport.ts";
+import { globeZoom, viewOf } from "@/domain/viewport.ts";
 
 import { basemapStyle } from "./basemapStyle.ts";
 import type { Projection } from "./basemapStyle.ts";
@@ -13,7 +13,10 @@ import { registerBundledWorker } from "./maplibreWorker.ts";
 
 registerBundledWorker();
 
-/** First view: the Atlantic-centred world, Africa and Europe in the middle. */
+/**
+ * First view: the Atlantic-centred world, Africa and Europe in the middle. The globe is sized to
+ * the container; `zoom` is the flat map's.
+ */
 const INITIAL = { longitude: 10, latitude: 25, zoom: 2 } as const;
 /** A pan settles before the view is reported, so a drag does not fire a query per frame. */
 const VIEW_DEBOUNCE_MS = 250;
@@ -98,7 +101,10 @@ function createMap(element: HTMLElement, projection: Projection): MapLibreMap {
     container: element,
     style: basemapStyle(projection),
     center: [INITIAL.longitude, INITIAL.latitude],
-    zoom: INITIAL.zoom,
+    zoom:
+      projection === "globe"
+        ? globeZoom({ width: element.clientWidth, height: element.clientHeight }, INITIAL.latitude)
+        : INITIAL.zoom,
     attributionControl: false,
     dragRotate: false,
     pitchWithRotate: false,

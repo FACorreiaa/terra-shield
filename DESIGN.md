@@ -184,11 +184,21 @@ loudest thing on screen.
   (MapLibre Native on Apple, or a licensed dark tile overlay) is an **open item for the
   owner** (`VIEWS.md` → Open). MapKit was the owner's call, so agents do not switch it.
 
-**Web (Phase 2):** MapLibre GL JS with a custom dark vector style tuned to `canvas`
+**Web:** MapLibre GL JS with a custom dark vector style tuned to `canvas`
 (water a step darker than land, admin-0 borders `hairline`, labels `faint`, no roads below
-z8). Base it on a style whose **tiles and style licence allow commercial use**: check CARTO
-Dark Matter's terms first, otherwise use Protomaps or OpenFreeMap. Attribution stays visible
-bottom-right.
+z8, no POIs). Attribution stays visible bottom-right.
+- **Tiles: OpenFreeMap** (owner, 2026-11-19). Commercial use is allowed, with no key and no
+  limits. The style is not theirs: the app builds it from the tokens at runtime
+  (`features/map/basemapStyle.ts`), so the basemap carries no hex of its own. Attribution:
+  "OpenFreeMap © OpenMapTiles Data from OpenStreetMap".
+- **Fallback:** if the tile host fails (style source error, or three tile errors), the map
+  switches to a bundled Natural Earth countries style in the same palette and adds "Natural
+  Earth" to the attribution. The hazard layers stay.
+- **Projection:** globe or flat is the user's choice (owner, 2026-11-19). Globe is the default.
+  On the globe, a faint accent atmosphere rim fades out by z6. Markers on the far side are
+  hidden and cannot be clicked.
+- **Known deviation:** clusters and the extreme halo are DOM elements (real buttons, CSS
+  animation), so they draw above the canvas point markers rather than under them.
 
 **Layers, bottom to top:** basemap → event areas (polygons, by kind §5) → FIRMS
 detections → clusters → point markers → selection ring → user location (accent).
