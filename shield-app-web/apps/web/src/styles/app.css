@@ -21,6 +21,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* MapLibre's corner controls (the attribution) stay clear of the shell's chrome: the phone's sheet,
+   the desktop inspector. The shell sets the insets on the frame. */
+.maplibregl-ctrl-bottom-right {
+  right: var(--map-inset-right, 0px);
+  bottom: var(--map-inset-bottom, 0px);
+}
+
 /* A DOM marker on the far side of the globe: MapLibre fades it to `opacityWhenCovered` (0);
    hiding it also takes the cluster button out of clicks and the tab order. */
 .maplibregl-marker-covered {

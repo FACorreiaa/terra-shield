@@ -1,14 +1,20 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 
-import { AppShell } from "@/components/layout/AppShell.tsx";
+import { AppFrame } from "@/app/shell/AppFrame.tsx";
+import { LiveMapProvider } from "@/app/shell/LiveMapProvider.tsx";
 
-/** The app's pathless layout: every map-backed screen (`/map`, later `/e/$id`, `/c/$iso2`) shares it. */
+/**
+ * The app's pathless layout. Every map-backed section (`/map`, later `/c/$iso2`, `/sources`, …)
+ * renders inside it, so the map and its state stay put while the section changes.
+ */
 function AppLayout(): ReactElement {
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <LiveMapProvider>
+      <AppFrame>
+        <Outlet />
+      </AppFrame>
+    </LiveMapProvider>
   );
 }
 
