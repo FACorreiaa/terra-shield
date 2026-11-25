@@ -52,6 +52,14 @@ struct MapSheet: View {
                     .padding(.bottom, ShieldSpace.s4)
                 }
                 .transition(.opacity)
+            } else if let site = model.selectedHistoricSite, !search.isActive {
+                ScrollView {
+                    HistoricDetailView(site: site, layer: model.historic, close: { model.selectedHistoricID = nil })
+                    .padding(.horizontal, ShieldSpace.s5)
+                    .padding(.top, ShieldSpace.s5)
+                    .padding(.bottom, ShieldSpace.s4)
+                }
+                .transition(.opacity)
             } else if let event = model.selectedEvent, !search.isActive {
                 ScrollView {
                     // At medium its top (title, both severities, kind and times) is in view; the

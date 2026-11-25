@@ -39,6 +39,23 @@ final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
         return basesAnswer
     }
 
+    var historicFailure: (any Error)?
+    var historicDelay: Duration?
+    /// The answer from zoom 8; below it, a grid of `HistoricFixture.cells`.
+    var historicAnswer = HistoricFixture.points([HistoricFixture.neuschwanstein, HistoricFixture.fortress,
+                                                 HistoricFixture.tower])
+    var offersHistoric = true
+    var supportsHistoric: Bool { offersHistoric }
+    private var _historicRequests: [HistoricRequest] = []
+    var historicRequests: [HistoricRequest] { lock.withLock { _historicRequests } }
+
+    func historic(_ request: HistoricRequest) async throws -> HistoricLayer {
+        lock.withLock { _historicRequests.append(request) }
+        if let historicDelay { try await Task.sleep(for: historicDelay) }
+        if let historicFailure { throw historicFailure }
+        return request.isPoints ? historicAnswer : HistoricFixture.grid(HistoricFixture.cells)
+    }
+
     var aircraftAnswer = AircraftFixture.layer([AircraftFixture.plane("a1"), AircraftFixture.plane("a2", lat: 39)])
     private var _aircraftRequests: [GeoBox] = []
     var aircraftRequests: [GeoBox] { lock.withLock { _aircraftRequests } }

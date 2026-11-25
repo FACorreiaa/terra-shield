@@ -138,6 +138,30 @@ public struct APIEventProvider: HazardEventProvider {
         }
     }
 
+    public var supportsHistoric: Bool { true }
+
+    /// Historic sites (ADR 30): the request says the box (none: the world's grid), the zoom and
+    /// the groups (none: all, those added later included).
+    public func historic(_ request: HistoricRequest) async throws -> HistoricLayer {
+        let q = Operations.ListHistoricSites.Input.Query(
+            bbox: request.box?.parameter, zoom: request.zoom,
+            kind: request.kinds.map { $0.sorted().compactMap { .init(rawValue: $0.rawValue) } })
+        switch try await unwrapping { try await client.listHistoricSites(query: q) } {
+        case .ok(let ok):
+            return HistoricLayer(try ok.body.applicationGeoJson)
+        case .notModified:
+            throw APIError.unexpectedNotModified
+        case .badRequest(let r):
+            throw APIError.server(status: 400, try? r.body.json.reason)
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
+        case .default(let status, let r):
+            throw APIError.server(status: status, try? r.body.json.reason)
+        }
+    }
+
     public func event(id: UUID) async throws -> HazardEvent? {
         switch try await unwrapping { try await client.getEvent(path: .init(id: id.uuidString.lowercased())) } {
         case .ok(let ok):

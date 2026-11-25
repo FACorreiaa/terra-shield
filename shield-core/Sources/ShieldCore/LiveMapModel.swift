@@ -138,13 +138,78 @@ public final class LiveMapModel {
         return bases?.bases.first { $0.id == selectedBaseID }
     }
 
-    private enum SelectionKind { case event, aircraft, base }
+    /// Historic sites in view (ADR 30): cells below zoom 8, points from zoom 8. Nil while off or
+    /// before the first answer; a failed request keeps the last answer on screen.
+    public private(set) var historic: HistoricLayer?
+    /// The last historic request failed; retried by a map load a minute or more after it was asked.
+    public private(set) var historicFailed = false
+    private var historicTask: Task<Void, Never>?
+    private var historicGeneration = 0
+    /// What `historic` answers, so a view inside it is not asked again (the layer changes weekly).
+    private var historicAnswered: HistoricRequest?
+    /// The request in flight, if any.
+    private var historicAsking: HistoricRequest?
+    private var historicFailedAt: Date?
 
-    /// One thing selected at a time: an event, an aircraft or a base.
+    /// The historic layer; off by default. Saved with the filters (no quota behind it).
+    public var showsHistoric = false {
+        didSet {
+            guard showsHistoric != oldValue, !restoring else { return }
+            save()
+            // Hazards are not reloaded: the layer is independent of them.
+            if showsHistoric {
+                startHistoric()
+            } else {
+                resetHistoric()
+                selectedHistoricID = nil
+            }
+        }
+    }
+
+    /// The groups shown, never none: the API reads an empty `kind` as every kind, so turning the
+    /// last one off is refused. Saved with the filters.
+    public var historicKinds: Set<HistoricKind> = Set(HistoricKind.allCases) {
+        didSet {
+            if historicKinds.isEmpty { historicKinds = oldValue } // no observer re-entry
+            guard historicKinds != oldValue, !restoring else { return }
+            if let kind = selectedHistoricSite?.kind, !historicKinds.contains(kind) { selectedHistoricID = nil }
+            save()
+            guard showsHistoric else { return }
+            // A deliberate change: asked at once, even within a minute of a failure.
+            historicFailedAt = nil
+            startHistoric()
+        }
+    }
+
+    /// The site shown in the sheet or inspector, by Wikidata ID.
+    public var selectedHistoricID: String? {
+        didSet {
+            guard selectedHistoricID != oldValue else { return }
+            if selectedHistoricID != nil { clearSelections(except: .historic) }
+            chosenSite = selectedHistoricID.flatMap { id in historic?.sites.first { $0.id == id } }
+        }
+    }
+
+    /// The selected site, kept as last seen while the answer no longer holds it: a pan replaces the
+    /// answer, zooming out turns it into a grid, and the iPhone sheet shrinks the view over it.
+    public var selectedHistoricSite: HistoricSite? {
+        guard let selectedHistoricID else { return nil }
+        return historic?.sites.first { $0.id == selectedHistoricID }
+            ?? chosenSite.flatMap { $0.id == selectedHistoricID ? $0 : nil }
+    }
+
+    private var chosenSite: HistoricSite?
+    /// The map has reported a view; until then `viewport` is only the default.
+    private var hasViewport = false
+
+    private enum SelectionKind { case event, aircraft, base, historic }
+
+    /// One thing selected at a time: an event, an aircraft, a base or a historic site.
     private func clearSelections(except kept: SelectionKind) {
         if kept != .event, selectedEventID != nil { selectedEventID = nil }
         if kept != .aircraft, selectedAircraftHex != nil { selectedAircraftHex = nil }
         if kept != .base, selectedBaseID != nil { selectedBaseID = nil }
+        if kept != .historic, selectedHistoricID != nil { selectedHistoricID = nil }
     }
 
     /// Live flights in view (ADR 28); nil while off, before the first answer, or while the view
@@ -311,6 +376,8 @@ public final class LiveMapModel {
             // Not where the provider has none (sample data): its toggle is hidden there, so the
             // legend could never be closed.
             showsBases = saved.showsBases && provider.supportsBases
+            showsHistoric = saved.showsHistoric && provider.supportsHistoric
+            historicKinds = saved.historicKinds
             restoring = false
         }
     }
@@ -320,13 +387,15 @@ public final class LiveMapModel {
 
     private func save() {
         filterStore?.save(SavedFilters(query: query, showsDetections: showsDetections, showsConflicts: showsConflicts,
-                                       showsBases: showsBases))
+                                       showsBases: showsBases, showsHistoric: showsHistoric,
+                                       historicKinds: historicKinds))
     }
 
     /// The map settled on a new region. Loads after `debounce` unless another change follows.
     public func viewportDidChange(_ viewport: MapViewport) {
         guard viewport != self.viewport || snapshot == nil else { return }
         self.viewport = viewport
+        hasViewport = true
         schedule(after: debounce)
     }
 
@@ -520,6 +589,7 @@ public final class LiveMapModel {
         await loadTask?.value
         await flightsTask?.value
         await basesTask?.value
+        await historicTask?.value
     }
 
     /// Waits for the map's load only, not the flights (tests).
@@ -546,6 +616,8 @@ public final class LiveMapModel {
         startFlights(for: viewport, force: false)
         // A layer restored as on loads with the first map load; a failure waits a minute.
         if showsBases, bases == nil, basesTask == nil { startBases() }
+        // Asks only when the view has left what the last answer covers.
+        startHistoric()
         async let events = Self.capture { try await provider.snapshot(matching: query, in: viewport) }
         async let fires = Self.detections(from: provider, in: viewport, if: wantsDetections)
         async let conflictList = Self.conflicts(from: provider, in: viewport, if: wantsConflicts)
@@ -628,6 +700,53 @@ public final class LiveMapModel {
     /// Waits for an in-flight area fetch (tests).
     func settleArea() async {
         await areaTask?.value
+    }
+
+    private func resetHistoric() {
+        historicTask?.cancel()
+        historicTask = nil
+        historicGeneration += 1
+        historic = nil
+        historicFailed = false
+        historicFailedAt = nil
+        historicAnswered = nil
+        historicAsking = nil
+    }
+
+    /// Asks for the current view's sites unless the last answer, or the request in flight, already
+    /// covers it. A failure waits a minute from when it was asked, as the bases layer does.
+    private func startHistoric() {
+        guard showsHistoric, provider.supportsHistoric else { return }
+        // Not before the map has reported a view: the default is the whole world at zoom 1.
+        guard hasViewport else { return }
+        if let historicAnswered, let historic,
+           historicAnswered.serves(viewport, kinds: historicKinds, truncated: historic.isTruncated,
+                                   sites: historic.sites.count) { return }
+        if historicTask != nil, let historicAsking,
+           historicAsking.serves(viewport, kinds: historicKinds, truncated: false) { return }
+        if let historicFailedAt, now().timeIntervalSince(historicFailedAt) < 60 { return }
+        historicTask?.cancel()
+        historicGeneration += 1
+        let generation = historicGeneration, provider = provider, askedAt = now()
+        let wanted = HistoricRequest(viewport, kinds: historicKinds)
+        historicAsking = wanted
+        historicTask = Task { [weak self] in
+            let result = await Self.capture { try await provider.historic(wanted) }
+            guard let self, generation == self.historicGeneration, !Task.isCancelled, self.showsHistoric else { return }
+            self.historicTask = nil
+            self.historicAsking = nil
+            switch result {
+            case .success(let layer):
+                self.historic = layer
+                self.historicAnswered = wanted
+                self.historicFailed = false
+                self.historicFailedAt = nil
+            case .failure(let error):
+                if LoadFailure.isCancellation(error) { return }
+                self.historicFailed = true
+                self.historicFailedAt = askedAt
+            }
+        }
     }
 
     private func startBases() {

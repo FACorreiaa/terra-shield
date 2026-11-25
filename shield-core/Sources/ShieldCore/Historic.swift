@@ -1,0 +1,271 @@
+import Foundation
+
+/// A filter group of historic sites (ADR 30). The server may add groups (general historic
+/// buildings next); a site of a group this version doesn't know has `kind == nil`.
+public enum HistoricKind: String, Sendable, Hashable, CaseIterable, Comparable {
+    case castle, military, memorial
+
+    public static func < (a: Self, b: Self) -> Bool {
+        allCases.firstIndex(of: a)! < allCases.firstIndex(of: b)!
+    }
+
+    /// The group's name in the filters and the legend.
+    public var label: String {
+        switch self {
+        case .castle: "Castles"
+        case .military: "Military heritage"
+        case .memorial: "Memorials"
+        }
+    }
+}
+
+/// One site listed on Wikidata (ADR 30): a static layer, never an event. Some sites are ruins or
+/// memorials, some are still in use; none of it counts toward hazards.
+public struct HistoricSite: Sendable, Hashable, Identifiable {
+    /// The Wikidata item ID ("Q4048").
+    public var id: String
+    public var name: String
+    /// Wikidata's English description.
+    public var description: String?
+    /// Nil for a group this version doesn't know: drawn in a neutral style, never as military.
+    public var kind: HistoricKind?
+    /// The group as the server named it, known or not.
+    public var kindName: String
+    /// The Wikidata class in English ("star fort").
+    public var className: String
+    /// ISO 3166-1 alpha-2; nil at sea or when unknown.
+    public var country: String?
+    public var coordinate: Coordinate
+    /// The Wikidata item: every site links to it.
+    public var url: URL
+
+    public init(id: String, name: String, description: String?, kind: HistoricKind?, kindName: String,
+                className: String, country: String?, coordinate: Coordinate, url: URL) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.kind = kind
+        self.kindName = kindName
+        self.className = className
+        self.country = country
+        self.coordinate = coordinate
+        self.url = url
+    }
+}
+
+extension HistoricSite {
+    /// "Castle", or for a group this version doesn't know, the server's name for it.
+    public var kindLabel: String {
+        switch kind {
+        case .castle: "Castle"
+        case .military: "Military heritage"
+        case .memorial: "Memorial"
+        case nil: kindName.prefix(1).uppercased() + kindName.dropFirst()
+        }
+    }
+
+    /// Lines of the site sheet; what Wikidata does not list is left out.
+    public var figures: [AircraftFigure] {
+        var out: [AircraftFigure] = []
+        if !className.isEmpty { out.append(.init(label: "Type", value: className.prefix(1).uppercased() + className.dropFirst())) }
+        if let country, let name = Locale(identifier: "en_US").localizedString(forRegionCode: country) {
+            out.append(.init(label: "Country", value: name))
+        }
+        out.append(.init(label: "Coordinates", value: coordinate.degreesText))
+        out.append(.init(label: "Wikidata item", value: id))
+        return out
+    }
+}
+
+/// Sites counted in one grid cell (below zoom 8).
+public struct HistoricCell: Sendable, Hashable {
+    public var center: Coordinate
+    public var count: Int
+    /// Sites per group, by the server's name, unknown groups included.
+    public var kinds: [String: Int]
+
+    public init(center: Coordinate, count: Int, kinds: [String: Int]) {
+        self.center = center
+        self.count = count
+        self.kinds = kinds
+    }
+
+    /// Sites of the given groups. Every group shown means every site, unknown groups included.
+    public func count(of shown: Set<HistoricKind>) -> Int {
+        if shown.count == HistoricKind.allCases.count { return count }
+        return shown.reduce(0) { $0 + (kinds[$1.rawValue] ?? 0) }
+    }
+}
+
+/// `GET /v1/historic`: counts per grid cell below zoom 8, one point per site from zoom 8.
+public struct HistoricLayer: Sendable, Hashable {
+    public enum Content: Sendable, Hashable {
+        case grid([HistoricCell], cellDegrees: Double)
+        /// `truncated` when more sites matched than the server returns (10,000).
+        case points([HistoricSite], truncated: Bool)
+    }
+
+    /// The first zoom the server sends sites rather than cells. The layer's own: events and
+    /// detections switch at `MapViewport.detailZoom` (6).
+    public static let pointsZoom = 8
+
+    /// The most sites drawn as chips the map can pick. More cost MapKit too much on every pan
+    /// (measured 2026-11-25 on a Mac, densest view: about 1,100 chips held the main thread's 95th
+    /// percentile frame gap at 41 ms against 25 ms without the layer, 2,700 at 63-66 ms with
+    /// hitches past 600 ms), so beyond it they are drawn as dots until the view holds fewer.
+    public static let chipLimit = 1000
+
+    public var content: Content
+    /// When Shield last refreshed the sites returned (points only).
+    public var updatedAt: Date?
+    public var attribution: String
+    public var license: String
+    /// What the layer is; shown with it, verbatim.
+    public var note: String
+
+    public init(content: Content, updatedAt: Date?, attribution: String, license: String, note: String) {
+        self.content = content
+        self.updatedAt = updatedAt
+        self.attribution = attribution
+        self.license = license
+        self.note = note
+    }
+
+    /// The sites, from zoom 8; none for a grid.
+    public var sites: [HistoricSite] {
+        if case .points(let sites, _) = content { return sites }
+        return []
+    }
+
+    /// Whether the sites are drawn as chips that can be picked, or as dots (too many, or cut short).
+    public var drawsChips: Bool {
+        guard case .points(let sites, let truncated) = content else { return false }
+        return !truncated && sites.count <= Self.chipLimit
+    }
+
+    public var isTruncated: Bool {
+        if case .points(_, true) = content { return true }
+        return false
+    }
+
+    /// "Listed on Wikidata · refreshed 18 Nov 2026"; sites only, a grid carries no date.
+    public var listedLine: String { BaseLayer.listedLine(attribution: attribution, updatedAt: updatedAt) }
+
+    /// The legend's line: how many sites are in `box`, "about" for a grid, whose cells on the
+    /// view's edge are counted whole, and which groups when not all are shown.
+    public func headline(in box: GeoBox, kinds: Set<HistoricKind>) -> String {
+        var title = "Historic sites"
+        if kinds.count < HistoricKind.allCases.count {
+            title += " (" + kinds.sorted { $0.label < $1.label }.map { $0.label.lowercased() }.joined(separator: ", ") + ")"
+        }
+        let n = count(in: box)
+        guard n > 0 else { return title + " · none in this view" }
+        let shown = n.formatted(.number.locale(Locale(identifier: "en_US")))
+        switch content {
+        case .grid: return title + " · about \(shown) in this view"
+        case .points(_, true): return title + " · over \(shown) in this view"
+        case .points: return title + " · \(shown) in this view"
+        }
+    }
+
+    /// What to do to see more, when the sites can't be picked yet.
+    public var hint: String? {
+        switch content {
+        case .grid: "Zoom in to see each site."
+        case .points: drawsChips ? nil : "Zoom in to pick a site."
+        }
+    }
+
+    /// Sites in the box: those inside it, or for a grid the counts of the cells whose centre is.
+    public func count(in box: GeoBox) -> Int {
+        switch content {
+        case .grid(let cells, _):
+            cells.reduce(0) { $0 + (box.contains($1.center) ? $1.count : 0) }
+        case .points(let sites, _):
+            sites.reduce(0) { $0 + (box.contains($1.coordinate) ? 1 : 0) }
+        }
+    }
+}
+
+/// What the historic layer asks the server for, and which later views an answer still serves:
+/// the layer changes weekly, so a pan the answer already covers is never asked again.
+public struct HistoricRequest: Sendable, Hashable {
+    /// Nil: the whole world (a grid below zoom 6, where the server needs no `bbox`).
+    public var box: GeoBox?
+    public var zoom: Int
+    /// Nil: every group, those this version doesn't know included.
+    public var kinds: Set<HistoricKind>?
+
+    public var isPoints: Bool { zoom >= HistoricLayer.pointsZoom }
+
+    public init(box: GeoBox?, zoom: Int, kinds: Set<HistoricKind>?) {
+        self.box = box
+        self.zoom = zoom
+        self.kinds = kinds
+    }
+
+    /// The request for a view. Below zoom 6 the world's grid is one small answer (8,238 cells at
+    /// zoom 5, 56 KB gzipped); at 6 and 7 half a view is added around it, so a pan stays inside.
+    /// Points ask for the view alone: the densest view of a large window holds 9,630 sites, and
+    /// padding it would pass the server's 10,000 cap.
+    public init(_ viewport: MapViewport, kinds: Set<HistoricKind>) {
+        let box: GeoBox? = if viewport.zoom >= HistoricLayer.pointsZoom {
+            viewport.box
+        } else if viewport.zoom >= MapViewport.detailZoom {
+            viewport.box.padded(by: 0.5)
+        } else {
+            nil
+        }
+        self.init(box: box, zoom: viewport.zoom, kinds: Self.sent(kinds))
+    }
+
+    /// Whether this request's answer, `truncated` or not and holding `sites` sites, also serves
+    /// `viewport` with `kinds` shown. Grid cells change size with the zoom; points don't, so any
+    /// zoom from 8 inside the box is served, unless the answer was cut short or held too many
+    /// sites to draw as chips: a smaller view may then hold few enough.
+    public func serves(_ viewport: MapViewport, kinds shown: Set<HistoricKind>, truncated: Bool,
+                       sites: Int = 0) -> Bool {
+        guard kinds == Self.sent(shown) else { return false }
+        if viewport.zoom >= HistoricLayer.pointsZoom {
+            guard isPoints, let box else { return false }
+            // Asking again for the same view would bring the same answer.
+            if box == viewport.box { return true }
+            return !truncated && sites <= HistoricLayer.chipLimit && box.contains(viewport.box)
+        }
+        guard zoom == viewport.zoom else { return false }
+        return box?.contains(viewport.box) ?? true
+    }
+
+    /// The `kind` filter sent for the groups shown: none when every group is, so groups added
+    /// later are included.
+    private static func sent(_ shown: Set<HistoricKind>) -> Set<HistoricKind>? {
+        shown.count < HistoricKind.allCases.count ? shown : nil
+    }
+}
+
+extension GeoBox {
+    /// The box grown by `fraction` of its size on every side, kept within the map: latitudes stop
+    /// at Web Mercator's limit, and a box that would wrap the world becomes the world's width.
+    public func padded(by fraction: Double) -> GeoBox {
+        let lonPad = longitudeSpan * fraction
+        let latPad = (maxLatitude - minLatitude) * fraction
+        let minLat = max(-Self.mercatorLatitudeLimit, minLatitude - latPad)
+        let maxLat = min(Self.mercatorLatitudeLimit, maxLatitude + latPad)
+        guard longitudeSpan + 2 * lonPad < 360 else {
+            return GeoBox(minLongitude: -180, minLatitude: minLat, maxLongitude: 180, maxLatitude: maxLat)
+        }
+        return GeoBox(minLongitude: MapViewport.wrap(minLongitude - lonPad), minLatitude: minLat,
+                      maxLongitude: MapViewport.wrap(maxLongitude + lonPad), maxLatitude: maxLat)
+    }
+
+    /// Whether `other` lies wholly inside, across the antimeridian too.
+    public func contains(_ other: GeoBox) -> Bool {
+        guard other.minLatitude >= minLatitude, other.maxLatitude <= maxLatitude else { return false }
+        if longitudeSpan >= 360 { return true }
+        guard other.longitudeSpan <= longitudeSpan else { return false }
+        // Measure from this box's west edge, eastward, in [0, 360).
+        var offset = (other.minLongitude - minLongitude).truncatingRemainder(dividingBy: 360)
+        if offset < 0 { offset += 360 }
+        return offset + other.longitudeSpan <= longitudeSpan
+    }
+}

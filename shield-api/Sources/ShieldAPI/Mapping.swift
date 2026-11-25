@@ -284,3 +284,34 @@ extension MilitaryBase {
                   coordinate: Coordinate(latitude: b.lat, longitude: b.lon), url: url)
     }
 }
+
+extension HistoricLayer {
+    /// Cells or sites by the collection's `aggregation`, not by which shape a feature happens to
+    /// decode as.
+    init(_ fc: Components.Schemas.HistoricFeatureCollection) {
+        let content: Content
+        switch fc.aggregation {
+        case .grid:
+            let cells = fc.features.compactMap { f -> HistoricCell? in
+                guard let cell = f.properties.value2, let center = f.geometry.point else { return nil }
+                return HistoricCell(center: center, count: cell.count, kinds: cell.kinds.additionalProperties)
+            }
+            content = .grid(cells, cellDegrees: fc.cellDegrees ?? 0)
+        case .none:
+            content = .points(fc.features.compactMap(HistoricSite.init), truncated: fc.truncated)
+        }
+        self.init(content: content, updatedAt: fc.updatedAt, attribution: fc.attribution, license: fc.license,
+                  note: fc.note)
+    }
+}
+
+extension HistoricSite {
+    /// Nil for a feature that is not a point, or whose Wikidata link is not a URL; the server sends
+    /// neither.
+    init?(_ f: Components.Schemas.HistoricFeature) {
+        guard let s = f.properties.value1, let at = f.geometry.point, let url = URL(string: s.url) else { return nil }
+        let kindName = s.kind.value1?.rawValue ?? s.kind.value2 ?? ""
+        self.init(id: s.id, name: s.name, description: s.description, kind: HistoricKind(rawValue: kindName),
+                  kindName: kindName, className: s._class, country: s.country, coordinate: at, url: url)
+    }
+}
