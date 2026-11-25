@@ -83,13 +83,17 @@ func (p *pacer[T]) begin() {
 		return
 	}
 	p.reset()
-	p.done, p.started = map[string]T{}, p.now()
+	started := p.now()
+	p.done, p.started = map[string]T{}, started
 	// Free the answers (tens of thousands of sites) if no poll completes
-	// them, rather than holding them until next week.
+	// them, rather than holding them until next week. A timer that fires
+	// as a new poll begins must not drop that poll's answers.
 	p.expire = time.AfterFunc(resumeFor, func() {
 		p.mu.Lock()
 		defer p.mu.Unlock()
-		p.done = nil
+		if p.started.Equal(started) {
+			p.done = nil
+		}
 	})
 }
 

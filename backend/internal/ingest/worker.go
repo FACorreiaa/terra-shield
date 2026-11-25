@@ -26,6 +26,10 @@ const (
 	// maxSnooze caps a source's Retry-After so a bad header cannot park a
 	// source for days; the staleness alert fires long before this.
 	maxSnooze = time.Hour
+	// maxNotReady bounds how long a NotReady poll keeps snoozing, so a
+	// dependency that never arrives fails the job (and alerts) rather
+	// than parking it into the next period.
+	maxNotReady = 6 * time.Hour
 	// pollTimeout bounds one poll, fetch and store together. FIRMS' global
 	// CSVs are the slowest.
 	pollTimeout = 3 * time.Minute
@@ -111,6 +115,11 @@ func sourceUpdatedAt(res *Result) (time.Time, bool) {
 }
 
 func (w *PollWorker) failed(ctx context.Context, job *river.Job[PollArgs], id string, now time.Time, pollErr error) error {
+	var nr *NotReady
+	if errors.As(pollErr, &nr) && now.Sub(job.CreatedAt) < maxNotReady {
+		w.logger.Info("poll not ready", "source", id, "reason", nr.Reason, "retry_in", nr.After)
+		return river.JobSnooze(min(nr.After, maxSnooze))
+	}
 	metrics.SourcePolls.WithLabelValues(id, "error").Inc()
 	if err := w.states.RecordError(context.WithoutCancel(ctx), id, now, pollErr.Error()); err != nil {
 		w.logger.Error("record source error", "source", id, "error", err)

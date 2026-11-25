@@ -60,6 +60,17 @@ type SlowSource interface {
 	PollTimeout() time.Duration
 }
 
+// NotReady is a poll error meaning "not yet", not failure: something the
+// poll depends on has not happened (another layer still loading). The
+// worker snoozes the job, which costs no River attempt, for up to
+// maxNotReady after the job was created, then treats it as a failure.
+type NotReady struct {
+	After  time.Duration // when to try again
+	Reason string
+}
+
+func (e *NotReady) Error() string { return e.Reason }
+
 // PatientSource is a Source whose poll fails transiently often enough to
 // need more River attempts than the default, such as one made of dozens of
 // queries against a shared public service. Its poll must resume where a

@@ -3,7 +3,6 @@ package wikidata
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -157,8 +156,8 @@ func (*Historic) PollTimeout() time.Duration { return 2 * time.Hour }
 func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	// Without the bases layer, every base would read as historic, and a
 	// poll that left the base classes out would stand for a week. On a
-	// fresh database both polls start together: fail without a query, and
-	// River retries once bases has loaded.
+	// fresh database both polls start together: wait without a query (a
+	// snooze, which costs no attempt) until bases has loaded.
 	nBases, err := h.bases.Count(ctx)
 	if err != nil {
 		return ingest.Result{}, err
@@ -203,8 +202,8 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 }
 
 // errNoBases: the historic layer is the complement of the bases layer, so it
-// waits for that one to load.
-var errNoBases = errors.New("bases layer not loaded yet: historic sites wait for it")
+// waits for that one to load (a cold bases poll took 7 to 21 minutes).
+var errNoBases = &ingest.NotReady{After: 5 * time.Minute, Reason: "bases layer not loaded yet: historic sites wait for it"}
 
 // checkShrink refuses a poll that would drop more than maxShrink of any
 // kind: a class missing from an answer is a failure, not deletions.
