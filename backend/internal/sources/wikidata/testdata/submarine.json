@@ -1,0 +1,204 @@
+{
+ "head": {
+  "vars": [
+   "b",
+   "c",
+   "label",
+   "desc",
+   "iso",
+   "opLabel"
+  ]
+ },
+ "results": {
+  "bindings": [
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q6981762"
+    },
+    "opLabel": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "United States Navy"
+    },
+    "iso": {
+     "type": "literal",
+     "value": "US"
+    },
+    "desc": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "US Navy installation in San Diego, California, United States"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(-117.245 32.6769)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Naval Base Point Loma"
+    }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q11790255"
+    },
+    "opLabel": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "United States Navy"
+    },
+    "iso": {
+     "type": "literal",
+     "value": "US"
+    },
+    "desc": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "base of the United States Navy in Camden County, Georgia"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(-81.535 30.7817)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Naval Submarine Base Kings Bay"
+    }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q321306"
+    },
+    "iso": {
+     "type": "literal",
+     "value": "FR"
+    },
+    "desc": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "German U-boat base in World War II"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(-3.370277777 47.729166666)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Keroman Submarine Base"
+    }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q469924"
+    },
+    "iso": {
+     "type": "literal",
+     "value": "NO"
+    },
+    "desc": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "former German submarine base and bunker in Norway"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(10.42115 63.43963333)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Dora 1"
+    }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q6981762"
+    },
+    "iso": {
+     "type": "literal",
+     "value": "US"
+    },
+    "desc": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "US Navy installation in San Diego, California, United States"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(10 10)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Naval Base Point Loma"
+    }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q900000001"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "<http://www.wikidata.org/entity/Q405> Point(23.47 0.67)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Moon Base"
+    }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q900000002"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(-4.48 48.38)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Old Pens"
+    },
+    "desc": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "former submarine base of the Kriegsmarine"
+    }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q900000003"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(1 1)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Q900000003"
+    }
+   }
+  ]
+ }
+}

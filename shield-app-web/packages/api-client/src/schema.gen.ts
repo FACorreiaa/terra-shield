@@ -203,6 +203,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/bases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Military installations listed on Wikidata, a static layer separate from events.
+         * @description Installations with coordinates and no recorded closure, refreshed weekly from Wikidata (CC0). Wikidata records closures unevenly, so a listing is not proof a base is in use: show `note`, and link each base to its Wikidata item (`url`). Items with an end or closure date, a closed state of use, or a description saying former or historic are left out, as are unnamed items and barracks. Worldwide without `bbox` (a few thousand points); cached for an hour.
+         */
+        get: operations["listBases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/stream": {
         parameters: {
             query?: never;
@@ -515,6 +535,57 @@ export interface components {
             geometry: components["schemas"]["Geometry"];
             /** @description A FireDetection, or a FireCell when the collection's aggregation is "grid". */
             properties: components["schemas"]["FireDetection"] | components["schemas"]["FireCell"];
+        };
+        BaseList: {
+            bases: components["schemas"]["MilitaryBase"][];
+            /**
+             * Format: date-time
+             * @description When Shield last refreshed the layer from Wikidata. Absent when empty.
+             */
+            updatedAt?: string;
+            /** @example Wikidata */
+            attribution: string;
+            /** @example CC0 1.0 */
+            license: string;
+            /** @description What a listing means; show it with the layer. */
+            note: string;
+        };
+        MilitaryBase: {
+            /**
+             * @description Wikidata item ID.
+             * @example Q161348
+             */
+            id: string;
+            /** @example Ramstein Air Base */
+            name: string;
+            /** @description Wikidata's English description. */
+            description?: string;
+            /** @description Glyph group. Treat unknown values as base. */
+            kind: ("air" | "naval" | "missile" | "radar" | "base") | string;
+            /**
+             * @description Wikidata class in English.
+             * @example air base
+             */
+            class: string;
+            /**
+             * @description Who runs it (Wikidata P137), when listed.
+             * @example United States Air Force
+             */
+            operator?: string;
+            /**
+             * @description ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.
+             * @example DE
+             */
+            country?: string;
+            /** Format: double */
+            lon: number;
+            /** Format: double */
+            lat: number;
+            /**
+             * Format: uri
+             * @description The Wikidata item.
+             */
+            url: string;
         };
         AircraftList: {
             aircraft: components["schemas"]["Aircraft"][];
@@ -982,6 +1053,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AircraftList"];
+                };
+            };
+            304: components["responses"]["NotModified"];
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listBases: {
+        parameters: {
+            query?: {
+                /** @description minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian. */
+                bbox?: components["parameters"]["BBox"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bases in the view, or all of them. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control": components["headers"]["CacheControl"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BaseList"];
                 };
             };
             304: components["responses"]["NotModified"];

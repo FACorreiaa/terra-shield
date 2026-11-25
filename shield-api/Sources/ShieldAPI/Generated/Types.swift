@@ -77,6 +77,14 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /v1/aircraft`.
     /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)`.
     func listAircraft(_ input: Operations.ListAircraft.Input) async throws -> Operations.ListAircraft.Output
+    /// Military installations listed on Wikidata, a static layer separate from events.
+    ///
+    /// Installations with coordinates and no recorded closure, refreshed weekly from Wikidata (CC0). Wikidata records closures unevenly, so a listing is not proof a base is in use: show `note`, and link each base to its Wikidata item (`url`). Items with an end or closure date, a closed state of use, or a description saying former or historic are left out, as are unnamed items and barracks. Worldwide without `bbox` (a few thousand points); cached for an hour.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/bases`.
+    /// - Remark: Generated from `#/paths//v1/bases/get(listBases)`.
+    func listBases(_ input: Operations.ListBases.Input) async throws -> Operations.ListBases.Output
     /// Live event changes as Server-Sent Events (ADR 16).
     ///
     /// Server-Sent Events. Each connection first sends `retry: 5000`, then, when `Last-Event-ID` is given, the changes missed since that cursor; if the cursor is more than 1,000 changes behind, older than the retained change log (7 days), or unknown, it sends `event: reset` instead and the client reloads `/v1/events`. Then `event: ready`, whose `id` is the cursor the stream continues from. Live messages are `event.created`, `event.updated` and `event.resolved` (`data`: one `Event`, as in `/v1/events`, without geometry) and `event.removed` (`data`: `{"id": "..."}`; the source retracted it, or retention deleted it 90 days after it ended). Changes are coalesced: after a reconnect, an event changed twice is sent once, in its latest state, so clients treat created and updated alike as an upsert. Every 20 s an `id`-only line (no event is dispatched) is the heartbeat; it also moves Last-Event-ID past changes the filters skipped. Filters work as in `/v1/events`; `bbox` matches an event's bounding box, and removals are always sent. Open the stream first, then load `/v1/events`, so no change falls between the two.
@@ -203,6 +211,22 @@ extension APIProtocol {
         headers: Operations.ListAircraft.Input.Headers = .init()
     ) async throws -> Operations.ListAircraft.Output {
         try await listAircraft(Operations.ListAircraft.Input(
+            query: query,
+            headers: headers
+        ))
+    }
+    /// Military installations listed on Wikidata, a static layer separate from events.
+    ///
+    /// Installations with coordinates and no recorded closure, refreshed weekly from Wikidata (CC0). Wikidata records closures unevenly, so a listing is not proof a base is in use: show `note`, and link each base to its Wikidata item (`url`). Items with an end or closure date, a closed state of use, or a description saying former or historic are left out, as are unnamed items and barracks. Worldwide without `bbox` (a few thousand points); cached for an hour.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/bases`.
+    /// - Remark: Generated from `#/paths//v1/bases/get(listBases)`.
+    public func listBases(
+        query: Operations.ListBases.Input.Query = .init(),
+        headers: Operations.ListBases.Input.Headers = .init()
+    ) async throws -> Operations.ListBases.Output {
+        try await listBases(Operations.ListBases.Input(
             query: query,
             headers: headers
         ))
@@ -1650,6 +1674,193 @@ public enum Components {
                 case _type = "type"
                 case geometry
                 case properties
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/BaseList`.
+        public struct BaseList: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/BaseList/bases`.
+            public var bases: [Components.Schemas.MilitaryBase]
+            /// When Shield last refreshed the layer from Wikidata. Absent when empty.
+            ///
+            /// - Remark: Generated from `#/components/schemas/BaseList/updatedAt`.
+            public var updatedAt: Foundation.Date?
+            /// - Remark: Generated from `#/components/schemas/BaseList/attribution`.
+            public var attribution: Swift.String
+            /// - Remark: Generated from `#/components/schemas/BaseList/license`.
+            public var license: Swift.String
+            /// What a listing means; show it with the layer.
+            ///
+            /// - Remark: Generated from `#/components/schemas/BaseList/note`.
+            public var note: Swift.String
+            /// Creates a new `BaseList`.
+            ///
+            /// - Parameters:
+            ///   - bases:
+            ///   - updatedAt: When Shield last refreshed the layer from Wikidata. Absent when empty.
+            ///   - attribution:
+            ///   - license:
+            ///   - note: What a listing means; show it with the layer.
+            public init(
+                bases: [Components.Schemas.MilitaryBase],
+                updatedAt: Foundation.Date? = nil,
+                attribution: Swift.String,
+                license: Swift.String,
+                note: Swift.String
+            ) {
+                self.bases = bases
+                self.updatedAt = updatedAt
+                self.attribution = attribution
+                self.license = license
+                self.note = note
+            }
+            public enum CodingKeys: String, CodingKey {
+                case bases
+                case updatedAt
+                case attribution
+                case license
+                case note
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/MilitaryBase`.
+        public struct MilitaryBase: Codable, Hashable, Sendable {
+            /// Wikidata item ID.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/id`.
+            public var id: Swift.String
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/name`.
+            public var name: Swift.String
+            /// Wikidata's English description.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/description`.
+            public var description: Swift.String?
+            /// Glyph group. Treat unknown values as base.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/kind`.
+            public struct KindPayload: Codable, Hashable, Sendable {
+                /// - Remark: Generated from `#/components/schemas/MilitaryBase/kind/value1`.
+                @frozen public enum Value1Payload: String, Codable, Hashable, Sendable, CaseIterable {
+                    case air = "air"
+                    case naval = "naval"
+                    case missile = "missile"
+                    case radar = "radar"
+                    case base = "base"
+                }
+                /// - Remark: Generated from `#/components/schemas/MilitaryBase/kind/value1`.
+                public var value1: Components.Schemas.MilitaryBase.KindPayload.Value1Payload?
+                /// - Remark: Generated from `#/components/schemas/MilitaryBase/kind/value2`.
+                public var value2: Swift.String?
+                /// Creates a new `KindPayload`.
+                ///
+                /// - Parameters:
+                ///   - value1:
+                ///   - value2:
+                public init(
+                    value1: Components.Schemas.MilitaryBase.KindPayload.Value1Payload? = nil,
+                    value2: Swift.String? = nil
+                ) {
+                    self.value1 = value1
+                    self.value2 = value2
+                }
+                public init(from decoder: any Swift.Decoder) throws {
+                    var errors: [any Swift.Error] = []
+                    do {
+                        self.value1 = try decoder.decodeFromSingleValueContainer()
+                    } catch {
+                        errors.append(error)
+                    }
+                    do {
+                        self.value2 = try decoder.decodeFromSingleValueContainer()
+                    } catch {
+                        errors.append(error)
+                    }
+                    try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                        [
+                            self.value1,
+                            self.value2
+                        ],
+                        type: Self.self,
+                        codingPath: decoder.codingPath,
+                        errors: errors
+                    )
+                }
+                public func encode(to encoder: any Swift.Encoder) throws {
+                    try encoder.encodeFirstNonNilValueToSingleValueContainer([
+                        self.value1,
+                        self.value2
+                    ])
+                }
+            }
+            /// Glyph group. Treat unknown values as base.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/kind`.
+            public var kind: Components.Schemas.MilitaryBase.KindPayload
+            /// Wikidata class in English.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/class`.
+            public var _class: Swift.String
+            /// Who runs it (Wikidata P137), when listed.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/operator`.
+            public var _operator: Swift.String?
+            /// ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/country`.
+            public var country: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/lon`.
+            public var lon: Swift.Double
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/lat`.
+            public var lat: Swift.Double
+            /// The Wikidata item.
+            ///
+            /// - Remark: Generated from `#/components/schemas/MilitaryBase/url`.
+            public var url: Swift.String
+            /// Creates a new `MilitaryBase`.
+            ///
+            /// - Parameters:
+            ///   - id: Wikidata item ID.
+            ///   - name:
+            ///   - description: Wikidata's English description.
+            ///   - kind: Glyph group. Treat unknown values as base.
+            ///   - _class: Wikidata class in English.
+            ///   - _operator: Who runs it (Wikidata P137), when listed.
+            ///   - country: ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.
+            ///   - lon:
+            ///   - lat:
+            ///   - url: The Wikidata item.
+            public init(
+                id: Swift.String,
+                name: Swift.String,
+                description: Swift.String? = nil,
+                kind: Components.Schemas.MilitaryBase.KindPayload,
+                _class: Swift.String,
+                _operator: Swift.String? = nil,
+                country: Swift.String? = nil,
+                lon: Swift.Double,
+                lat: Swift.Double,
+                url: Swift.String
+            ) {
+                self.id = id
+                self.name = name
+                self.description = description
+                self.kind = kind
+                self._class = _class
+                self._operator = _operator
+                self.country = country
+                self.lon = lon
+                self.lat = lat
+                self.url = url
+            }
+            public enum CodingKeys: String, CodingKey {
+                case id
+                case name
+                case description
+                case kind
+                case _class = "class"
+                case _operator = "operator"
+                case country
+                case lon
+                case lat
+                case url
             }
         }
         /// - Remark: Generated from `#/components/schemas/AircraftList`.
@@ -4574,6 +4785,289 @@ public enum Operations {
             /// Error envelope.
             ///
             /// - Remark: Generated from `#/paths//v1/aircraft/get(listAircraft)/responses/default`.
+            ///
+            /// HTTP response code: `default`.
+            case `default`(statusCode: Swift.Int, Components.Responses._Error)
+            /// The associated value of the enum case if `self` is `.`default``.
+            ///
+            /// - Throws: An error if `self` is not `.`default``.
+            /// - SeeAlso: `.`default``.
+            public var `default`: Components.Responses._Error {
+                get throws {
+                    switch self {
+                    case let .`default`(_, response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "default",
+                            response: self
+                        )
+                    }
+                }
+            }
+        }
+        @frozen public enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            public init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            public var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            public static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Military installations listed on Wikidata, a static layer separate from events.
+    ///
+    /// Installations with coordinates and no recorded closure, refreshed weekly from Wikidata (CC0). Wikidata records closures unevenly, so a listing is not proof a base is in use: show `note`, and link each base to its Wikidata item (`url`). Items with an end or closure date, a closed state of use, or a description saying former or historic are left out, as are unnamed items and barracks. Worldwide without `bbox` (a few thousand points); cached for an hour.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/bases`.
+    /// - Remark: Generated from `#/paths//v1/bases/get(listBases)`.
+    public enum ListBases {
+        public static let id: Swift.String = "listBases"
+        public struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/v1/bases/GET/query`.
+            public struct Query: Sendable, Hashable {
+                /// minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian.
+                ///
+                ///
+                /// - Remark: Generated from `#/paths/v1/bases/GET/query/bbox`.
+                public var bbox: Components.Parameters.BBox?
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - bbox: minLon,minLat,maxLon,maxLat in WGS 84. minLon greater than maxLon crosses the antimeridian.
+                public init(bbox: Components.Parameters.BBox? = nil) {
+                    self.bbox = bbox
+                }
+            }
+            public var query: Operations.ListBases.Input.Query
+            /// - Remark: Generated from `#/paths/v1/bases/GET/header`.
+            public struct Headers: Sendable, Hashable {
+                public var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.ListBases.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                public init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.ListBases.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            public var headers: Operations.ListBases.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            public init(
+                query: Operations.ListBases.Input.Query = .init(),
+                headers: Operations.ListBases.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        @frozen public enum Output: Sendable, Hashable {
+            public struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/v1/bases/GET/responses/200/headers`.
+                public struct Headers: Sendable, Hashable {
+                    /// Strong validator; send it back as If-None-Match.
+                    ///
+                    /// - Remark: Generated from `#/paths/v1/bases/GET/responses/200/headers/ETag`.
+                    public var eTag: Components.Headers.ETag?
+                    /// public, max-age=15 (ADR 16: below the shortest poll interval).
+                    ///
+                    /// - Remark: Generated from `#/paths/v1/bases/GET/responses/200/headers/Cache-Control`.
+                    public var cacheControl: Components.Headers.CacheControl?
+                    /// Creates a new `Headers`.
+                    ///
+                    /// - Parameters:
+                    ///   - eTag: Strong validator; send it back as If-None-Match.
+                    ///   - cacheControl: public, max-age=15 (ADR 16: below the shortest poll interval).
+                    public init(
+                        eTag: Components.Headers.ETag? = nil,
+                        cacheControl: Components.Headers.CacheControl? = nil
+                    ) {
+                        self.eTag = eTag
+                        self.cacheControl = cacheControl
+                    }
+                }
+                /// Received HTTP response headers
+                public var headers: Operations.ListBases.Output.Ok.Headers
+                /// - Remark: Generated from `#/paths/v1/bases/GET/responses/200/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/v1/bases/GET/responses/200/content/application\/json`.
+                    case json(Components.Schemas.BaseList)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas.BaseList {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.ListBases.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - headers: Received HTTP response headers
+                ///   - body: Received HTTP response body
+                public init(
+                    headers: Operations.ListBases.Output.Ok.Headers = .init(),
+                    body: Operations.ListBases.Output.Ok.Body
+                ) {
+                    self.headers = headers
+                    self.body = body
+                }
+            }
+            /// Bases in the view, or all of them.
+            ///
+            /// - Remark: Generated from `#/paths//v1/bases/get(listBases)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.ListBases.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            public var ok: Operations.ListBases.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Unchanged since the ETag sent in If-None-Match.
+            ///
+            /// - Remark: Generated from `#/paths//v1/bases/get(listBases)/responses/304`.
+            ///
+            /// HTTP response code: `304 notModified`.
+            case notModified(Components.Responses.NotModified)
+            /// Unchanged since the ETag sent in If-None-Match.
+            ///
+            /// - Remark: Generated from `#/paths//v1/bases/get(listBases)/responses/304`.
+            ///
+            /// HTTP response code: `304 notModified`.
+            public static var notModified: Self {
+                .notModified(.init())
+            }
+            /// The associated value of the enum case if `self` is `.notModified`.
+            ///
+            /// - Throws: An error if `self` is not `.notModified`.
+            /// - SeeAlso: `.notModified`.
+            public var notModified: Components.Responses.NotModified {
+                get throws {
+                    switch self {
+                    case let .notModified(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "notModified",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// A parameter is malformed.
+            ///
+            /// - Remark: Generated from `#/paths//v1/bases/get(listBases)/responses/400`.
+            ///
+            /// HTTP response code: `400 badRequest`.
+            case badRequest(Components.Responses.BadRequest)
+            /// The associated value of the enum case if `self` is `.badRequest`.
+            ///
+            /// - Throws: An error if `self` is not `.badRequest`.
+            /// - SeeAlso: `.badRequest`.
+            public var badRequest: Components.Responses.BadRequest {
+                get throws {
+                    switch self {
+                    case let .badRequest(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "badRequest",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/bases/get(listBases)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/bases/get(listBases)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Error envelope.
+            ///
+            /// - Remark: Generated from `#/paths//v1/bases/get(listBases)/responses/default`.
             ///
             /// HTTP response code: `default`.
             case `default`(statusCode: Swift.Int, Components.Responses._Error)

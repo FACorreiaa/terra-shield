@@ -109,6 +109,20 @@ type MeteoalarmAreaAlias struct {
 	Code      string
 }
 
+type MilitaryBasis struct {
+	Qid         string
+	Name        string
+	Description *string
+	Kind        string
+	Class       string
+	Operator    *string
+	Lat         float64
+	Lon         float64
+	Iso2        *string
+	CountryHint *string
+	UpdatedAt   time.Time
+}
+
 type NwsZone struct {
 	Ugc   string
 	State string

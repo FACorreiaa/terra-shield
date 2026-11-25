@@ -12,6 +12,7 @@ import (
 	"shield/internal/sources/tsunami"
 	"shield/internal/sources/ucdp"
 	"shield/internal/sources/usgs"
+	"shield/internal/sources/wikidata"
 )
 
 // sources is every feed adapter the worker schedules, wired to its
@@ -22,6 +23,8 @@ func (c *container) sources() []ingest.Source {
 	feeds := fetch.New(fetch.Options{UserAgent: c.userAgent()})
 	// FIRMS' global CSVs are 6–7 MB each today and grow in fire season.
 	bulk := fetch.New(fetch.Options{UserAgent: c.userAgent(), MaxBody: 64 << 20, Timeout: 2 * time.Minute})
+	// Wikidata's query service may take its full 60 s per query.
+	sparql := fetch.New(fetch.Options{UserAgent: c.userAgent(), Timeout: wikidata.QueryTimeout})
 
 	return []ingest.Source{
 		usgs.New(feeds, c.repos.Events),
@@ -31,6 +34,7 @@ func (c *container) sources() []ingest.Source {
 		meteoalarm.New(feeds, c.repos.Events, meteoalarm.NewResolver(c.repos.WarningAreas), c.logger),
 		tsunami.New(feeds, c.repos.Events, c.repos.NWSZones, c.logger),
 		ucdp.New(feeds, c.repos.Events),
+		wikidata.New(sparql, c.repos.Bases),
 	}
 }
 

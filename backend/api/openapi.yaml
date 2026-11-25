@@ -275,6 +275,36 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "503": { $ref: "#/components/responses/Unavailable" }
         default: { $ref: "#/components/responses/Error" }
+  /v1/bases:
+    get:
+      operationId: listBases
+      tags: [bases]
+      summary: Military installations listed on Wikidata, a static layer separate from events.
+      description: >
+        Installations with coordinates and no recorded closure, refreshed
+        weekly from Wikidata (CC0). Wikidata records closures unevenly, so
+        a listing is not proof a base is in use: show `note`, and link each
+        base to its Wikidata item (`url`). Items with an end or closure
+        date, a closed state of use, or a description saying former or
+        historic are left out, as are unnamed items and barracks.
+        Worldwide without `bbox` (a few thousand points); cached for an
+        hour.
+      parameters:
+        - $ref: "#/components/parameters/BBox"
+      responses:
+        "200":
+          description: Bases in the view, or all of them.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BaseList" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        default: { $ref: "#/components/responses/Error" }
   /v1/stream:
     get:
       operationId: streamEvents
@@ -738,6 +768,35 @@ components:
           anyOf:
             - $ref: "#/components/schemas/FireDetection"
             - $ref: "#/components/schemas/FireCell"
+    BaseList:
+      type: object
+      required: [bases, attribution, license, note]
+      properties:
+        bases:
+          type: array
+          items: { $ref: "#/components/schemas/MilitaryBase" }
+        updatedAt: { type: string, format: date-time, description: "When Shield last refreshed the layer from Wikidata. Absent when empty." }
+        attribution: { type: string, examples: [Wikidata] }
+        license: { type: string, examples: [CC0 1.0] }
+        note: { type: string, description: "What a listing means; show it with the layer." }
+    MilitaryBase:
+      type: object
+      required: [id, name, kind, class, lon, lat, url]
+      properties:
+        id: { type: string, description: "Wikidata item ID.", examples: [Q161348] }
+        name: { type: string, examples: [Ramstein Air Base] }
+        description: { type: string, description: "Wikidata's English description." }
+        kind:
+          description: "Glyph group. Treat unknown values as base."
+          anyOf:
+            - { type: string, enum: [air, naval, missile, radar, base] }
+            - { type: string }
+        class: { type: string, description: "Wikidata class in English.", examples: [air base] }
+        operator: { type: string, description: "Who runs it (Wikidata P137), when listed.", examples: [United States Air Force] }
+        country: { type: string, description: "ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.", examples: [DE] }
+        lon: { type: number, format: double }
+        lat: { type: number, format: double }
+        url: { type: string, format: uri, description: "The Wikidata item." }
     AircraftList:
       type: object
       required: [aircraft, complete, attribution, license, licenseUrl]

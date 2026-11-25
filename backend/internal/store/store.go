@@ -14,6 +14,8 @@ type Repositories struct {
 	Sources   *SourceRepository
 	Countries *CountryRepository
 	Fires     *FireRepository
+	// Bases is the military bases layer (L3).
+	Bases *BaseRepository
 	// WarningAreas are MeteoAlarm's area shapes (S1.5).
 	WarningAreas *WarningAreaRepository
 	// NWSZones are NOAA's public forecast zones, for tsunami warnings.
@@ -27,6 +29,7 @@ func New(pool *pgxpool.Pool) *Repositories {
 		Sources:   NewSourceRepository(pool),
 		Countries: NewCountryRepository(pool),
 		Fires:     NewFireRepository(pool),
+		Bases:     NewBaseRepository(pool),
 
 		WarningAreas: NewWarningAreaRepository(pool),
 		NWSZones:     NewNWSZoneRepository(pool),
