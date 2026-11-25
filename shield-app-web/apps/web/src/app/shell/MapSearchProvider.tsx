@@ -36,13 +36,13 @@ function MapSearchProvider({ children }: { children: ReactNode }): ReactElement 
     field.current?.focus();
     return field.current !== null;
   }, []);
-  // The Countries list hides the field, so a search carried there from another section ends.
+  // The Countries list and Sources hide the field, so a search carried there ends.
   // Adjusted during render; the field is gone, so there is no focus to look after.
-  const { listing } = usePage();
-  const [wasListing, setWasListing] = useState(listing);
-  if (listing !== wasListing) {
-    setWasListing(listing);
-    if (listing) {
+  const { fieldless } = usePage();
+  const [wasFieldless, setWasFieldless] = useState(fieldless);
+  if (fieldless !== wasFieldless) {
+    setWasFieldless(fieldless);
+    if (fieldless) {
       setText("");
       setEditing(false);
     }

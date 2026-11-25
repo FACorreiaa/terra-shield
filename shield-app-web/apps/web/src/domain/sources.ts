@@ -65,6 +65,10 @@ function health(source: Source, now: Date = new Date()): SourceHealth {
 function statusLine(source: Source, now: Date = new Date()): string {
   const lastError = date(source.lastErrorAt);
   const lastSuccess = date(source.lastSuccessAt);
+  // Fetched only while its layer is shown (live flights): when, not how often.
+  if (source.onDemand === true && !lastCheckFailed(source)) {
+    return lastSuccess === undefined ? "Not fetched yet" : `Fetched ${stamp(lastSuccess, now)}`;
+  }
   if (lastCheckFailed(source) && lastError !== undefined) {
     const good = lastSuccess === undefined ? "no good check yet" : `last good check ${relative(lastSuccess, now)}`;
     return `Last check failed ${relative(lastError, now)} · ${good}`;
@@ -93,7 +97,10 @@ function every(seconds: number): string {
  * Our poll, not the data's age: "Checked every 6 h", or with the source's own rhythm,
  * "Monthly release · checked every 6 h".
  */
-function interval(source: Pick<Source, "pollIntervalSeconds" | "cadence">): string {
+function interval(source: Pick<Source, "pollIntervalSeconds" | "cadence" | "onDemand">): string {
+  if (source.onDemand === true) {
+    return "Fetched only while the flights layer is shown, at most once a minute";
+  }
   const poll = every(source.pollIntervalSeconds);
   const { cadence } = source;
   if (cadence === undefined || cadence === "") {
@@ -102,5 +109,20 @@ function interval(source: Pick<Source, "pollIntervalSeconds" | "cadence">): stri
   return `${cadence.charAt(0).toUpperCase()}${cadence.slice(1)} · checked every ${poll}`;
 }
 
+/**
+ * The sidebar's Sources dot: the worst health among the listed sources, or undefined before the
+ * first list arrives (Sidebar.swift `overallHealth`).
+ */
+function overallHealth(sources: readonly Source[] | undefined, now: Date = new Date()): SourceHealth | undefined {
+  const healths = listed(sources ?? []).map((source) => health(source, now));
+  if (healths.length === 0) {
+    return undefined;
+  }
+  if (healths.includes("danger")) {
+    return "danger";
+  }
+  return healths.includes("warning") ? "warning" : "ok";
+}
+
 export type { SourceHealth };
-export { health, interval, isStale, lastCheckFailed, listed, statusLine };
+export { health, interval, isStale, lastCheckFailed, listed, overallHealth, statusLine };

@@ -10,7 +10,7 @@ import type { LiveMap } from "./liveMapContext.ts";
 import { LiveMapContext } from "./liveMapContext.ts";
 import { useSelectedEvent } from "./useSelectedEvent.ts";
 import { useDisplayed, useShownEvents } from "./useShownEvents.ts";
-import { useSourceHealth } from "./useSourceHealth.ts";
+import { SourceLookupContext, useSourceHealth } from "./useSourceHealth.ts";
 import { useUrlSelection } from "./useUrlSelection.ts";
 
 const WHOLE_WORLD: View = { zoom: 1, bbox: "-180,-85,180,85" };
@@ -43,7 +43,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   const { shown, status, failure } = useShownEvents(events, now);
   const { list, clusters } = useDisplayed(shown);
   const { selected, detail, selectedShape } = useSelectedEvent(selectedId, list, chosen);
-  const { sources, staleSources } = useSourceHealth(now);
+  const { sources, staleSources, lookup } = useSourceHealth(now);
   const value = useMemo<LiveMap>(
     () => ({
       view,
@@ -89,7 +89,11 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       now,
     ],
   );
-  return <LiveMapContext value={value}>{children}</LiveMapContext>;
+  return (
+    <LiveMapContext value={value}>
+      <SourceLookupContext value={lookup}>{children}</SourceLookupContext>
+    </LiveMapContext>
+  );
 }
 
 export { LiveMapProvider };

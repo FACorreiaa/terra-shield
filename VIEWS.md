@@ -276,8 +276,6 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - **No locate button.** See W4.
      - **Deferred to W4:** `StatStrip` and `FilterChips` over the map and the compact strip at peek
        (built in W4, part 1); the rule that focusing search opens the sheet at full height (W4, part 2).
-     - **Deferred to W5:** Sources pinned at the foot of the sidebar with the health dot, and the
-       sheet header's Sources button.
      - **Deferred to W9:** the sheet header's Saved, Alerts and Settings buttons, and the sidebar's
        Countries, Saved regions and Alerts entries.
      - **Owner call:** `i` hides the inspector until `i` is pressed again, across new selections, and
@@ -315,9 +313,7 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        the search field in the sheet's header, the cost of a peek that never shifts.
      - **Locate, owner call.** The apps have no locate button, and one would ask for the person's
        location. It is not built; it needs a yes first.
-     - **Deferred to W5:** `SourceBadge`, fading the events of a stale source, and Sources in the
-       sidebar, all of which need `/v1/sources`. `SampleDataBadge` has no use on the web yet: it shows
-       no sample data.
+     - **`SampleDataBadge`** has no use on the web yet: it shows no sample data.
    - **W4 Monitor, part 2: search.** One field, after the apps' `MapSearchField` and
      `MapSearchResults`: under the nav in the sidebar on a wide screen, in the sheet's header on a
      phone. It finds countries from `/v1/countries` (by name or ISO code, ignoring case and accents)
@@ -398,6 +394,34 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        above its overview. The iPhone app does the same and flags it for the owner too.
      - **Choosing the open country again** (from search) frames it again and closes the event, as in
        `MapScreen.swift`; the address doesn't change, so Back doesn't see it.
+   - **W5, part 3: Sources.** `SourcesView` after `SourcesView.swift` and `SourceRow.swift` at
+     `/sources` (key 5): the disclaimer, "N sources", then each active source with its health dot
+     and words (Healthy, Last check failed, Stale), what it covers, its last check ("Last check failed
+     1 min ago · last good check 30 min ago"), "Checked every 10 min" or "Monthly release · checked
+     every 6 h", licence and attribution, and Terms plus Website (Website alone without terms), then
+     "Absence of data is not safety." Disabled sources are hidden. The dot follows the design
+     session's rule: an error older than the last success is healthy, a newer one is a failed check,
+     the server's `stale` is stale. It refreshes each time it opens; a failed refresh keeps the last
+     list with "Couldn’t refresh. Showing the last list loaded.", and a failed first load offers Try
+     again. On a wide screen Sources is pinned at the foot of the sidebar with the worst health of
+     all sources (no dot before the first list), as in `Sidebar.swift`; on a phone it opens from a
+     button beside the search field (hidden while searching) and takes the sheet at full height,
+     with its title and Done pinned in the sheet's header; Done goes back where it was opened from
+     (an event, a country, the sheet's height and keyboard focus), or to the map from a link. An
+     on-demand source (live flights) reads "Fetched 3 h ago" and "Fetched only while the flights
+     layer is shown, at most once a minute", never stale. List rows now match `EventRow.swift`: a stale source's row fades and
+     says "Stale · last update 3 h ago", a resolved one says "Resolved · ended 3 h ago", and the
+     source shows by name.
+   - **Deviations for the owner:**
+     - **A section, not a sheet.** The apps present Sources as a sheet; on the web it is a page in
+       the sidebar (wide) or the sheet (phone), so it has a link, Back and key 5 like the others. At
+       248 px the rows wrap more than on the Mac's 520 pt sheet. Owner verdict wanted.
+     - **An open event closes on a phone** while Sources shows (the sheet would otherwise keep
+       showing the event over it); Done and Back bring it back. The iPhone's Sources sheet sits over
+       the event instead.
+     - **Conflict rows** (W7) will need their own monthly line; a stale UCDP never marks them stale.
+     - **An empty source list** reads as a failure ("Couldn’t load the sources." with Try again);
+       the apps show nothing.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

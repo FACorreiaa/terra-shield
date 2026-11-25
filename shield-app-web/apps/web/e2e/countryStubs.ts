@@ -114,4 +114,4 @@ async function stubCountries(
   });
 }
 
-export { CHILE_EVENTS, chileSummary, event, FIRE, QUAKE, quietSummary, stubCountries };
+export { CHILE_EVENTS, chileSummary, event, FIRE, FLOOD, QUAKE, quietSummary, stubCountries };

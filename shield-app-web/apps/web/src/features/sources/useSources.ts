@@ -16,7 +16,10 @@ async function request(signal: AbortSignal): Promise<Source[]> {
   return data.sources;
 }
 
-/** `GET /v1/sources`: names, links and health, for source badges, stale fading and the Sources screen. */
+/**
+ * `GET /v1/sources`: names, links and health, for source badges, stale fading and the Sources
+ * screen.
+ */
 function useSources(): UseQueryResult<Source[]> {
   return useQuery({
     queryKey: ["sources"],
