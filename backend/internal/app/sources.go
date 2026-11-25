@@ -26,6 +26,13 @@ func (c *container) sources() []ingest.Source {
 	// Wikidata's query service may take its full 60 s per query.
 	sparql := fetch.New(fetch.Options{UserAgent: c.userAgent(), Timeout: wikidata.QueryTimeout, MaxBody: 64 << 20})
 
+	bases := wikidata.New(sparql, c.repos.Bases)
+	historic := wikidata.NewHistoric(sparql, c.repos.Historic, c.repos.Bases)
+	if u := c.cfg.WikidataEndpoint; u != "" {
+		bases.UseEndpoint(u)
+		historic.UseEndpoint(u)
+	}
+
 	return []ingest.Source{
 		usgs.New(feeds, c.repos.Events),
 		gdacs.New(feeds, c.repos.Events, c.logger),
@@ -34,8 +41,8 @@ func (c *container) sources() []ingest.Source {
 		meteoalarm.New(feeds, c.repos.Events, meteoalarm.NewResolver(c.repos.WarningAreas), c.logger),
 		tsunami.New(feeds, c.repos.Events, c.repos.NWSZones, c.logger),
 		ucdp.New(feeds, c.repos.Events),
-		wikidata.New(sparql, c.repos.Bases),
-		wikidata.NewHistoric(sparql, c.repos.Historic, c.repos.Bases),
+		bases,
+		historic,
 	}
 }
 

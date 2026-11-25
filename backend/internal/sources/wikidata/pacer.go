@@ -34,6 +34,18 @@ const (
 	refusedHold = time.Minute
 )
 
+// sparqlPrefixes declares the prefixes the queries use. The Wikidata Query
+// Service predefines them; standard SPARQL endpoints, such as a Wikidata
+// mirror used in development, need them declared.
+const sparqlPrefixes = `PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
+`
+
 // gate paces every query this process sends to the Wikidata Query Service.
 // The service allows each client (IP and User-Agent) 60 s of query time a
 // minute and answers 429 beyond it, and the sources that use it poll at the
@@ -159,7 +171,7 @@ func (p *pacer[T]) fetch(ctx context.Context, query string) (*fetch.Response, er
 		}
 	}
 	start := p.now()
-	resp, err := p.client.Get(ctx, p.endpoint+"?format=json&query="+url.QueryEscape(query), fetch.Validators{})
+	resp, err := p.client.Get(ctx, p.endpoint+"?format=json&query="+url.QueryEscape(sparqlPrefixes+query), fetch.Validators{})
 	g.ended = p.now()
 	g.prev = g.ended.Sub(start)
 	var se *fetch.StatusError

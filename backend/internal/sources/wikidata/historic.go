@@ -247,6 +247,10 @@ func (*Historic) Info() domain.SourceInfo {
 // PollAttempts implements ingest.PatientSource: a retry resumes.
 func (*Historic) PollAttempts() int { return pollAttempts }
 
+// UseEndpoint sends the queries to another SPARQL endpoint than the
+// Wikidata Query Service (a mirror, in development).
+func (h *Historic) UseEndpoint(u string) { h.q.endpoint = u }
+
 // PollTimeout implements ingest.SlowSource: 133 queries (132 classes and
 // World Heritage) of up to a minute, each preceded by a wait as long as
 // the last. 56 queries took about 12 minutes (2026-11-25); a retry

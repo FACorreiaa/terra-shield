@@ -213,6 +213,29 @@ func TestGateHoldLimits(t *testing.T) {
 	g.slot <- struct{}{}
 }
 
+// Queries declare their prefixes, so any standard SPARQL endpoint answers.
+func TestQueriesDeclarePrefixes(t *testing.T) {
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query().Get("query")
+		_, _ = w.Write([]byte(`{"results":{"bindings":[]}}`))
+	}))
+	defer srv.Close()
+	p := newPacer[int](fetch.New(fetch.Options{HostGap: time.Millisecond}))
+	p.endpoint, p.gate = srv.URL, newGate()
+	if _, err := p.run(context.Background(), "k", "label", HistoricQuery("Q1"), func([]byte) (int, error) { return 0, nil }); err != nil {
+		t.Fatal(err)
+	}
+	for _, pfx := range []string{"wd", "wdt", "rdfs", "schema", "p", "ps", "pq"} {
+		if !strings.Contains(got, "PREFIX "+pfx+": <") {
+			t.Errorf("query does not declare %s:", pfx)
+		}
+	}
+	if !strings.HasSuffix(got, HistoricQuery("Q1")) {
+		t.Error("the query itself must follow the prefixes unchanged")
+	}
+}
+
 func TestSourcesArePatient(t *testing.T) {
 	var _ ingest.PatientSource = (*Source)(nil)
 	var _ ingest.PatientSource = (*Historic)(nil)

@@ -45,6 +45,10 @@ type Base struct {
 	// AircraftFeedURL overrides the live flights feed (adsb.lol), so local
 	// client work can run against a replay instead of the daily quota.
 	AircraftFeedURL string `env:"AIRCRAFT_FEED_URL"`
+	// WikidataEndpoint overrides the Wikidata Query Service for the bases
+	// and historic layers, so local work can load from a mirror while the
+	// service is rate-limiting. Empty in production.
+	WikidataEndpoint string `env:"WIKIDATA_ENDPOINT"`
 }
 
 // IsProduction reports whether this is the production environment.
