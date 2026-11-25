@@ -96,6 +96,67 @@ public final class LiveMapModel {
         }
     }
 
+    /// Live flights in view (ADR 28); nil while off, before the first answer, or while the view
+    /// is too large.
+    public private(set) var flights: AircraftLayer?
+    /// The last flights request failed; the positions shown, if any, are the previous answer's.
+    public private(set) var flightsFailed = false
+    /// The view touches more than 4 cells of 5°: the layer asks to zoom in instead of asking.
+    public private(set) var flightsNeedZoom = false
+    /// The box last asked for, answered or not (a failure, a refusal): a reload of the same view
+    /// doesn't ask again; only the minute timer does (`keepFlightsFresh`), so hazard polls,
+    /// Refresh and stream bursts never spend the feed's shared quota.
+    private var flightsBox: GeoBox?
+    /// The box `flights` answers for.
+    private var flightsShownBox: GeoBox?
+    /// When the last flights request started: the timer waits a full minute from it.
+    private var flightsAskedAt: Date?
+    /// The selected aircraft as last seen, kept while it is out of the answer (the iPhone sheet
+    /// shrinks the view over it) until it is closed or the layer goes off.
+    private var chosenAircraft: Aircraft?
+    private var flightsTask: Task<Void, Never>?
+    private var flightsGeneration = 0
+    /// No faster than once a minute for the same view (ADR 28; the server refreshes each cell at
+    /// most once a minute anyway).
+    public static let flightsInterval: Duration = .seconds(60)
+
+    /// The flights layer; off by default and at every launch: never saved, so a run can't start
+    /// spending the feed's daily quota on its own.
+    public var showsFlights = false {
+        didSet {
+            guard showsFlights != oldValue else { return }
+            // Hazards are not reloaded: the layer is independent of them.
+            if showsFlights {
+                startFlights(for: viewport, force: false)
+            } else {
+                flightsTask?.cancel()
+                flightsGeneration += 1
+                flights = nil
+                flightsFailed = false
+                flightsNeedZoom = false
+                flightsBox = nil
+                flightsShownBox = nil
+                flightsAskedAt = nil
+                selectedAircraftHex = nil
+            }
+        }
+    }
+
+    /// The aircraft shown in the sheet or inspector, by address. Selecting one clears the event,
+    /// and the other way round.
+    public var selectedAircraftHex: String? {
+        didSet {
+            if selectedAircraftHex != nil, selectedEventID != nil { selectedEventID = nil }
+            chosenAircraft = selectedAircraftHex.flatMap { hex in flights?.aircraft.first { $0.hex == hex } }
+        }
+    }
+
+    public var selectedAircraft: Aircraft? {
+        guard let selectedAircraftHex else { return nil }
+        return flights?.aircraft.first { $0.hex == selectedAircraftHex }
+            ?? chosenAircraft.flatMap { $0.hex == selectedAircraftHex ? $0 : nil }
+    }
+
     /// The FIRMS layer; off by default (DESIGN.md §5). Saved with the filters.
     public var showsDetections = false {
         didSet {
@@ -109,6 +170,7 @@ public final class LiveMapModel {
     public var selectedEventID: UUID? {
         didSet {
             guard selectedEventID != oldValue else { return }
+            if selectedEventID != nil, selectedAircraftHex != nil { selectedAircraftHex = nil }
             loadSelectedArea()
         }
     }
@@ -401,6 +463,12 @@ public final class LiveMapModel {
     /// Waits for the current load, if any (tests, pull-to-refresh).
     public func settle() async {
         await loadTask?.value
+        await flightsTask?.value
+    }
+
+    /// Waits for the map's load only, not the flights (tests).
+    func settleMap() async {
+        await loadTask?.value
     }
 
     private func schedule(after delay: Duration) {
@@ -418,6 +486,8 @@ public final class LiveMapModel {
     private func load(generation: Int) async {
         let viewport = viewport, query = query, wantsDetections = showsDetections, provider = provider
         let wantsConflicts = showsConflicts
+        // Flights run on their own: the server waits on the feed, and hazards must not.
+        startFlights(for: viewport, force: false)
         async let events = Self.capture { try await provider.snapshot(matching: query, in: viewport) }
         async let fires = Self.detections(from: provider, in: viewport, if: wantsDetections)
         async let conflictList = Self.conflicts(from: provider, in: viewport, if: wantsConflicts)
@@ -500,6 +570,86 @@ public final class LiveMapModel {
     /// Waits for an in-flight area fetch (tests).
     func settleArea() async {
         await areaTask?.value
+    }
+
+    /// Asks for the flights in view now, the same view included (the minute timer, tests).
+    public func refreshFlights() async {
+        startFlights(for: viewport, force: true)
+        await flightsTask?.value
+    }
+
+    /// Keeps the flights current while the layer is on: one request a minute for the view on
+    /// screen (ADR 28). Attach to the view with the layer's state as its id.
+    public func keepFlightsFresh(
+        sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
+    ) async {
+        let interval = TimeInterval(Self.flightsInterval.components.seconds)
+        func elapsed() -> TimeInterval {
+            flightsAskedAt.map { now().timeIntervalSince($0) } ?? interval
+        }
+        while showsFlights, !Task.isCancelled {
+            // A view change asks at once and restarts the minute, so wait from the last request;
+            // with nothing asked yet (a view too large), a whole minute.
+            let wait = flightsAskedAt == nil ? interval : min(interval, max(1, (interval - elapsed()).rounded(.up)))
+            await sleep(.seconds(wait))
+            guard showsFlights, !Task.isCancelled else { return }
+            if elapsed() >= interval { await refreshFlights() }
+        }
+    }
+
+    /// Starts a flights request unless the layer is off, the view is too large (which clears the
+    /// layer), or — without `force` — this box was already asked for.
+    private func startFlights(for viewport: MapViewport, force: Bool) {
+        guard showsFlights else { return }
+        let box = viewport.box.asSent
+        guard AircraftArea.fits(box) else {
+            needZoomForFlights()
+            return
+        }
+        // Same view: keep its state, "zoom in" from the server included, until the timer asks.
+        if !force, box == flightsBox { return }
+        flightsNeedZoom = false
+        flightsTask?.cancel()
+        flightsGeneration += 1
+        let generation = flightsGeneration, provider = provider
+        flightsBox = box
+        flightsAskedAt = now()
+        flightsTask = Task { [weak self] in
+            let result = await Self.capture { try await provider.aircraft(in: box) }
+            guard let self, generation == self.flightsGeneration, !Task.isCancelled, self.showsFlights else { return }
+            switch result {
+            case .success(let layer):
+                self.flights = layer
+                self.flightsShownBox = box
+                self.flightsFailed = false
+                if let hex = self.selectedAircraftHex, let seen = layer.aircraft.first(where: { $0.hex == hex }) {
+                    self.chosenAircraft = seen
+                }
+            case .failure(let error) where error is AircraftArea.TooLarge:
+                self.needZoomForFlights()
+                // Refused: not asked again for this view until the timer.
+                self.flightsBox = box
+            case .failure(let error):
+                if LoadFailure.isCancellation(error) { return }
+                self.flightsFailed = true
+                // Another view's positions would be counted as this one's.
+                if self.flightsShownBox != box {
+                    self.flights = nil
+                    self.flightsShownBox = nil
+                }
+            }
+        }
+    }
+
+    private func needZoomForFlights() {
+        flightsTask?.cancel()
+        flightsGeneration += 1
+        flightsNeedZoom = true
+        flights = nil
+        flightsShownBox = nil
+        flightsFailed = false
+        flightsBox = nil
+        selectedAircraftHex = nil
     }
 
     private nonisolated static func conflicts(

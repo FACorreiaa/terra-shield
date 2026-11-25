@@ -30,6 +30,8 @@ struct MapScreen: View {
     /// which ignores the safe area, runs on underneath it; framing has to leave that part out.
     @State private var mapTrailingInset: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotionForToast
+    /// Flights poll only while the window can be seen: the feed's quota is shared server-wide.
+    @Environment(\.scenePhase) private var scenePhase
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var peekHeight = MapScreen.defaultPeekHeight
@@ -43,6 +45,10 @@ struct MapScreen: View {
         shell
             .background(Color.canvas)
             .task { await model.keepFresh() }
+            // Flights refresh on their own minute while the layer is on (ADR 28).
+            .task(id: model.showsFlights && scenePhase != .background) {
+                if model.showsFlights, scenePhase != .background { await model.keepFlightsFresh() }
+            }
             .task { await loadCountries() }
             // Opening a country loads it; one that crosses ±180° is framed by its events once
             // they arrive (`Country.mapBox(for:)`).
@@ -113,6 +119,17 @@ struct MapScreen: View {
                 try? await Task.sleep(for: .seconds(1))
                 go(target)
             }
+            // Automation: `SHIELD_FLIGHTS=1` turns the flights layer on (only ever against a
+            // replay: ADR 28); `SHIELD_AIRCRAFT=<hex>` then selects that aircraft.
+            .task {
+                let env = ProcessInfo.processInfo.environment
+                guard env["SHIELD_FLIGHTS"] == "1" else { return }
+                try? await Task.sleep(for: .seconds(1))
+                model.showsFlights = true
+                guard let hex = env["SHIELD_AIRCRAFT"] else { return }
+                for _ in 0..<40 where model.flights == nil { try? await Task.sleep(for: .milliseconds(250)) }
+                model.selectedAircraftHex = hex
+            }
             // Screenshot automation: `SHIELD_COUNTRY=PT` opens Portugal's overview.
             .task {
                 guard let code = ProcessInfo.processInfo.environment["SHIELD_COUNTRY"] else { return }
@@ -130,8 +147,9 @@ struct MapScreen: View {
                     sidebarSearchFocused = false
                     return .handled
                 }
-                if model.selectedEventID != nil {
+                if model.selectedEventID != nil || model.selectedAircraftHex != nil {
                     model.selectedEventID = nil
+                    model.selectedAircraftHex = nil
                     return .handled
                 }
                 guard country != nil else { return .ignored }
@@ -202,7 +220,15 @@ struct MapScreen: View {
                 .focusedSceneValue(\.sidebarNavigation, SidebarNavigation(section: section, go: go))
                 // DESIGN.md §10 (macOS): the selected event in the inspector, beside the map.
                 .inspector(isPresented: inspectorShown) {
-                    if let event = model.selectedEvent {
+                    if let aircraft = model.selectedAircraft {
+                        ScrollView {
+                            AircraftDetailView(aircraft: aircraft, layer: model.flights,
+                                               close: { model.selectedAircraftHex = nil })
+                                .padding(ShieldSpace.s5)
+                        }
+                        .background(Color.panel)
+                        .inspectorColumnWidth(min: 320, ideal: 350, max: 380)
+                    } else if let event = model.selectedEvent {
                         ScrollView {
                             eventDetail(event)
                                 .padding(ShieldSpace.s5)
@@ -356,12 +382,17 @@ struct MapScreen: View {
             .onChange(of: search.isActive) { _, active in
                 guard !active, let previous = detentBeforeSearch else { return }
                 detentBeforeSearch = nil
-                guard detent == .large, model.selectedEventID == nil, country == nil else { return }
+                guard detent == .large, model.selectedEventID == nil, model.selectedAircraftHex == nil,
+                      country == nil else { return }
                 withAnimation(ShieldMotion.spring) { detent = previous }
             }
             // A marker tapped while the sheet peeks: open far enough to show the event and
             // still leave the map in view.
             .onChange(of: model.selectedEventID, initial: true) { _, selected in
+                guard selected != nil, detent == .height(peekHeight) else { return }
+                withAnimation(ShieldMotion.spring) { detent = .medium }
+            }
+            .onChange(of: model.selectedAircraftHex) { _, selected in
                 guard selected != nil, detent == .height(peekHeight) else { return }
                 withAnimation(ShieldMotion.spring) { detent = .medium }
             }
@@ -455,8 +486,8 @@ struct MapScreen: View {
 
     /// The inspector is open while an event is selected and there is one to show.
     private var inspectorShown: Binding<Bool> {
-        Binding(get: { model.selectedEventID != nil && model.selectedEvent != nil },
-                set: { if !$0 { model.selectedEventID = nil } })
+        Binding(get: { (model.selectedEventID != nil && model.selectedEvent != nil) || model.selectedAircraft != nil },
+                set: { if !$0 { model.selectedEventID = nil; model.selectedAircraftHex = nil } })
     }
 
     /// The selected event in full (DESIGN.md §10.3), for the sheet and the inspector alike.
@@ -559,6 +590,7 @@ struct MapScreen: View {
                         isRefreshing: model.phase == .loading,
                         showsDetections: $model.showsDetections,
                         showsConflicts: $model.showsConflicts,
+                        showsFlights: model.provider.supportsAircraft ? $model.showsFlights : nil,
                         fitWorld: fitWorld,
                         refresh: { model.reload() }
                     )
@@ -586,6 +618,13 @@ struct MapScreen: View {
                     }
                     .transition(.opacity)
                 }
+                if model.showsFlights {
+                    HStack {
+                        FlightsLegend(model: model)
+                        Spacer()
+                    }
+                    .transition(.opacity)
+                }
                 if model.showsConflicts {
                     HStack {
                         ConflictLegend(count: model.conflicts?.totalCount, truncated: model.conflicts?.truncated ?? false,
@@ -601,10 +640,17 @@ struct MapScreen: View {
                     .padding(.bottom, ShieldSpace.s6)
             }
             .padding(ShieldSpace.s3)
+            #if os(macOS)
+            // The legends must not size the window: AppKit takes the window's minimum from this
+            // stack measured at almost no width, where their text wraps a word per line, so
+            // turning a layer on made the window taller (S3.8 found the same in the sidebar).
+            .frame(minHeight: 0, maxHeight: .infinity)
+            #endif
             .animation(ShieldMotion.standard, value: model.phase)
             .animation(ShieldMotion.spring, value: model.selectedEventID)
             .animation(ShieldMotion.standard, value: model.showsDetections)
             .animation(ShieldMotion.standard, value: model.showsConflicts)
+            .animation(ShieldMotion.standard, value: model.showsFlights)
             .animation(ShieldMotion.standard, value: model.toast)
         }
         // A toast is read out once and leaves after 6 s; a newer one restarts the clock.
@@ -734,11 +780,31 @@ private struct MapControls: View {
     var isRefreshing: Bool
     @Binding var showsDetections: Bool
     @Binding var showsConflicts: Bool
+    /// Nil when the provider has no flights (sample data).
+    var showsFlights: Binding<Bool>?
     var fitWorld: () -> Void
     var refresh: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
+            // Live flights (ADR 28): off at every launch, never saved.
+            if let showsFlights {
+                Button { showsFlights.wrappedValue.toggle() } label: {
+                    Image(systemName: "airplane")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(showsFlights.wrappedValue ? Color.accent : Color.ink)
+                        .frame(width: 44, height: 44)
+                        .background(showsFlights.wrappedValue ? Color.accent.opacity(0.14) : .clear)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Live flights")
+                .accessibilityValue(showsFlights.wrappedValue ? "Shown" : "Hidden")
+                .accessibilityAddTraits(.isToggle)
+                .help(showsFlights.wrappedValue ? "Hide live flights" : "Show live flights")
+                .keyboardShortcut("a", modifiers: [.command, .option])
+                Divider().overlay(Color.ink.opacity(ShieldAlpha.hairline))
+            }
             // Armed conflicts (ADR 27): a layer beside hazards, off by default.
             Button { showsConflicts.toggle() } label: {
                 Image(systemName: HazardType.conflict.sfSymbol)

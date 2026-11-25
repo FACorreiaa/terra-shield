@@ -41,6 +41,7 @@ struct HazardMapView {
         map.register(EventMarkerView.self, forAnnotationViewWithReuseIdentifier: EventMarkerView.reuseID)
         map.register(ServerClusterView.self, forAnnotationViewWithReuseIdentifier: ServerClusterView.reuseID)
         map.register(LocalClusterView.self, forAnnotationViewWithReuseIdentifier: LocalClusterView.reuseID)
+        map.register(AircraftMarkerView.self, forAnnotationViewWithReuseIdentifier: AircraftMarkerView.reuseID)
         map.delegate = coordinator
         coordinator.map = map
         map.setRegion(Coordinator.startRegion, animated: false)
@@ -58,6 +59,7 @@ struct HazardMapView {
             staleSources: Set(model.sources.values.filter { $0.isStale() }.map(\.id))
         )
         coordinator.apply(conflicts: model.conflicts)
+        coordinator.apply(flights: model.flights, selectedHex: model.selectedAircraftHex)
         coordinator.apply(detections: model.detections)
         coordinator.apply(area: model.selectedGeometry, of: model.selectedEvent)
         if fitWorldRequest != coordinator.fitWorldRequest {
@@ -111,6 +113,10 @@ struct HazardMapView {
         private var localClustering = false
         private var staleSources: Set<String> = []
         private var detectionOverlay: DetectionOverlay?
+        /// Live flights by address (ADR 28), moved in place on each refresh.
+        private var aircraft: [String: AircraftAnnotation] = [:]
+        private var selectedHex: String?
+        private var appliedFlights: AircraftLayer?
         private var area: (geometry: EventGeometry, event: HazardEvent, isStale: Bool, overlay: any MKOverlay)?
 
         init(model: LiveMapModel) {
@@ -137,6 +143,43 @@ struct HazardMapView {
             guard let map else { return }
             conflictSet.diff(conflicts ?? MapSnapshot(events: [], clusters: [], truncated: false, generatedAt: .now), on: map)
             syncSelection(on: map)
+        }
+
+        /// Adds, moves in place and removes aircraft; re-renders a marker only when it looks
+        /// different or its selection changed. A no-op when neither layer nor selection changed.
+        func apply(flights: AircraftLayer?, selectedHex: String?) {
+            guard let map, flights != appliedFlights || selectedHex != self.selectedHex else { return }
+            let oldSelected = self.selectedHex
+            // Before adding: `viewFor` reads it for the new annotations.
+            self.selectedHex = selectedHex
+            appliedFlights = flights
+            let list = flights?.aircraft ?? []
+            let wanted = Set(list.map(\.hex))
+            let gone = aircraft.filter { !wanted.contains($0.key) }
+            if !gone.isEmpty {
+                map.removeAnnotations(Array(gone.values))
+                for hex in gone.keys { aircraft[hex] = nil }
+            }
+            var added: [AircraftAnnotation] = []
+            for a in list {
+                if let existing = aircraft[a.hex] {
+                    let changed = !AircraftMarkerView.looksSame(existing.aircraft, a)
+                    existing.update(a)
+                    if changed || (a.hex == selectedHex) != (a.hex == oldSelected),
+                       let view = map.view(for: existing) as? AircraftMarkerView {
+                        view.configure(a, isSelected: a.hex == selectedHex)
+                    }
+                } else {
+                    let annotation = AircraftAnnotation(a)
+                    aircraft[a.hex] = annotation
+                    added.append(annotation)
+                }
+            }
+            if !added.isEmpty { map.addAnnotations(added) }
+            if let old = oldSelected, old != selectedHex, let annotation = aircraft[old] {
+                map.deselectAnnotation(annotation, animated: false)
+                (map.view(for: annotation) as? AircraftMarkerView)?.configure(annotation.aircraft, isSelected: false)
+            }
         }
 
         /// Swaps the detection overlay when its data changes; an empty layer removes it.
@@ -304,6 +347,10 @@ struct HazardMapView {
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: ServerClusterView.reuseID, for: a)
                 (view as? ServerClusterView)?.configure(a.cluster, isConflict: a.isConflict)
                 return view
+            case let a as AircraftAnnotation:
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: AircraftMarkerView.reuseID, for: a)
+                (view as? AircraftMarkerView)?.configure(a.aircraft, isSelected: a.aircraft.hex == selectedHex)
+                return view
             case let a as MKClusterAnnotation:
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: LocalClusterView.reuseID, for: a)
                 (view as? LocalClusterView)?.configure(a)
@@ -332,6 +379,8 @@ struct HazardMapView {
             switch view.annotation {
             case let a as EventAnnotation:
                 model.selectedEventID = a.event.id
+            case let a as AircraftAnnotation:
+                model.selectedAircraftHex = a.aircraft.hex
             case let a as ServerClusterAnnotation:
                 mapView.deselectAnnotation(a, animated: false)
                 zoom(to: a.cluster.box, on: mapView)
@@ -345,6 +394,13 @@ struct HazardMapView {
 
         func mapView(_ mapView: MKMapView, didDeselect view: MKAnnotationView) {
             guard let annotation = view.annotation else { return }
+            if let a = annotation as? AircraftAnnotation {
+                // A tap on empty map clears it; a refresh never replaces the annotation.
+                if model.selectedAircraftHex == a.aircraft.hex, aircraft[a.aircraft.hex] === a {
+                    model.selectedAircraftHex = nil
+                }
+                return
+            }
             // A refresh replaces a changed event's annotation, which deselects the old one; only
             // a deselect of the live annotation means the user cleared the selection.
             guard let a = annotation as? EventAnnotation, events[a.event.id] === a,

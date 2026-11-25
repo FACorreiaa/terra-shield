@@ -245,3 +245,22 @@ extension Components.Schemas.Geometry {
         }
     }
 }
+
+// MARK: - Aircraft (ADR 28)
+
+extension AircraftLayer {
+    init(_ l: Components.Schemas.AircraftList) {
+        self.init(aircraft: l.aircraft.map(Aircraft.init), dataAt: l.dataAt, complete: l.complete,
+                  attribution: l.attribution, license: l.license, licenseURL: URL(string: l.licenseUrl))
+    }
+}
+
+extension Aircraft {
+    init(_ a: Components.Schemas.Aircraft) {
+        self.init(hex: a.hex, callsign: a.callsign, registration: a.registration, typeCode: a.typeCode,
+                  coordinate: Coordinate(latitude: a.lat, longitude: a.lon), altitudeFeet: a.altitudeFt,
+                  onGround: a.onGround, groundSpeedKnots: a.groundSpeedKt, trackDegrees: a.trackDeg,
+                  verticalRateFpm: a.verticalRateFpm, squawk: a.squawk, emergency: a.emergency,
+                  military: a.military, positionAt: a.positionAt)
+    }
+}

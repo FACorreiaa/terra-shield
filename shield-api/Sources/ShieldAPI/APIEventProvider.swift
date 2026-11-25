@@ -94,6 +94,29 @@ public struct APIEventProvider: HazardEventProvider {
         }
     }
 
+    public var supportsAircraft: Bool { true }
+
+    /// Live flights (ADR 28). The caller keeps `box` within 4 cells of 5° (`AircraftArea.fits`);
+    /// a larger one is a 400 carrying the server's "zoom in".
+    public func aircraft(in box: GeoBox) async throws -> AircraftLayer {
+        let q = Operations.ListAircraft.Input.Query(bbox: box.parameter)
+        switch try await unwrapping { try await client.listAircraft(query: q) } {
+        case .ok(let ok):
+            return AircraftLayer(try ok.body.json)
+        case .notModified:
+            throw APIError.unexpectedNotModified
+        case .badRequest:
+            // The only 400 for a well-formed box: more than 4 cells, "zoom in".
+            throw AircraftArea.TooLarge()
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
+        case .default(let status, let r):
+            throw APIError.server(status: status, try? r.body.json.reason)
+        }
+    }
+
     public func event(id: UUID) async throws -> HazardEvent? {
         switch try await unwrapping { try await client.getEvent(path: .init(id: id.uuidString.lowercased())) } {
         case .ok(let ok):
