@@ -28,10 +28,13 @@ type Repository interface {
 
 const (
 	// pointsFromZoom: below it the layer is a grid, from it single sites.
-	// Measured 2026-11-25 on 44,726 sites: the densest zoom-7 view (central
-	// Europe) holds 13,334 sites and was 338 KB gzipped even truncated; the
-	// densest zoom-8 view 5,476 at most (4,233 in a real viewport, 137 KB).
+	// Measured 2026-11-25 on 53,265 sites: the densest zoom-7 view (central
+	// Europe) holds 13,334 sites, past maxPoints; the densest zoom-8 view
+	// 6,957 (230 KB gzipped).
 	pointsFromZoom = 8
+	// gridBBoxFromZoom: from it the grid also needs a bbox. The whole world
+	// is 8,238 cells (56 KB gzipped) at zoom 5 but 25,913 at zoom 7.
+	gridBBoxFromZoom = 6
 	// maxPoints bounds a site view; a busier view is marked truncated.
 	maxPoints = 10_000
 	// maxAge: the layer is refreshed weekly.
@@ -84,6 +87,9 @@ func (f *Feature) list(c *echo.Context) error {
 		z := 0
 		if zoom != nil {
 			z = *zoom
+		}
+		if bbox == nil && z >= gridBBoxFromZoom {
+			return httpx.BadRequest("bbox is required from zoom 6")
 		}
 		cell := CellDegrees(z)
 		cells, err := f.sites.Grid(ctx, q, cell)

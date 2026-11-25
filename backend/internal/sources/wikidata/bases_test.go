@@ -2,6 +2,7 @@ package wikidata
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -162,6 +163,56 @@ func TestPollRefusesToShrink(t *testing.T) {
 	}
 }
 
+// A wait past maxHold is handed to River as a snooze; a refusal with no
+// Retry-After holds the gate for refusedHold; a query waiting for the gate
+// stops when its context ends.
+func TestGateHoldLimits(t *testing.T) {
+	now := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
+	status := http.StatusBadGateway
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if status != http.StatusOK {
+			http.Error(w, "busy", status)
+			return
+		}
+		_, _ = w.Write([]byte(`{"results":{"bindings":[]}}`))
+	}))
+	defer srv.Close()
+	g := newGate()
+	var waits []time.Duration
+	p := newPacer[int](fetch.New(fetch.Options{HostGap: time.Millisecond}))
+	p.endpoint, p.gate, p.now = srv.URL, g, func() time.Time { return now }
+	p.pause = func(_ context.Context, d time.Duration) error { waits = append(waits, d); return nil }
+	p.begin()
+	defer p.finish()
+	parse := func([]byte) (int, error) { return 0, nil }
+
+	if _, err := p.run(context.Background(), "1", "one", "q1", parse); err == nil {
+		t.Fatal("a 502 must fail the query")
+	}
+	status = http.StatusOK
+	if _, err := p.run(context.Background(), "2", "two", "q2", parse); err != nil {
+		t.Fatal(err)
+	}
+	if len(waits) != 1 || waits[0] != refusedHold {
+		t.Fatalf("after a bare 502 the gate holds %v: %v", refusedHold, waits)
+	}
+
+	g.ended, g.prev = now, time.Hour
+	_, err := p.run(context.Background(), "3", "three", "q3", parse)
+	var se *fetch.StatusError
+	if !errors.As(err, &se) || se.RetryAfter != time.Hour || len(waits) != 1 {
+		t.Fatalf("a wait past maxHold must come back as a snooze: %v, waits %v", err, waits)
+	}
+
+	<-g.slot // another query holds the gate
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := p.run(ctx, "4", "four", "q4", parse); !errors.Is(err, context.Canceled) {
+		t.Fatalf("waiting for the gate must stop on cancel: %v", err)
+	}
+	g.slot <- struct{}{}
+}
+
 func TestSourcesArePatient(t *testing.T) {
 	var _ ingest.PatientSource = (*Source)(nil)
 	var _ ingest.PatientSource = (*Historic)(nil)
@@ -282,7 +333,7 @@ func TestGatePaces(t *testing.T) {
 		_, _ = w.Write([]byte(`{"results":{"bindings":[]}}`))
 	}))
 	defer srv.Close()
-	g := &gate{}
+	g := newGate()
 	var waits []time.Duration
 	mk := func() *pacer[int] {
 		p := newPacer[int](fetch.New(fetch.Options{HostGap: time.Millisecond}))
@@ -329,7 +380,7 @@ func TestGateHonoursRetryAfter(t *testing.T) {
 		_, _ = w.Write([]byte(`{"results":{"bindings":[]}}`))
 	}))
 	defer srv.Close()
-	g := &gate{}
+	g := newGate()
 	var waits []time.Duration
 	mk := func() *pacer[int] {
 		p := newPacer[int](fetch.New(fetch.Options{HostGap: time.Millisecond}))

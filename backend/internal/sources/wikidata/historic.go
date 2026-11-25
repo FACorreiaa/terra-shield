@@ -3,6 +3,7 @@ package wikidata
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -147,27 +148,29 @@ func (*Historic) Info() domain.SourceInfo {
 // PollAttempts implements ingest.PatientSource: a retry resumes.
 func (*Historic) PollAttempts() int { return pollAttempts }
 
-// PollTimeout implements ingest.SlowSource: 57 queries of up to a minute,
+// PollTimeout implements ingest.SlowSource: 56 queries of up to a minute,
 // each preceded by a wait as long as the last. A full poll measured about
 // 12 minutes (2026-11-25, 36 queries); a retry resumes where it failed.
 func (*Historic) PollTimeout() time.Duration { return 2 * time.Hour }
 
 // Poll implements ingest.Source. It replaces the whole layer, or nothing.
 func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
-	// Without the bases layer, every base would read as historic: leave
-	// those classes out until it is loaded (a fresh database).
+	// Without the bases layer, every base would read as historic, and a
+	// poll that left the base classes out would stand for a week. On a
+	// fresh database both polls start together: fail without a query, and
+	// River retries once bases has loaded.
 	nBases, err := h.bases.Count(ctx)
 	if err != nil {
 		return ingest.Result{}, err
+	}
+	if nBases == 0 {
+		return ingest.Result{}, errNoBases
 	}
 	h.q.begin()
 	var all []domain.HistoricSite
 	hints := map[string]string{}
 	seen := map[string]bool{}
 	for _, c := range HistoricClasses {
-		if c.Base && nBases == 0 {
-			continue
-		}
 		a, err := h.q.run(ctx, c.QID, c.Label, HistoricQuery(c.QID), func(body []byte) (historicAnswer, error) {
 			s, hs, err := ParseHistoric(body, c)
 			return historicAnswer{s, hs}, err
@@ -188,6 +191,7 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 		}
 	}
 	if err := h.checkShrink(ctx, all); err != nil {
+		h.q.finish() // a retry must ask again, not replay the short answer
 		return ingest.Result{}, err
 	}
 	n, err := h.store.Replace(ctx, all, hints, h.q.now().UTC())
@@ -197,6 +201,10 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 	h.q.finish()
 	return ingest.Result{Upserted: n}, nil
 }
+
+// errNoBases: the historic layer is the complement of the bases layer, so it
+// waits for that one to load.
+var errNoBases = errors.New("bases layer not loaded yet: historic sites wait for it")
 
 // checkShrink refuses a poll that would drop more than maxShrink of any
 // kind: a class missing from an answer is a failure, not deletions.

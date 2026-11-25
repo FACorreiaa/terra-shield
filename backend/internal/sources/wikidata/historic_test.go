@@ -2,6 +2,7 @@ package wikidata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -105,7 +106,7 @@ func historicStub(t *testing.T, asked map[string]int, mu *sync.Mutex) *httptest.
 
 func newTestHistoric(url string, store HistoricStore, bases BaseCounter) *Historic {
 	h := NewHistoric(fetch.New(fetch.Options{HostGap: time.Millisecond}), store, bases)
-	h.q.endpoint, h.q.gate = url, &gate{}
+	h.q.endpoint, h.q.gate = url, newGate()
 	h.q.pause = func(context.Context, time.Duration) error { return nil }
 	return h
 }
@@ -117,13 +118,13 @@ func TestHistoricPoll(t *testing.T) {
 	defer srv.Close()
 	store := &fakeHistoricStore{}
 
-	// No bases layer yet: its classes are left out.
+	// No bases layer yet: fail without a query, so River retries.
 	h := newTestHistoric(srv.URL, store, baseCount(0))
-	if _, err := h.Poll(context.Background(), domain.Validators{}); err != nil {
-		t.Fatal(err)
+	if _, err := h.Poll(context.Background(), domain.Validators{}); !errors.Is(err, errNoBases) {
+		t.Fatalf("without bases: %v", err)
 	}
-	if asked["Q695850"] != 0 || len(store.sites) != 3 {
-		t.Fatalf("without bases: asked air base %d times, %d sites", asked["Q695850"], len(store.sites))
+	if len(asked) != 0 || store.sites != nil {
+		t.Fatalf("without bases: asked %v, stored %d", asked, len(store.sites))
 	}
 
 	h = newTestHistoric(srv.URL, store, baseCount(3000))
@@ -148,13 +149,20 @@ func TestHistoricPoll(t *testing.T) {
 
 func TestHistoricRefusesToShrinkAKind(t *testing.T) {
 	var mu sync.Mutex
-	srv := historicStub(t, map[string]int{}, &mu)
+	asked := map[string]int{}
+	srv := historicStub(t, asked, &mu)
 	defer srv.Close()
 	// Plenty stored overall, but the castles would drop from 10 to 1.
 	store := &fakeHistoricStore{held: map[domain.HistoricKind]int{domain.HistoricCastle: 10, domain.HistoricMilitary: 2}}
 	h := newTestHistoric(srv.URL, store, baseCount(3000))
-	if _, err := h.Poll(context.Background(), domain.Validators{}); err == nil || store.sites != nil {
-		t.Fatalf("castles 10 -> 1 must be refused: %v", err)
+	for range 2 {
+		if _, err := h.Poll(context.Background(), domain.Validators{}); err == nil || store.sites != nil {
+			t.Fatalf("castles 10 -> 1 must be refused: %v", err)
+		}
+	}
+	// The retry asked again rather than replaying the refused answer.
+	if asked["Q23413"] != 2 {
+		t.Fatalf("castle class asked %d times over two refused polls, want 2", asked["Q23413"])
 	}
 }
 

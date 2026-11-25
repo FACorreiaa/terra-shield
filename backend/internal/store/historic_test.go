@@ -49,6 +49,17 @@ func TestHistoricReplaceGridAndPoints(t *testing.T) {
 		t.Errorf("cell center %+v", cells[0])
 	}
 
+	// A viewport that cuts a cell still counts the whole cell, and one
+	// across the antimeridian keeps the cell beyond it.
+	edge, err := repo.Grid(ctx, domain.HistoricQuery{BBox: &domain.BBox{MinLon: 10.35, MinLat: 50.35, MaxLon: 11, MaxLat: 51}}, 5)
+	if err != nil || len(edge) != 1 || edge[0].Count != 3 {
+		t.Fatalf("edge cell counted whole: %+v %v", edge, err)
+	}
+	wrap, err := repo.Grid(ctx, domain.HistoricQuery{BBox: &domain.BBox{MinLon: 178, MinLat: -20, MaxLon: -178, MaxLat: -10}}, 5)
+	if err != nil || len(wrap) != 1 || wrap[0].Count != 1 || wrap[0].Lon != 177.5 {
+		t.Fatalf("antimeridian grid: %+v %v", wrap, err)
+	}
+
 	pts, more, err := repo.Points(ctx, domain.HistoricQuery{
 		BBox:  &domain.BBox{MinLon: 10, MinLat: 50, MaxLon: 11, MaxLat: 51},
 		Kinds: []domain.HistoricKind{domain.HistoricCastle},

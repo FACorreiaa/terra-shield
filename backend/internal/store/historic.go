@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -98,6 +99,12 @@ func (r *HistoricRepository) Grid(ctx context.Context, q domain.HistoricQuery, c
 	if cellDegrees <= 0 {
 		return nil, fmt.Errorf("historic grid: cell size must be positive")
 	}
+	// Count edge cells whole, so a cell's count does not change as the
+	// viewport pans across it.
+	if q.BBox != nil {
+		bb := snapOut(*q.BBox, cellDegrees)
+		q.BBox = &bb
+	}
 	var b sqlBuilder
 	cell := b.arg(cellDegrees)
 	where := historicFilters(&b, &q)
@@ -124,7 +131,8 @@ GROUP BY gy, gx, h.kind`, b.args...)
 		c := cells[k]
 		if c == nil {
 			c = &domain.HistoricCell{
-				Lat: (float64(k.gy) + 0.5) * cellDegrees, Lon: (float64(k.gx) + 0.5) * cellDegrees,
+				// A site on lat 90 or lon 180 opens a cell past the edge.
+				Lat: min((float64(k.gy)+0.5)*cellDegrees, 90), Lon: min((float64(k.gx)+0.5)*cellDegrees, 180),
 				Kinds: map[domain.HistoricKind]int{},
 			}
 			cells[k] = c
@@ -191,4 +199,19 @@ func sortCells(cells []domain.HistoricCell) {
 		}
 		return cmp.Compare(a.Lon, b.Lon)
 	})
+}
+
+// snapOut widens a viewport to whole cells of cellDegrees.
+func snapOut(bb domain.BBox, cellDegrees float64) domain.BBox {
+	down := func(v float64) float64 { return math.Floor(v/cellDegrees) * cellDegrees }
+	up := func(v float64) float64 { return math.Ceil(v/cellDegrees) * cellDegrees }
+	out := domain.BBox{
+		MinLat: max(down(bb.MinLat), -90), MaxLat: min(up(bb.MaxLat), 90),
+		MinLon: max(down(bb.MinLon), -180), MaxLon: min(up(bb.MaxLon), 180),
+	}
+	if bb.MinLon > bb.MaxLon && out.MinLon <= out.MaxLon {
+		// An antimeridian viewport widened until it wraps: the world.
+		out.MinLon, out.MaxLon = -180, 180
+	}
+	return out
 }

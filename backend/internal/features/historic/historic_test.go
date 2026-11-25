@@ -111,6 +111,9 @@ func TestPoints(t *testing.T) {
 func TestErrors(t *testing.T) {
 	for target, want := range map[string]int{
 		"/v1/historic?zoom=8":              http.StatusBadRequest, // points need a bbox
+		"/v1/historic?zoom=6":              http.StatusBadRequest, // so does a fine grid
+		"/v1/historic?zoom=5":              http.StatusOK,
+		"/v1/historic?zoom=7&bbox=0,0,1,1": http.StatusOK,
 		"/v1/historic?kind=palace":         http.StatusBadRequest,
 		"/v1/historic?bbox=1,2":            http.StatusBadRequest,
 		"/v1/historic?zoom=8&bbox=0,0,1,1": http.StatusOK,

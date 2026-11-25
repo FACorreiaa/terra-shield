@@ -134,8 +134,10 @@ func (*Source) Info() domain.SourceInfo {
 func (*Source) PollAttempts() int { return pollAttempts }
 
 // PollTimeout implements ingest.SlowSource: 16 queries of up to a minute,
-// each followed by a pause as long as the query (see pacer).
-func (*Source) PollTimeout() time.Duration { return 35 * time.Minute }
+// each after a wait as long as the last query, and taking turns at the
+// gate with the historic source, which polls on the same tick (see pacer).
+// A retry resumes.
+func (*Source) PollTimeout() time.Duration { return time.Hour }
 
 // Poll implements ingest.Source. It replaces the whole layer, or nothing.
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
@@ -167,6 +169,7 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		return ingest.Result{}, err
 	}
 	if held > 0 && float64(len(all)) < float64(held)*(1-maxShrink) {
+		s.q.finish() // a retry must ask again, not replay the short answer
 		return ingest.Result{}, fmt.Errorf("%d bases against %d stored: refusing to drop more than %.0f%% in one poll", len(all), held, maxShrink*100)
 	}
 	n, err := s.store.Replace(ctx, all, hints, s.q.now().UTC())
