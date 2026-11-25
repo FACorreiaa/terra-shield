@@ -15,13 +15,21 @@ const PROJECTIONS: readonly { value: Projection; label: string }[] = [
   { value: "mercator", label: "Flat" },
 ];
 
-/** Closes an open panel on Escape (focus back to its button) or a press outside `root`. */
+/**
+ * While the panel is open: Escape closes it and puts focus back on its button, and a press
+ * outside `root` closes it. Escape is taken in the capture phase and stopped there, so an open
+ * menu closes before anything else on the page reacts to the same key.
+ */
 function useDismiss(
-  root: RefObject<HTMLElement | null>,
-  button: RefObject<HTMLElement | null>,
+  open: boolean,
+  refs: { root: RefObject<HTMLElement | null>; button: RefObject<HTMLElement | null> },
   close: () => void,
 ): void {
+  const { root, button } = refs;
   useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
     const onPointerDown = (event: PointerEvent): void => {
       if (event.target instanceof Node && root.current?.contains(event.target) !== true) {
         close();
@@ -29,17 +37,18 @@ function useDismiss(
     };
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
+        event.stopPropagation();
         close();
         button.current?.focus();
       }
     };
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, { capture: true });
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, { capture: true });
     };
-  }, [root, button, close]);
+  }, [open, root, button, close]);
 }
 
 /** Globe or flat, as a two-segment control over native radios (arrow keys move between them). */
@@ -105,7 +114,7 @@ function LayersMenu({ projection, onProjectionChange }: LayersMenuProps): ReactE
   const toggle = useCallback(() => {
     setOpen((was) => !was);
   }, []);
-  useDismiss(root, button, close);
+  useDismiss(open, { root, button }, close);
 
   return (
     <div ref={root} className="relative">

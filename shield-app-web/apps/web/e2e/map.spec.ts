@@ -53,6 +53,11 @@ test("keeps the chosen projection across visits", async ({ page }) => {
   await expect(page.getByRole("radio", { name: "Flat" })).toBeHidden();
   await expect(layers).toBeFocused();
 
+  // Closed, the menu leaves Escape alone: focus stays where it is.
+  await page.getByRole("button", { name: "Zoom in" }).focus();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Zoom in" })).toBeFocused();
+
   await page.reload();
   await page.getByRole("button", { name: "Layers" }).click();
   await expect(page.getByRole("radio", { name: "Flat" })).toBeChecked();
