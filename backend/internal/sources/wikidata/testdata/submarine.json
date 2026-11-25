@@ -198,6 +198,43 @@
      "type": "literal",
      "value": "Q900000003"
     }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q900000004"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(2 2)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Was A Sub Base"
+    }
+   },
+   {
+    "b": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q900000004"
+    },
+    "c": {
+     "datatype": "http://www.opengis.net/ont/geosparql#wktLiteral",
+     "type": "literal",
+     "value": "Point(2 2)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Was A Sub Base"
+    },
+    "ended": {
+     "datatype": "http://www.w3.org/2001/XMLSchema#dateTime",
+     "type": "literal",
+     "value": "1993-01-01T00:00:00Z"
+    }
    }
   ]
  }

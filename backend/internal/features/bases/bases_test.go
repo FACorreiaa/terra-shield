@@ -67,8 +67,9 @@ func TestList(t *testing.T) {
 		t.Fatalf("%+v", body)
 	}
 
-	if w := get(t, &fakeRepo{}, "/v1/bases"); w.Code != http.StatusOK || repo.got == nil {
-		t.Errorf("worldwide: %d", w.Code)
+	world := &fakeRepo{got: &domain.BBox{}}
+	if w := get(t, world, "/v1/bases"); w.Code != http.StatusOK || world.got != nil {
+		t.Errorf("worldwide: %d, bbox %+v", w.Code, world.got)
 	}
 	if w := get(t, nil, "/v1/bases"); w.Code != http.StatusServiceUnavailable {
 		t.Errorf("unconfigured: %d", w.Code)

@@ -31,7 +31,8 @@ func TestParse(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Kept: Point Loma and Kings Bay. Left out: a World War II base and a
-	// "former" one (real rows), a Moon coordinate, an unnamed item.
+	// "former" one (real rows), a Moon coordinate, an unnamed item, and one
+	// whose class membership ended (on its second row).
 	if len(bases) != 2 || bases[0].QID != "Q6981762" || bases[1].QID != "Q11790255" {
 		t.Fatalf("%+v", bases)
 	}
@@ -53,6 +54,18 @@ func TestNotInService(t *testing.T) {
 		"aviation museum and former RAF station":                              true,
 		"United States Air Force base in Japan, former Japanese WW2 airfield": false, // Kadena
 		"base of the United States Navy in Camden County, Georgia":            false,
+		"a former U.S. Army base southwest of Pleiku in central Vietnam.":     true,
+		"site of former military camp":                                        true,
+		"World War II airfield complex in Libya":                              true,
+		"Second World War coastal battery for Perth":                          true,
+		"ruined castle in Germany":                                            true,
+		"Sengoku period castle ruins in Yonezawa":                             true,
+		"United States historic site in Alabama":                              true,
+		"Civil War historic location":                                         true,
+		"local authority in former German Cameroon":                           true,
+		"airbase and former Royal Air Force station in Wiltshire, England":    false, // Boscombe Down
+		"place in Virginia listed on National Register of Historic Places":    false, // Fort Myer
+		"Military base in the Syrian desert, formerly used by the coalition":  false, // Al-Tanf
 		"": false,
 	} {
 		if got := notInService.MatchString(desc); got != out {
@@ -115,6 +128,8 @@ func TestPoll(t *testing.T) {
 	store := &fakeStore{}
 	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), store)
 	s.endpoint = srv.URL
+	var pauses int
+	s.pause = func(context.Context, time.Duration) error { pauses++; return nil }
 	res, err := s.Poll(context.Background(), domain.Validators{})
 	if err != nil || res.Upserted != 2 {
 		t.Fatalf("%+v %v", res, err)
@@ -124,6 +139,9 @@ func TestPoll(t *testing.T) {
 	}
 	if store.hints["Q11790255"] != "US" {
 		t.Errorf("hints %v", store.hints)
+	}
+	if pauses != len(Classes)-1 {
+		t.Errorf("%d pauses, want one between each pair of queries", pauses)
 	}
 
 	// One class failing fails the poll and keeps the stored layer.
@@ -141,6 +159,7 @@ func TestPollRefusesToShrink(t *testing.T) {
 	store := &fakeStore{held: 10}
 	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), store)
 	s.endpoint = srv.URL
+	s.pause = func(context.Context, time.Duration) error { return nil }
 	if _, err := s.Poll(context.Background(), domain.Validators{}); err == nil || store.bases != nil {
 		t.Fatalf("2 bases against 10 stored must not replace: %v", err)
 	}
@@ -148,7 +167,7 @@ func TestPollRefusesToShrink(t *testing.T) {
 
 func TestQueryNamesOneClass(t *testing.T) {
 	q := Query("Q695850")
-	for _, want := range []string{"wdt:P31 wd:Q695850 ;", "ps:P31 wd:Q695850 ;", "wd:Q11639308", `LANG(?label) = "en"`} {
+	for _, want := range []string{"wdt:P31 wd:Q695850 ;", "ps:P31 wd:Q695850 ; pq:P582 ?ended", "?ended WHERE", "wd:Q11639308", `LANG(?label) = "en"`} {
 		if !strings.Contains(q, want) {
 			t.Errorf("query lacks %q", want)
 		}

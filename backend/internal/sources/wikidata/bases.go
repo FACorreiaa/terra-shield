@@ -74,12 +74,15 @@ var Classes = []Class{
 // operation.
 const closedStates = "wd:Q11639308 wd:Q56651571 wd:Q104664889 wd:Q63065035 wd:Q111802839"
 
-// Query is the SPARQL for one class.
+// Query is the SPARQL for one class. An end date on the class statement
+// itself ("was an air base until 1993") is fetched as ?ended and dropped in
+// Parse: as a FILTER NOT EXISTS it made the larger classes take 30-45 s
+// against the service's 60 s limit; as an OPTIONAL they take 5-16 s.
 func Query(classQID string) string {
-	return fmt.Sprintf(`SELECT ?b ?c ?label ?desc ?iso ?opLabel WHERE {
+	return fmt.Sprintf(`SELECT ?b ?c ?label ?desc ?iso ?opLabel ?ended WHERE {
   ?b wdt:P31 wd:%[1]s ; wdt:P625 ?c ; rdfs:label ?label . FILTER(LANG(?label) = "en")
   FILTER NOT EXISTS { ?b wdt:P576|wdt:P3999|wdt:P582|wdt:P730 [] }
-  FILTER NOT EXISTS { ?b p:P31 ?st . ?st ps:P31 wd:%[1]s ; pq:P582 [] }
+  OPTIONAL { ?b p:P31 ?st . ?st ps:P31 wd:%[1]s ; pq:P582 ?ended }
   FILTER NOT EXISTS { ?b wdt:P5817 ?s . VALUES ?s { %[2]s } }
   OPTIONAL { ?b schema:description ?desc FILTER(LANG(?desc) = "en") }
   OPTIONAL { ?b wdt:P17/wdt:P297 ?iso }
@@ -99,11 +102,13 @@ type Source struct {
 	client   *fetch.Client
 	store    Store
 	now      func() time.Time
+	// pause waits between queries; see Poll.
+	pause func(ctx context.Context, d time.Duration) error
 }
 
 // New builds the adapter. client should allow QueryTimeout per request.
 func New(client *fetch.Client, store Store) *Source {
-	return &Source{endpoint: Endpoint, client: client, store: store, now: time.Now}
+	return &Source{endpoint: Endpoint, client: client, store: store, now: time.Now, pause: sleep}
 }
 
 // Info implements ingest.Source.
@@ -123,18 +128,28 @@ func (*Source) Info() domain.SourceInfo {
 	}
 }
 
-// PollTimeout implements ingest.SlowSource: 16 queries, up to a minute each.
-func (*Source) PollTimeout() time.Duration { return 20 * time.Minute }
+// PollTimeout implements ingest.SlowSource: 16 queries of up to a minute,
+// each followed by a pause as long as the query.
+func (*Source) PollTimeout() time.Duration { return 35 * time.Minute }
 
 // Poll implements ingest.Source. It replaces the whole layer, or nothing.
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	var all []domain.MilitaryBase
 	hints := map[string]string{}
 	seen := map[string]bool{}
-	for _, c := range Classes {
+	for i, c := range Classes {
+		start := s.now()
 		resp, err := s.client.Get(ctx, s.endpoint+"?format=json&query="+url.QueryEscape(Query(c.QID)), fetch.Validators{})
 		if err != nil {
 			return ingest.Result{}, fmt.Errorf("%s: %w", c.Label, err)
+		}
+		// The service allows each client 60 s of query time a minute and
+		// answers 429 beyond it (seen on a cold poll, 2026-11-25). Resting
+		// as long as each query took keeps the poll at half that budget.
+		if i < len(Classes)-1 {
+			if err := s.pause(ctx, s.now().Sub(start)); err != nil {
+				return ingest.Result{}, err
+			}
 		}
 		bases, h, err := Parse(resp.Body, c)
 		if err != nil {
@@ -174,13 +189,20 @@ type response struct {
 }
 
 var (
-	// notInService catches closures recorded only in prose: a description
-	// that starts by saying the place is former, closed and the like ("former
-	// German submarine base"), or that places it in a world war, or calls it
-	// a museum, internment or prisoner camp. Only the start counts for the
-	// first group: "air base in Japan, former Japanese WW2 airfield" is an
-	// operating base with a history (Kadena).
-	notInService = regexp.MustCompile(`(?i)^\s*(former|formerly|closed|disused|defunct|historic|historical|abandoned|decommissioned|demolished|ruins?)\b|\b(in|during) (the )?(first |second )?world war\b|\bmuseum\b|\binternment\b|\bprisoner`)
+	// notInService catches closures recorded only in prose (checked
+	// against every match of a looser pattern, 2026-11-25):
+	//   - a description that starts by saying the place is former, closed
+	//     and the like ("a former U.S. Army base"). Only the start counts:
+	//     "air base in Japan, former Japanese WW2 airfield" is Kadena, and
+	//     "airbase and former RAF station" is Boscombe Down, both in use;
+	//   - "site of a former", a world war, ruins, a historic site, location
+	//     or fort, a museum, internment or prisoner camp, and colonial
+	//     "local authority" outposts.
+	// "listed on National Register of Historic Places" alone does not
+	// count: Fort Myer is one and in use.
+	notInService = regexp.MustCompile(`(?i)^\s*(a |an |the )?(former|formerly|closed|disused|defunct|historic|historical|abandoned|decommissioned|demolished|ruins?)\b` +
+		`|\bsite of (a |the )?former\b|\bworld war\b|\bruin(s|ed)?\b|\bhistoric (site|location|forts?)\b` +
+		`|\blocal authority\b|\bmuseum\b|\binternment\b|\bprisoner`)
 	// wktPoint is an Earth point; other globes carry an IRI prefix.
 	wktPoint = regexp.MustCompile(`^Point\(\s*(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s+(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s*\)$`)
 )
@@ -202,6 +224,11 @@ func Parse(body []byte, c Class) ([]domain.MilitaryBase, map[string]string, erro
 	var order []string
 	hints := map[string]string{}
 	dropped := map[string]bool{}
+	for _, b := range r.Results.Bindings {
+		if b["ended"].Value != "" { // its membership of this class has ended
+			dropped[strings.TrimPrefix(b["b"].Value, "http://www.wikidata.org/entity/")] = true
+		}
+	}
 	for _, b := range r.Results.Bindings {
 		qid := strings.TrimPrefix(b["b"].Value, "http://www.wikidata.org/entity/")
 		if !strings.HasPrefix(qid, "Q") || dropped[qid] {
@@ -249,4 +276,15 @@ func point(wkt string) (lon, lat float64, ok bool) {
 		return 0, 0, false
 	}
 	return lon, lat, true
+}
+
+func sleep(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }
