@@ -23,6 +23,22 @@ final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
     /// Per-box answers and delays, for late answers racing newer ones.
     var aircraftAnswers: [GeoBox: AircraftLayer] = [:]
     var aircraftDelays: [GeoBox: Duration] = [:]
+    var basesFailure: (any Error)?
+    var basesDelay: Duration?
+    var basesAnswer = BaseFixture.layer([BaseFixture.ramstein, BaseFixture.rota])
+    /// False plays a provider without bases (sample data): the toggle is hidden.
+    var offersBases = true
+    var supportsBases: Bool { offersBases }
+    private var _basesRequests = 0
+    var basesRequests: Int { lock.withLock { _basesRequests } }
+
+    func bases() async throws -> BaseLayer {
+        lock.withLock { _basesRequests += 1 }
+        if let basesDelay { try await Task.sleep(for: basesDelay) }
+        if let basesFailure { throw basesFailure }
+        return basesAnswer
+    }
+
     var aircraftAnswer = AircraftFixture.layer([AircraftFixture.plane("a1"), AircraftFixture.plane("a2", lat: 39)])
     private var _aircraftRequests: [GeoBox] = []
     var aircraftRequests: [GeoBox] { lock.withLock { _aircraftRequests } }

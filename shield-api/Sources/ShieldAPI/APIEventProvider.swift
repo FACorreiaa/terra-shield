@@ -117,6 +117,27 @@ public struct APIEventProvider: HazardEventProvider {
         }
     }
 
+    public var supportsBases: Bool { true }
+
+    /// Military bases (ADR 29): the whole list at once, worldwide; it changes once a day.
+    public func bases() async throws -> BaseLayer {
+        switch try await unwrapping { try await client.listBases(query: .init()) } {
+        case .ok(let ok):
+            return BaseLayer(try ok.body.json)
+        case .notModified:
+            throw APIError.unexpectedNotModified
+        case .badRequest(let r):
+            // Only a malformed bbox, and none is sent.
+            throw APIError.server(status: 400, try? r.body.json.reason)
+        case .tooManyRequests(let r):
+            throw APIError.rateLimited(retryAfter: r.headers.retryAfter)
+        case .serviceUnavailable:
+            throw APIError.unavailable
+        case .default(let status, let r):
+            throw APIError.server(status: status, try? r.body.json.reason)
+        }
+    }
+
     public func event(id: UUID) async throws -> HazardEvent? {
         switch try await unwrapping { try await client.getEvent(path: .init(id: id.uuidString.lowercased())) } {
         case .ok(let ok):

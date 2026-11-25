@@ -264,3 +264,23 @@ extension Aircraft {
                   military: a.military, positionAt: a.positionAt)
     }
 }
+
+// MARK: - Military bases (ADR 29)
+
+extension BaseLayer {
+    init(_ l: Components.Schemas.BaseList) {
+        self.init(bases: l.bases.compactMap(MilitaryBase.init), updatedAt: l.updatedAt,
+                  attribution: l.attribution, license: l.license, note: l.note)
+    }
+}
+
+extension MilitaryBase {
+    /// Nil only when the server sends a Wikidata link that is not a URL, which it never does.
+    init?(_ b: Components.Schemas.MilitaryBase) {
+        guard let url = URL(string: b.url) else { return nil }
+        self.init(id: b.id, name: b.name, description: b.description,
+                  kind: Kind(serverValue: b.kind.value1?.rawValue ?? b.kind.value2 ?? ""),
+                  className: b._class, operatorName: b._operator, country: b.country,
+                  coordinate: Coordinate(latitude: b.lat, longitude: b.lon), url: url)
+    }
+}

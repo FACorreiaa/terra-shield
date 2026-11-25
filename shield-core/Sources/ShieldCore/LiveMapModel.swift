@@ -96,6 +96,57 @@ public final class LiveMapModel {
         }
     }
 
+    /// Every military base listed on Wikidata (ADR 29), loaded worldwide once: a static layer, so
+    /// a pan never asks again. Nil while off or before the first answer.
+    public private(set) var bases: BaseLayer?
+    /// The bases layer's last load failed; retried by a map load a minute or more later.
+    public private(set) var basesFailed = false
+    private var basesTask: Task<Void, Never>?
+    private var basesGeneration = 0
+    private var basesFailedAt: Date?
+
+    /// The bases layer; off by default. Saved with the filters (no quota behind it).
+    public var showsBases = false {
+        didSet {
+            guard showsBases != oldValue, !restoring else { return }
+            save()
+            // Hazards are not reloaded: the layer is independent of them.
+            if showsBases {
+                startBases()
+            } else {
+                basesTask?.cancel()
+                basesTask = nil
+                basesGeneration += 1
+                bases = nil
+                basesFailed = false
+                basesFailedAt = nil
+                selectedBaseID = nil
+            }
+        }
+    }
+
+    /// The base shown in the sheet or inspector, by Wikidata ID.
+    public var selectedBaseID: String? {
+        didSet {
+            guard selectedBaseID != oldValue, selectedBaseID != nil else { return }
+            clearSelections(except: .base)
+        }
+    }
+
+    public var selectedBase: MilitaryBase? {
+        guard let selectedBaseID else { return nil }
+        return bases?.bases.first { $0.id == selectedBaseID }
+    }
+
+    private enum SelectionKind { case event, aircraft, base }
+
+    /// One thing selected at a time: an event, an aircraft or a base.
+    private func clearSelections(except kept: SelectionKind) {
+        if kept != .event, selectedEventID != nil { selectedEventID = nil }
+        if kept != .aircraft, selectedAircraftHex != nil { selectedAircraftHex = nil }
+        if kept != .base, selectedBaseID != nil { selectedBaseID = nil }
+    }
+
     /// Live flights in view (ADR 28); nil while off, before the first answer, or while the view
     /// is too large.
     public private(set) var flights: AircraftLayer?
@@ -146,7 +197,7 @@ public final class LiveMapModel {
     /// and the other way round.
     public var selectedAircraftHex: String? {
         didSet {
-            if selectedAircraftHex != nil, selectedEventID != nil { selectedEventID = nil }
+            if selectedAircraftHex != nil { clearSelections(except: .aircraft) }
             chosenAircraft = selectedAircraftHex.flatMap { hex in flights?.aircraft.first { $0.hex == hex } }
         }
     }
@@ -170,7 +221,7 @@ public final class LiveMapModel {
     public var selectedEventID: UUID? {
         didSet {
             guard selectedEventID != oldValue else { return }
-            if selectedEventID != nil, selectedAircraftHex != nil { selectedAircraftHex = nil }
+            if selectedEventID != nil { clearSelections(except: .event) }
             loadSelectedArea()
         }
     }
@@ -257,6 +308,9 @@ public final class LiveMapModel {
             query = saved.query
             showsDetections = saved.showsDetections
             showsConflicts = saved.showsConflicts
+            // Not where the provider has none (sample data): its toggle is hidden there, so the
+            // legend could never be closed.
+            showsBases = saved.showsBases && provider.supportsBases
             restoring = false
         }
     }
@@ -265,7 +319,8 @@ public final class LiveMapModel {
     @ObservationIgnored private var restoring = false
 
     private func save() {
-        filterStore?.save(SavedFilters(query: query, showsDetections: showsDetections, showsConflicts: showsConflicts))
+        filterStore?.save(SavedFilters(query: query, showsDetections: showsDetections, showsConflicts: showsConflicts,
+                                       showsBases: showsBases))
     }
 
     /// The map settled on a new region. Loads after `debounce` unless another change follows.
@@ -464,6 +519,7 @@ public final class LiveMapModel {
     public func settle() async {
         await loadTask?.value
         await flightsTask?.value
+        await basesTask?.value
     }
 
     /// Waits for the map's load only, not the flights (tests).
@@ -488,6 +544,8 @@ public final class LiveMapModel {
         let wantsConflicts = showsConflicts
         // Flights run on their own: the server waits on the feed, and hazards must not.
         startFlights(for: viewport, force: false)
+        // A layer restored as on loads with the first map load; a failure waits a minute.
+        if showsBases, bases == nil, basesTask == nil { startBases() }
         async let events = Self.capture { try await provider.snapshot(matching: query, in: viewport) }
         async let fires = Self.detections(from: provider, in: viewport, if: wantsDetections)
         async let conflictList = Self.conflicts(from: provider, in: viewport, if: wantsConflicts)
@@ -570,6 +628,30 @@ public final class LiveMapModel {
     /// Waits for an in-flight area fetch (tests).
     func settleArea() async {
         await areaTask?.value
+    }
+
+    private func startBases() {
+        guard provider.supportsBases else { return }
+        if let basesFailedAt, now().timeIntervalSince(basesFailedAt) < 60 { return }
+        basesTask?.cancel()
+        basesGeneration += 1
+        // A failure is dated from the request, so the map's minute poll is the one that retries.
+        let generation = basesGeneration, provider = provider, askedAt = now()
+        basesTask = Task { [weak self] in
+            let result = await Self.capture { try await provider.bases() }
+            guard let self, generation == self.basesGeneration, !Task.isCancelled, self.showsBases else { return }
+            self.basesTask = nil
+            switch result {
+            case .success(let layer):
+                self.bases = layer
+                self.basesFailed = false
+                self.basesFailedAt = nil
+            case .failure(let error):
+                if LoadFailure.isCancellation(error) { return }
+                self.basesFailed = true
+                self.basesFailedAt = askedAt
+            }
+        }
     }
 
     /// Asks for the flights in view now, the same view included (the minute timer, tests).
