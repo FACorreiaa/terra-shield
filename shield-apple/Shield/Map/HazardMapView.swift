@@ -133,12 +133,21 @@ struct HazardMapView {
 
         func apply(snapshot: MapSnapshot?, selectedID: UUID?, localClustering: Bool, staleSources: Set<String>) {
             guard let map else { return }
-            let restyle = selectedID != self.selectedID || localClustering != self.localClustering
-                || staleSources != self.staleSources
+            let reclustering = localClustering != self.localClustering
+            let restyle = selectedID != self.selectedID || staleSources != self.staleSources
             self.selectedID = selectedID
             self.localClustering = localClustering
             self.staleSources = staleSources
 
+            // A marker's `clusteringIdentifier` must never change while it is on the map: MapKit
+            // keeps clustered views under their identifier, and on macOS a stale entry later
+            // asks for an empty cluster with no identifier, which throws inside MapKit and
+            // crashed the app on "Show the whole world" (2026-11-25). Crossing zoom 6, every
+            // event marker is replaced instead, so `viewFor` configures fresh views.
+            if reclustering {
+                hazards.renewEvents(on: map)
+                conflictSet.renewEvents(on: map)
+            }
             if let snapshot { hazards.diff(snapshot, on: map) }
             if restyle { restyleVisibleMarkers(on: map) }
             syncSelection(on: map)
@@ -487,6 +496,17 @@ private struct AnnotationSet {
     var clusters: [String: ServerClusterAnnotation] = [:]
 
     init(isConflict: Bool) { self.isConflict = isConflict }
+
+    /// Replaces every event annotation with a new one for the same event, so MapKit drops the
+    /// old views and asks `viewFor` again. Replaced in the set before removal: `didDeselect`
+    /// then sees the old selected annotation is no longer the live one and keeps the selection.
+    mutating func renewEvents(on map: MKMapView) {
+        guard !events.isEmpty else { return }
+        let old = Array(events.values)
+        events = events.mapValues { EventAnnotation($0.event) }
+        map.removeAnnotations(old)
+        map.addAnnotations(Array(events.values))
+    }
 
     mutating func diff(_ snapshot: MapSnapshot, on map: MKMapView) {
         var removed: [any MKAnnotation] = []
