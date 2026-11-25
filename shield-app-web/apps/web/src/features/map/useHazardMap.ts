@@ -4,7 +4,7 @@ import type { RefObject } from "react";
 import { useEffect, useEffectEvent, useState } from "react";
 
 import type { View } from "@/domain/viewport.ts";
-import { globeZoom, viewOf } from "@/domain/viewport.ts";
+import { flatWorldZoom, globeZoom, viewOf } from "@/domain/viewport.ts";
 
 import { basemapStyle } from "./basemapStyle.ts";
 import type { Projection } from "./basemapStyle.ts";
@@ -13,11 +13,8 @@ import { registerBundledWorker } from "./maplibreWorker.ts";
 
 registerBundledWorker();
 
-/**
- * First view: the Atlantic-centred world, Africa and Europe in the middle. The globe is sized to
- * the container; `zoom` is the flat map's.
- */
-const INITIAL = { longitude: 10, latitude: 25, zoom: 2 } as const;
+/** First view and "Show the whole world": the Atlantic-centred world, Africa and Europe in the middle. */
+const WORLD_CENTER = { longitude: 10, latitude: 25 } as const;
 /** A pan settles before the view is reported, so a drag does not fire a query per frame. */
 const VIEW_DEBOUNCE_MS = 250;
 const TILE_SOURCE = "openmaptiles";
@@ -96,15 +93,26 @@ function watchView(map: MapLibreMap, report: (view: View) => void): () => void {
   };
 }
 
+/** The zoom that shows the whole world in `element`: the globe fitted to it, or the flat map's width. */
+function worldZoom(element: HTMLElement, projection: Projection): number {
+  const size = { width: element.clientWidth, height: element.clientHeight };
+  return projection === "globe" ? globeZoom(size, WORLD_CENTER.latitude) : flatWorldZoom(size.width);
+}
+
+/** Flies back to the whole world; MapLibre makes it a jump under reduced motion. */
+function fitWorld(map: MapLibreMap, projection: Projection): void {
+  map.flyTo({
+    center: [WORLD_CENTER.longitude, WORLD_CENTER.latitude],
+    zoom: worldZoom(map.getContainer(), projection),
+  });
+}
+
 function createMap(element: HTMLElement, projection: Projection): MapLibreMap {
   const map = new MapLibreMap({
     container: element,
     style: basemapStyle(projection),
-    center: [INITIAL.longitude, INITIAL.latitude],
-    zoom:
-      projection === "globe"
-        ? globeZoom({ width: element.clientWidth, height: element.clientHeight }, INITIAL.latitude)
-        : INITIAL.zoom,
+    center: [WORLD_CENTER.longitude, WORLD_CENTER.latitude],
+    zoom: worldZoom(element, projection),
     attributionControl: false,
     dragRotate: false,
     pitchWithRotate: false,
@@ -156,4 +164,4 @@ function useHazardMap(container: RefObject<HTMLDivElement | null>, options: Haza
 }
 
 export type { HazardMapState };
-export { useHazardMap };
+export { fitWorld, useHazardMap };

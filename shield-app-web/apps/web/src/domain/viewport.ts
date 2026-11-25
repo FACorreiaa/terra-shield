@@ -176,8 +176,22 @@ function globeZoom({ width, height }: Size, centerLatitude: number): number {
   return clamp(Math.log2(target / atZ0), GLOBE_ZOOM.min, GLOBE_ZOOM.max);
 }
 
+/** The flat map's zoom that fits the world's width into `width` pixels (MapLibre's world is 512 px at z0). */
+function flatWorldZoom(width: number): number {
+  return width > 0 ? Math.max(0, Math.log2(width / WORLD_PIXELS_AT_Z0)) : 0;
+}
+
 export type { Bounds, SeverityShare, Size, View };
-export { AIRCRAFT_MAX_CELLS, aircraftAllowed, aircraftCells, apiZoom, globeZoom, severityShares, viewOf };
+export {
+  AIRCRAFT_MAX_CELLS,
+  aircraftAllowed,
+  aircraftCells,
+  apiZoom,
+  flatWorldZoom,
+  globeZoom,
+  severityShares,
+  viewOf,
+};
 // The box helpers, where the brief for this module put them.
 export type { GeoBox } from "./geo.ts";
 export { contains, crossesAntimeridian, geoBox, longitudeSpan, unwrapped, WORLD, wrapLongitude } from "./geo.ts";

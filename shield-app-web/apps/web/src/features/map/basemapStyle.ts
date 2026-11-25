@@ -15,6 +15,15 @@ import { BLEND, palette } from "./basemapPalette.ts";
  */
 
 const OPENFREEMAP_TILES = "https://tiles.openfreemap.org/planet";
+/**
+ * OpenFreeMap's required credit (DESIGN.md §9), declared here so it never depends on their
+ * TileJSON carrying it.
+ */
+const OPENFREEMAP_ATTRIBUTION = [
+  '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>',
+  '<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a>',
+  'Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+].join(" ");
 const OPENFREEMAP_GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
 const SOURCE = "openmaptiles";
 
@@ -255,7 +264,7 @@ function basemapStyle(projection: Projection): StyleSpecification {
     projection: { type: projection },
     sky: sky(),
     glyphs: OPENFREEMAP_GLYPHS,
-    sources: { [SOURCE]: { type: "vector", url: OPENFREEMAP_TILES } },
+    sources: { [SOURCE]: { type: "vector", url: OPENFREEMAP_TILES, attribution: OPENFREEMAP_ATTRIBUTION } },
     layers: [...surfaceLayers(colors), ...lineLayers(colors), ...labelLayers(colors)],
   };
 }
