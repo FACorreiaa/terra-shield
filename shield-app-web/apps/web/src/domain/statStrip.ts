@@ -92,5 +92,28 @@ function liveMapCells(
   ];
 }
 
+/** The compact strip's words after each number: singular and plural (StatStrip.swift `units`). */
+const UNITS: Readonly<Record<string, { one: string; many: string }>> = {
+  [LABELS.observed]: { one: "event", many: "events" },
+  [LABELS.high]: { one: "high severity", many: "high severity" },
+  [LABELS.warnings]: { one: "warning", many: "warnings" },
+};
+
+/** "4 events", "1 warning", "– warnings": the compact strip at the sheet's peek. */
+function compactWords(cell: StatCell): string {
+  const unit = UNITS[cell.label] ?? { one: cell.label.toLowerCase(), many: cell.label.toLowerCase() };
+  return cell.value === "1" ? unit.one : unit.many;
+}
+
+/** "High severity: 3", "Official warnings: at least 12", "Official warnings: not counted at this zoom". */
+function cellDescription(cell: StatCell): string {
+  if (cell.value === UNKNOWN) {
+    return `${cell.label}: not counted at this zoom`;
+  }
+  return cell.value.endsWith("+")
+    ? `${cell.label}: at least ${cell.value.slice(0, -1)}`
+    : `${cell.label}: ${cell.value}`;
+}
+
 export type { StatCell, StatFilter };
-export { liveMapCells };
+export { cellDescription, compactWords, liveMapCells, UNKNOWN };

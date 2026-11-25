@@ -24,10 +24,10 @@ interface SeverityBadgeProps {
 function SeverityBadge({ severity, sourceSeverity = "", provisional = false }: SeverityBadgeProps): ReactElement {
   const token = severityTokens[severity];
   return (
-    <span className="inline-flex items-center gap-2 text-meta">
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta">
       <span
         className={cn(
-          "inline-flex items-center gap-1 rounded-xs px-2 py-0.5 font-semibold text-canvas",
+          "inline-flex shrink-0 items-center gap-1 rounded-xs px-2 py-0.5 font-semibold text-canvas",
           fill[severity],
         )}
       >

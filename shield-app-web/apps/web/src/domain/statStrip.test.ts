@@ -1,7 +1,7 @@
 import type { EventCluster, EventKind, EventList, HazardEvent, Severity } from "@shield/api-client";
 import { describe, expect, it } from "vite-plus/test";
 
-import { liveMapCells } from "./statStrip.ts";
+import { cellDescription, compactWords, liveMapCells } from "./statStrip.ts";
 
 const NOW = "2027-01-15T08:00:00Z";
 
@@ -89,5 +89,24 @@ describe(liveMapCells, () => {
     const withClusters = list([event("severe", "warning")], [cluster(4, "severe", { severe: 4 })]);
     expect(values(liveMapCells(withClusters, true))).toStrictEqual(["–", "–", "1+"]);
     expect(values(liveMapCells(withClusters))).toStrictEqual(["5", "5", "1+"]);
+  });
+});
+
+describe(compactWords, () => {
+  it("is singular only for exactly one", () => {
+    expect(compactWords({ value: "1", label: "Official warnings" })).toBe("warning");
+    expect(compactWords({ value: "1+", label: "Official warnings" })).toBe("warnings");
+    expect(compactWords({ value: "4", label: "Observed events" })).toBe("events");
+    expect(compactWords({ value: "–", label: "High severity" })).toBe("high severity");
+  });
+});
+
+describe(cellDescription, () => {
+  it("reads lower bounds and unknowns in words", () => {
+    expect(cellDescription({ value: "3", label: "High severity" })).toBe("High severity: 3");
+    expect(cellDescription({ value: "12+", label: "Official warnings" })).toBe("Official warnings: at least 12");
+    expect(cellDescription({ value: "–", label: "Official warnings" })).toBe(
+      "Official warnings: not counted at this zoom",
+    );
   });
 });

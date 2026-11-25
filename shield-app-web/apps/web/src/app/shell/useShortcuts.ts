@@ -1,5 +1,4 @@
 import { useNavigate } from "@tanstack/react-router";
-import type { Map as MapLibreMap } from "maplibre-gl";
 import type { RefObject } from "react";
 import { useEffect, useEffectEvent } from "react";
 
@@ -13,7 +12,6 @@ import type { Shortcut } from "./shortcuts.ts";
 import { neighbour, shortcutFor } from "./shortcuts.ts";
 
 interface ShortcutTargets {
-  map: MapLibreMap | undefined;
   toggleInspector: () => void;
   help: RefObject<HTMLDialogElement | null>;
 }
@@ -68,7 +66,7 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
     toggleInspector();
     return true;
   },
-  world: ({ map }) => {
+  world: ({ live: { map } }) => {
     if (map !== undefined) {
       fitWorld(map, mapPrefs().projection);
     }

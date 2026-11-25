@@ -18,8 +18,8 @@ const MAP_LEFT_CLASS = "left-[248px]";
 const INSPECTOR_WIDTH = 352;
 /** Floating chrome keeps this much clear of the map's edge. */
 const MAP_GAP = 12;
-/** The phone's status capsule: 44 px tall under a 12 px margin. */
-const CAPSULE_INSET = 56;
+/** The phone's top stack: the 44 px capsule and the 44 px chip row, each under a 12 px margin. */
+const PHONE_TOP_INSET = 112;
 
 /**
  * Hands what the chrome covers to the camera, and to the map's own controls as CSS variables on the
@@ -38,4 +38,4 @@ function useInsets(frame: RefObject<HTMLElement | null>): (insets: Insets) => vo
 }
 
 export type { Insets };
-export { CAPSULE_INSET, INSPECTOR_WIDTH, MAP_GAP, MAP_LEFT_CLASS, SIDEBAR_WIDTH_CLASS, useInsets };
+export { INSPECTOR_WIDTH, MAP_GAP, MAP_LEFT_CLASS, PHONE_TOP_INSET, SIDEBAR_WIDTH_CLASS, useInsets };

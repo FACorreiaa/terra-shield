@@ -8,6 +8,7 @@ import { Brand } from "./Brand.tsx";
 import type { Insets } from "./insets.ts";
 import { INSPECTOR_WIDTH, MAP_GAP, SIDEBAR_WIDTH_CLASS } from "./insets.ts";
 import { useLiveMap } from "./liveMapContext.ts";
+import { MonitorHud } from "./MonitorHud.tsx";
 import { SECTIONS } from "./sections.ts";
 
 interface DesktopChromeProps {
@@ -78,6 +79,7 @@ function DesktopChrome({ children, inspectorOpen, onInsets }: DesktopChromeProps
         <SectionNav />
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto border-t border-hairline">{children}</div>
       </aside>
+      <MonitorHud />
       {inspectorOpen ? <Inspector /> : undefined}
     </>
   );
