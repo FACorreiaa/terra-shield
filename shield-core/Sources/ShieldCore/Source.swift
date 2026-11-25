@@ -52,6 +52,8 @@ public struct Source: Codable, Sendable, Hashable, Identifiable {
     /// Uses the server's `stale` when present, else the same rule locally.
     public func isStale(now: Date = .now) -> Bool {
         if let stale { return stale }
+        // Fetched only while its layer is shown: an unwatched layer is not a stale one (#43).
+        if onDemand == true { return false }
         guard let lastSuccessAt else { return true }
         return Freshness.isStale(lastUpdate: lastSuccessAt, pollInterval: pollInterval, now: now)
     }

@@ -123,8 +123,8 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      (address results only) and move the map; events match by title among those in view, so
      clustered events are not searched (a hint says so). Countries were added with S3.4.
    - The sample-data badge is the map's own, so it stays in view in every sheet state; the
-     strip no longer repeats it. Extreme markers pulse on the map only, not in rows. The full shell (sidebar navigation,
-     inspector, shortcuts) is still S3.8.
+     strip no longer repeats it. Extreme markers pulse on the map only, not in rows. The sidebar sections and ⌘1–⌘5
+     came with S3.8 (build order 8).
 
    DEBUG launch env for screenshots: `SHIELD_DETECTIONS=1`, `SHIELD_REGION=lat,lon,latSpan,lonSpan`,
    `SHIELD_SELECT=<event id>`, `SHIELD_SHEET=peek|medium|large`.
@@ -236,6 +236,26 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
 - The adsb.lol row on Sources reads "Fetched only while the flights layer is shown, at most once a
   minute" and "Not fetched yet" / "Fetched 5 min ago" (`onDemand`, #43).
 8. **S3.8 macOS.** `NavigationSplitView` shell, inspector, keyboard shortcuts (DESIGN §10).
+   Built 2026-11-25 (macOS and iPad regular width share the shell). Owner verdicts pending:
+   - The sidebar lists **Monitor** and **Countries** on top and **Sources** at the bottom with the
+     sources' overall health dot (worst listed source; on-demand ones never stale; no dot before the
+     first list). **Saved regions and Alerts are left out**, not shown disabled, until Phase 3;
+     ⌘3 and ⌘4 stay reserved.
+   - ⌘1, ⌘2, ⌘5 live in a **Go** menu (discoverable; not yet pressed with the app in front). ⌘5 and the Sources row
+     open the existing Sources sheet; Sources did not become a content pane.
+   - Monitor keeps search, strip and list. Countries is a filter field over every country: those
+     with active events first (most severe, then busiest; severity mark + count), then the rest by
+     name. Choosing one opens the existing country overview in the sidebar; choosing the section
+     again goes back to the list. Changing section closes an open country and any search. ⌘F
+     switches to Monitor and focuses its search.
+   - Not done: ⌥⌘I (the inspector follows the selection) and the toolbar's time-window, layers
+     and share menus.
+   - Window: it opened 1121 pt tall, taller than a 1084 pt screen, and could not be made shorter.
+     AppKit took the window's minimum from the sidebar measured at almost no width, where the
+     vertically fixed texts (stat strip, list footnote) wrap a word per line. The sidebar column now
+     takes the height it is given (minimum 480): the window opens at 1200 × 800 and shrinks to 592.
+     The 4647 pt width no longer reproduces from a clean state (fresh bundle id, no saved frame).
+   - DEBUG: `SHIELD_SECTION=2` selects a section at launch (screenshots on iPad).
 9. **Phase 2 Web.** The same catalog in Svelte, plus the MapLibre style (DESIGN §9).
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.

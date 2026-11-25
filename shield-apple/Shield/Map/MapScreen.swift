@@ -22,6 +22,10 @@ struct MapScreen: View {
     /// The sidebar holds the list and its notices; the map repeats them only when it's hidden.
     @State private var columnVisibility = NavigationSplitViewVisibility.automatic
     @FocusState private var sidebarSearchFocused: Bool
+    /// The sidebar's section (DESIGN.md §10, macOS and iPad).
+    @State private var section = SidebarSection.monitor
+    /// The countries list failed to load (the Countries section offers Retry).
+    @State private var countriesFailed = false
     /// The map layer's trailing safe-area inset. iPadOS gives the inspector as one, and the map,
     /// which ignores the safe area, runs on underneath it; framing has to leave that part out.
     @State private var mapTrailingInset: CGFloat = 0
@@ -102,6 +106,13 @@ struct MapScreen: View {
                 default: break
                 }
             }
+            // Screenshot automation: `SHIELD_SECTION=2` selects that sidebar section (⌘2, Countries).
+            .task {
+                guard let raw = ProcessInfo.processInfo.environment["SHIELD_SECTION"],
+                      let target = Int(raw).flatMap(SidebarSection.init(rawValue:)) else { return }
+                try? await Task.sleep(for: .seconds(1))
+                go(target)
+            }
             // Screenshot automation: `SHIELD_COUNTRY=PT` opens Portugal's overview.
             .task {
                 guard let code = ProcessInfo.processInfo.environment["SHIELD_COUNTRY"] else { return }
@@ -144,71 +155,43 @@ struct MapScreen: View {
     private var splitShell: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             VStack(spacing: 0) {
-                MapSearchField(search: search, focused: $sidebarSearchFocused)
-                    .padding(.horizontal, ShieldSpace.s4)
-                    .padding(.top, ShieldSpace.s3)
-                    .background {
-                        // ⌘F: search places and events (DESIGN.md §10 keyboard shortcuts).
-                        Button("Search") { sidebarSearchFocused = true }
-                            .keyboardShortcut("f", modifiers: .command)
-                            .opacity(0)
-                            .accessibilityHidden(true)
+                // DESIGN.md §10: Monitor and Countries on top, Sources pinned at the bottom.
+                VStack(spacing: ShieldSpace.s1) {
+                    ForEach(SidebarSection.shown.filter { $0 != .sources }) { item in
+                        SidebarSectionRow(section: item, isSelected: section == item) { go(item) }
                     }
-                // The sample badge is the map's own (always in view), not repeated here. The
-                // strip steps aside while searching, and for a country's overview.
-                if let country, !search.isActive {
-                    Rectangle()
-                        .fill(Color.ink.opacity(ShieldAlpha.hairline))
-                        .frame(height: 1)
-                        .padding(.top, ShieldSpace.s3)
-                    CountryView(overview: country, model: model, close: closeCountry,
-                                selectEvent: { model.select($0) })
-                } else if !search.isActive {
-                    StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot, includesResolved: model.query.includeResolved),
-                              query: model.query, tap: { model.query = model.query.toggling($0) })
-                        .padding(.horizontal, ShieldSpace.s4)
-                        .padding(.vertical, ShieldSpace.s3)
-                } else {
-                    Spacer().frame(height: ShieldSpace.s3)
                 }
-                if country == nil || search.isActive {
-                    Rectangle()
-                        .fill(Color.ink.opacity(ShieldAlpha.hairline))
-                        .frame(height: 1)
+                .padding(.horizontal, ShieldSpace.s2)
+                .padding(.top, ShieldSpace.s3)
+                .background {
+                    // ⌘F: search places, countries and events (DESIGN.md §10 keyboard shortcuts);
+                    // the field is Monitor's.
+                    Button("Search") {
+                        // Only a section change: in Monitor an open country stays open.
+                        if section != .monitor { go(.monitor) }
+                        Task { sidebarSearchFocused = true }
+                    }
+                    .keyboardShortcut("f", modifiers: .command)
+                    .opacity(0)
+                    .accessibilityHidden(true)
                 }
-                if search.isActive {
-                    MapSearchResults(search: search, model: model,
-                                     selectEvent: { event in
-                                         sidebarSearchFocused = false
-                                         search.end()
-                                         model.selectedEventID = event.id
-                                     },
-                                     selectPlace: { place in
-                                         sidebarSearchFocused = false
-                                         Task { await go(to: place) }
-                                     },
-                                     selectCountry: { country in
-                                         sidebarSearchFocused = false
-                                         open(country)
-                                     })
-                } else if country == nil {
-                    EventList(model: model, zoomOut: fitWorld)
+                switch section {
+                case .countries:
+                    countriesSidebar
+                default:
+                    monitorSidebar
                 }
                 Spacer(minLength: 0)
                 Rectangle().fill(Color.ink.opacity(ShieldAlpha.hairline)).frame(height: 1)
-                // Sources at the bottom of the sidebar (DESIGN.md §10); its own section with the
-                // health dot and ⌘5 come with the sidebar sections (S3.8).
-                Button { showsSources = true } label: {
-                    Label("Sources", systemImage: "antenna.radiowaves.left.and.right")
-                        .font(ShieldFont.body.weight(.semibold))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, ShieldSpace.s4)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.ink)
+                SourcesSidebarRow(health: Source.overallHealth(model.sourceList)) { go(.sources) }
             }
+            // The column takes the height it is given. Without this AppKit derives the window's
+            // minimum from the sidebar measured at almost no width, where the vertically fixed
+            // texts (stat strip, list footnote) wrap a word per line: the window opened 1121 pt
+            // tall, over a 1084 pt screen, and could not be made shorter (S3.8).
+            #if os(macOS)
+            .frame(minHeight: 480, maxHeight: .infinity)
+            #endif
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 260) // DESIGN.md §10
         } detail: {
             mapLayer(showsNotices: columnVisibility == .detailOnly, trailingCover: inspectorCover)
@@ -216,6 +199,7 @@ struct MapScreen: View {
                 .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.trailing } action: { mapTrailingInset = $0 }
                 #endif
                 .toolbar(removing: .title)
+                .focusedSceneValue(\.sidebarNavigation, SidebarNavigation(section: section, go: go))
                 // DESIGN.md §10 (macOS): the selected event in the inspector, beside the map.
                 .inspector(isPresented: inspectorShown) {
                     if let event = model.selectedEvent {
@@ -240,6 +224,90 @@ struct MapScreen: View {
                 }
                 #endif
         }
+    }
+
+
+    /// Monitor: search, the stat strip and the events in view (or an open country).
+    @ViewBuilder
+    private var monitorSidebar: some View {
+        MapSearchField(search: search, focused: $sidebarSearchFocused)
+            .padding(.horizontal, ShieldSpace.s4)
+            .padding(.top, ShieldSpace.s3)
+        // The sample badge is the map's own (always in view), not repeated here. The
+        // strip steps aside while searching, and for a country's overview.
+        if let country, !search.isActive {
+            Rectangle()
+                .fill(Color.ink.opacity(ShieldAlpha.hairline))
+                .frame(height: 1)
+                .padding(.top, ShieldSpace.s3)
+            CountryView(overview: country, model: model, close: closeCountry,
+                        selectEvent: { model.select($0) })
+        } else if !search.isActive {
+            StatStrip(cells: StatStrip.Cell.liveMap(model.snapshot, includesResolved: model.query.includeResolved),
+                      query: model.query, tap: { model.query = model.query.toggling($0) })
+                .padding(.horizontal, ShieldSpace.s4)
+                .padding(.vertical, ShieldSpace.s3)
+        } else {
+            Spacer().frame(height: ShieldSpace.s3)
+        }
+        if country == nil || search.isActive {
+            Rectangle()
+                .fill(Color.ink.opacity(ShieldAlpha.hairline))
+                .frame(height: 1)
+        }
+        if search.isActive {
+            MapSearchResults(search: search, model: model,
+                             selectEvent: { event in
+                                 sidebarSearchFocused = false
+                                 search.end()
+                                 model.selectedEventID = event.id
+                             },
+                             selectPlace: { place in
+                                 sidebarSearchFocused = false
+                                 Task { await go(to: place) }
+                             },
+                             selectCountry: { country in
+                                 sidebarSearchFocused = false
+                                 open(country)
+                             })
+        } else if country == nil {
+            EventList(model: model, zoomOut: fitWorld)
+        }
+    }
+
+    /// Countries: every country with its active count; one opens its overview here.
+    @ViewBuilder
+    private var countriesSidebar: some View {
+        if let country {
+            Rectangle().fill(Color.ink.opacity(ShieldAlpha.hairline)).frame(height: 1).padding(.top, ShieldSpace.s3)
+            CountryView(overview: country, model: model, close: closeCountry,
+                        selectEvent: { model.select($0) })
+        } else {
+            CountriesPane(countries: search.countries, failed: countriesFailed,
+                          retry: { Task { await loadCountries(refresh: true) } },
+                          open: { open($0) })
+                .padding(.top, ShieldSpace.s2)
+        }
+    }
+
+    /// ⌘1–⌘5 and the sidebar rows. Changing section closes an open country and any search.
+    private func go(_ target: SidebarSection) {
+        guard target.isAvailable else { return }
+        if target == .sources {
+            showsSources = true
+            return
+        }
+        if columnVisibility == .detailOnly { columnVisibility = .all }
+        // The same section again goes back to its top: the list, not the open country.
+        guard target != section else {
+            if country != nil { closeCountry() }
+            return
+        }
+        search.end()
+        sidebarSearchFocused = false
+        if country != nil { closeCountry() }
+        section = target
+        if target == .countries { Task { await loadCountries(refresh: true) } }
     }
 
     #if os(iOS)
@@ -350,9 +418,15 @@ struct MapScreen: View {
     }
 
     /// Loads the country list for search. A failure leaves search with places and events only.
-    private func loadCountries() async {
-        guard search.countries.isEmpty, let list = try? await model.provider.countries() else { return }
-        search.countries = list
+    /// Once for search; again on each visit to the Countries section, whose counts should be current.
+    private func loadCountries(refresh: Bool = false) async {
+        guard refresh || search.countries.isEmpty else { return }
+        do {
+            search.countries = try await model.provider.countries()
+            countriesFailed = false
+        } catch {
+            countriesFailed = true
+        }
     }
 
     /// Opens a country's overview and frames it on the map (DESIGN.md §10.2). The map's filters
