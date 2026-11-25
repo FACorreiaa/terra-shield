@@ -8,8 +8,8 @@
 // "active": items with an end, closure or dissolution date (on the item or
 // on its class statement), a closed state of use, or a description that
 // says former, historic and the like are left out, as are unnamed items.
-// Barracks are left out by default (owner call pending): many are
-// historic buildings.
+// Barracks are left out (owner, 2026-11-25): many are historic buildings,
+// which get a layer of their own (BACKLOG L4).
 package wikidata
 
 import (
