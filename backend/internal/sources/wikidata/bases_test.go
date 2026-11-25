@@ -12,6 +12,7 @@ import (
 
 	"shield/internal/domain"
 	"shield/internal/fetch"
+	"shield/internal/ingest"
 )
 
 func fixture(t *testing.T) []byte {
@@ -161,6 +162,12 @@ func TestPollRefusesToShrink(t *testing.T) {
 	}
 }
 
+func TestSourcesArePatient(t *testing.T) {
+	var _ ingest.PatientSource = (*Source)(nil)
+	var _ ingest.PatientSource = (*Historic)(nil)
+	var _ ingest.SlowSource = (*Historic)(nil)
+}
+
 func TestQueryNamesOneClass(t *testing.T) {
 	q := Query("Q695850")
 	for _, want := range []string{"wdt:P31 wd:Q695850 ;", "ps:P31 wd:Q695850 ; pq:P582 ?ended", "?ended WHERE", "wd:Q11639308", `LANG(?label) = "en"`} {
@@ -305,5 +312,41 @@ func TestGatePaces(t *testing.T) {
 	// 6 s before the third (4 s had passed); none after a quiet minute.
 	if len(waits) != 2 || waits[0] != 10*time.Second || waits[1] != 6*time.Second {
 		t.Fatalf("waits %v", waits)
+	}
+}
+
+// A 429 holds every source until its Retry-After.
+func TestGateHonoursRetryAfter(t *testing.T) {
+	now := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
+	limited := true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if limited {
+			limited = false
+			w.Header().Set("Retry-After", "120")
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
+			return
+		}
+		_, _ = w.Write([]byte(`{"results":{"bindings":[]}}`))
+	}))
+	defer srv.Close()
+	g := &gate{}
+	var waits []time.Duration
+	mk := func() *pacer[int] {
+		p := newPacer[int](fetch.New(fetch.Options{HostGap: time.Millisecond}))
+		p.endpoint, p.gate, p.now = srv.URL, g, func() time.Time { return now }
+		p.pause = func(_ context.Context, d time.Duration) error { waits = append(waits, d); return nil }
+		p.begin()
+		return p
+	}
+	a, b := mk(), mk()
+	parse := func([]byte) (int, error) { return 0, nil }
+	if _, err := a.run(context.Background(), "1", "one", "q1", parse); err == nil {
+		t.Fatal("a 429 must fail the query")
+	}
+	if _, err := b.run(context.Background(), "2", "two", "q2", parse); err != nil {
+		t.Fatal(err)
+	}
+	if len(waits) != 1 || waits[0] != 2*time.Minute {
+		t.Fatalf("the other source must wait out Retry-After: %v", waits)
 	}
 }

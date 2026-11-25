@@ -144,6 +144,9 @@ func (*Historic) Info() domain.SourceInfo {
 	}
 }
 
+// PollAttempts implements ingest.PatientSource: a retry resumes.
+func (*Historic) PollAttempts() int { return pollAttempts }
+
 // PollTimeout implements ingest.SlowSource: 57 queries of up to a minute,
 // each preceded by a wait as long as the last. A full poll measured about
 // 12 minutes (2026-11-25, 36 queries); a retry resumes where it failed.

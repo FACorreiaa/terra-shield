@@ -1714,7 +1714,7 @@ public enum Components {
             ///
             /// - Remark: Generated from `#/components/schemas/HistoricSite/description`.
             public var description: Swift.String?
-            /// Filter group. Treat unknown values as military.
+            /// Filter group. More kinds will come (general historic buildings): hide sites of a kind the client does not know, or draw them in a neutral style; never as military.
             ///
             /// - Remark: Generated from `#/components/schemas/HistoricSite/kind`.
             public struct KindPayload: Codable, Hashable, Sendable {
@@ -1769,7 +1769,7 @@ public enum Components {
                     ])
                 }
             }
-            /// Filter group. Treat unknown values as military.
+            /// Filter group. More kinds will come (general historic buildings): hide sites of a kind the client does not know, or draw them in a neutral style; never as military.
             ///
             /// - Remark: Generated from `#/components/schemas/HistoricSite/kind`.
             public var kind: Components.Schemas.HistoricSite.KindPayload
@@ -1791,7 +1791,7 @@ public enum Components {
             ///   - id: Wikidata item ID.
             ///   - name:
             ///   - description: Wikidata's English description.
-            ///   - kind: Filter group. Treat unknown values as military.
+            ///   - kind: Filter group. More kinds will come (general historic buildings): hide sites of a kind the client does not know, or draw them in a neutral style; never as military.
             ///   - _class: Wikidata class in English.
             ///   - country: ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.
             ///   - url: The Wikidata item.

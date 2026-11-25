@@ -130,6 +130,9 @@ func (*Source) Info() domain.SourceInfo {
 	}
 }
 
+// PollAttempts implements ingest.PatientSource: a retry resumes.
+func (*Source) PollAttempts() int { return pollAttempts }
+
 // PollTimeout implements ingest.SlowSource: 16 queries of up to a minute,
 // each followed by a pause as long as the query (see pacer).
 func (*Source) PollTimeout() time.Duration { return 35 * time.Minute }

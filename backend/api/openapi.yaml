@@ -820,7 +820,7 @@ components:
         name: { type: string, examples: [Castelo de São Jorge] }
         description: { type: string, description: "Wikidata's English description." }
         kind:
-          description: "Filter group. Treat unknown values as military."
+          description: "Filter group. More kinds will come (general historic buildings): hide sites of a kind the client does not know, or draw them in a neutral style; never as military."
           anyOf:
             - { type: string, enum: [military, castle, memorial] }
             - { type: string }

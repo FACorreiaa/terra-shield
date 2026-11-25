@@ -2,6 +2,7 @@ package wikidata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -15,6 +16,12 @@ import (
 // queries; a 429 or 502 on one of them (both seen on 2026-11-25) must not
 // re-spend the whole budget.
 const resumeFor = 6 * time.Hour
+
+// pollAttempts: the first loads failed transiently (429, 502, a stream cut
+// mid-body) up to twice in one poll, and River's backoff spreads 8
+// attempts over about 80 minutes, inside resumeFor. A job that runs out
+// is not retried until next week.
+const pollAttempts = 8
 
 // gate paces every query this process sends to the Wikidata Query Service.
 // The service allows each client (IP and User-Agent) 60 s of query time a
@@ -54,7 +61,17 @@ func (p *pacer[T]) begin() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.done == nil || p.now().Sub(p.started) > resumeFor {
-		p.done, p.started = map[string]T{}, p.now()
+		started := p.now()
+		p.done, p.started = map[string]T{}, started
+		// Free the answers (tens of thousands of sites) if no poll
+		// completes them, rather than holding them until next week.
+		time.AfterFunc(resumeFor, func() {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			if p.started.Equal(started) {
+				p.done = nil
+			}
+		})
 	}
 }
 
@@ -105,6 +122,11 @@ func (p *pacer[T]) fetch(ctx context.Context, query string) (*fetch.Response, er
 	resp, err := p.client.Get(ctx, p.endpoint+"?format=json&query="+url.QueryEscape(query), fetch.Validators{})
 	g.ended = p.now()
 	g.prev = g.ended.Sub(start)
+	// After a 429, no source may ask again before the service says.
+	var se *fetch.StatusError
+	if errors.As(err, &se) && se.RetryAfter > g.prev {
+		g.prev = se.RetryAfter
+	}
 	return resp, err
 }
 

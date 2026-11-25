@@ -567,7 +567,7 @@ export interface components {
             name: string;
             /** @description Wikidata's English description. */
             description?: string;
-            /** @description Filter group. Treat unknown values as military. */
+            /** @description Filter group. More kinds will come (general historic buildings): hide sites of a kind the client does not know, or draw them in a neutral style; never as military. */
             kind: ("military" | "castle" | "memorial") | string;
             /**
              * @description Wikidata class in English.

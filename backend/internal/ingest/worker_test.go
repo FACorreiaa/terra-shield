@@ -155,6 +155,19 @@ func TestPeriodicJobs(t *testing.T) {
 	}
 }
 
+type patientSource struct{ fakeSource }
+
+func (patientSource) PollAttempts() int { return 8 }
+
+func TestPollAttempts(t *testing.T) {
+	if got := pollAttempts(&fakeSource{}); got != pollMaxAttempts {
+		t.Errorf("default %d", got)
+	}
+	if got := pollAttempts(&patientSource{}); got != 8 {
+		t.Errorf("patient source %d, want 8", got)
+	}
+}
+
 type fakeTask struct{ ran int }
 
 func (*fakeTask) Name() string                { return "retention" }

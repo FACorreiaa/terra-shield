@@ -163,12 +163,20 @@ func periodicJobs(sources []Source) []*river.PeriodicJob {
 		if !info.Enabled {
 			continue
 		}
-		jobs = append(jobs, periodic("poll:"+info.ID, info.PollInterval, PollArgs{Source: info.ID}, pollMaxAttempts))
+		jobs = append(jobs, periodic("poll:"+info.ID, info.PollInterval, PollArgs{Source: info.ID}, pollAttempts(s)))
 		if hk, ok := s.(Housekeeper); ok {
 			jobs = append(jobs, periodic("housekeep:"+info.ID, hk.HousekeepInterval(), HousekeepArgs{Source: info.ID}, 1))
 		}
 	}
 	return jobs
+}
+
+// pollAttempts is how many times River runs a source's poll job.
+func pollAttempts(s Source) int {
+	if p, ok := s.(PatientSource); ok && p.PollAttempts() > 0 {
+		return p.PollAttempts()
+	}
+	return pollMaxAttempts
 }
 
 func periodic(id string, every time.Duration, args river.JobArgs, attempts int) *river.PeriodicJob {
