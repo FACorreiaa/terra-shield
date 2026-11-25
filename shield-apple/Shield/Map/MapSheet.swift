@@ -35,7 +35,16 @@ struct MapSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let event = model.selectedEvent, !search.isActive {
+            if let aircraft = model.selectedAircraft, !search.isActive {
+                ScrollView {
+                    AircraftDetailView(aircraft: aircraft, layer: model.flights,
+                                       close: { model.selectedAircraftHex = nil })
+                    .padding(.horizontal, ShieldSpace.s5)
+                    .padding(.top, ShieldSpace.s5)
+                    .padding(.bottom, ShieldSpace.s4)
+                }
+                .transition(.opacity)
+            } else if let event = model.selectedEvent, !search.isActive {
                 ScrollView {
                     // At medium its top (title, both severities, kind and times) is in view; the
                     // rest scrolls, and fills the sheet at large.

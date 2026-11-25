@@ -18,6 +18,21 @@ final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
     var conflictFailure: (any Error)?
     private var _conflictRequests: [EventQuery] = []
     var conflictRequests: [EventQuery] { lock.withLock { _conflictRequests } }
+    var aircraftFailure: (any Error)?
+    var aircraftDelay: Duration?
+    /// Per-box answers and delays, for late answers racing newer ones.
+    var aircraftAnswers: [GeoBox: AircraftLayer] = [:]
+    var aircraftDelays: [GeoBox: Duration] = [:]
+    var aircraftAnswer = AircraftFixture.layer([AircraftFixture.plane("a1"), AircraftFixture.plane("a2", lat: 39)])
+    private var _aircraftRequests: [GeoBox] = []
+    var aircraftRequests: [GeoBox] { lock.withLock { _aircraftRequests } }
+
+    func aircraft(in box: GeoBox) async throws -> AircraftLayer {
+        lock.withLock { _aircraftRequests.append(box) }
+        if let delay = aircraftDelays[box] ?? aircraftDelay { try await Task.sleep(for: delay) }
+        if let aircraftFailure { throw aircraftFailure }
+        return aircraftAnswers[box] ?? aircraftAnswer
+    }
 
     var requests: [MapViewport] { lock.withLock { _requests } }
     var fireRequests: Int { lock.withLock { _fireRequests } }

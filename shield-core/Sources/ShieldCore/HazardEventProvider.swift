@@ -62,9 +62,19 @@ public protocol HazardEventProvider: Sendable {
     func countrySummary(iso2: String) async throws -> CountrySummary?
     /// Satellite thermal detections in view: grid cells below zoom 6, points from zoom 6.
     func detections(in viewport: MapViewport) async throws -> DetectionLayer
+    /// Live aircraft in `box` (ADR 28); the box must touch at most 4 cells of 5°
+    /// (`AircraftArea.fits`). Defaults to none.
+    func aircraft(in box: GeoBox) async throws -> AircraftLayer
+    /// Whether `aircraft(in:)` has anything behind it; the map offers the layer only then.
+    var supportsAircraft: Bool { get }
     /// Whether `changes(after:)` streams anything (S3.6). Defaults to false.
     var supportsLiveChanges: Bool { get }
     /// Live updates after `cursor`. Ends or throws when the connection drops; the caller
     /// reconnects with the last cursor it saw. Throws `StreamUnavailable` on 429/503.
     func changes(after cursor: String?) -> AsyncThrowingStream<LiveUpdate, any Error>
+}
+
+extension HazardEventProvider {
+    public func aircraft(in box: GeoBox) async throws -> AircraftLayer { .empty }
+    public var supportsAircraft: Bool { false }
 }
