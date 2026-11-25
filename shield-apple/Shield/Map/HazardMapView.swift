@@ -42,6 +42,7 @@ struct HazardMapView {
         map.register(ServerClusterView.self, forAnnotationViewWithReuseIdentifier: ServerClusterView.reuseID)
         map.register(LocalClusterView.self, forAnnotationViewWithReuseIdentifier: LocalClusterView.reuseID)
         map.register(AircraftMarkerView.self, forAnnotationViewWithReuseIdentifier: AircraftMarkerView.reuseID)
+        map.register(BaseMarkerView.self, forAnnotationViewWithReuseIdentifier: BaseMarkerView.reuseID)
         map.delegate = coordinator
         coordinator.map = map
         map.setRegion(Coordinator.startRegion, animated: false)
@@ -60,6 +61,7 @@ struct HazardMapView {
         )
         coordinator.apply(conflicts: model.conflicts)
         coordinator.apply(flights: model.flights, selectedHex: model.selectedAircraftHex)
+        coordinator.apply(bases: model.bases, selectedID: model.selectedBaseID)
         coordinator.apply(detections: model.detections)
         coordinator.apply(area: model.selectedGeometry, of: model.selectedEvent)
         if fitWorldRequest != coordinator.fitWorldRequest {
@@ -117,6 +119,10 @@ struct HazardMapView {
         private var aircraft: [String: AircraftAnnotation] = [:]
         private var selectedHex: String?
         private var appliedFlights: AircraftLayer?
+        /// Military bases by Wikidata ID (ADR 29), added once per load of the list.
+        private var bases: [String: BaseAnnotation] = [:]
+        private var selectedBaseID: String?
+        private var appliedBases: BaseLayer?
         private var area: (geometry: EventGeometry, event: HazardEvent, isStale: Bool, overlay: any MKOverlay)?
 
         init(model: LiveMapModel) {
@@ -179,6 +185,34 @@ struct HazardMapView {
             if let old = oldSelected, old != selectedHex, let annotation = aircraft[old] {
                 map.deselectAnnotation(annotation, animated: false)
                 (map.view(for: annotation) as? AircraftMarkerView)?.configure(annotation.aircraft, isSelected: false)
+            }
+        }
+
+        /// Adds the whole list when it arrives and removes it when the layer goes off; between
+        /// those only a selection changes, which re-renders two markers. The list's equality
+        /// check is cheap when unchanged: the same array storage compares equal at once.
+        func apply(bases layer: BaseLayer?, selectedID: String?) {
+            guard let map else { return }
+            let oldSelected = selectedBaseID
+            // Before adding: `viewFor` reads it for the new annotations.
+            selectedBaseID = selectedID
+            if layer != appliedBases {
+                appliedBases = layer
+                // Emptied first: removing deselects, and `didDeselect` must not take that for
+                // the user clearing the selection.
+                let old = Array(bases.values)
+                bases = [:]
+                if !old.isEmpty { map.removeAnnotations(old) }
+                let added = (layer?.bases ?? []).map(BaseAnnotation.init)
+                for a in added { bases[a.base.id] = a }
+                if !added.isEmpty { map.addAnnotations(added) }
+                return
+            }
+            guard selectedID != oldSelected else { return }
+            for id in [oldSelected, selectedID].compactMap({ $0 }) {
+                guard let annotation = bases[id] else { continue }
+                if id == oldSelected { map.deselectAnnotation(annotation, animated: false) }
+                (map.view(for: annotation) as? BaseMarkerView)?.configure(annotation.base, isSelected: id == selectedID)
             }
         }
 
@@ -351,6 +385,10 @@ struct HazardMapView {
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: AircraftMarkerView.reuseID, for: a)
                 (view as? AircraftMarkerView)?.configure(a.aircraft, isSelected: a.aircraft.hex == selectedHex)
                 return view
+            case let a as BaseAnnotation:
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: BaseMarkerView.reuseID, for: a)
+                (view as? BaseMarkerView)?.configure(a.base, isSelected: a.base.id == selectedBaseID)
+                return view
             case let a as MKClusterAnnotation:
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: LocalClusterView.reuseID, for: a)
                 (view as? LocalClusterView)?.configure(a)
@@ -381,6 +419,8 @@ struct HazardMapView {
                 model.selectedEventID = a.event.id
             case let a as AircraftAnnotation:
                 model.selectedAircraftHex = a.aircraft.hex
+            case let a as BaseAnnotation:
+                model.selectedBaseID = a.base.id
             case let a as ServerClusterAnnotation:
                 mapView.deselectAnnotation(a, animated: false)
                 zoom(to: a.cluster.box, on: mapView)
@@ -398,6 +438,13 @@ struct HazardMapView {
                 // A tap on empty map clears it; a refresh never replaces the annotation.
                 if model.selectedAircraftHex == a.aircraft.hex, aircraft[a.aircraft.hex] === a {
                     model.selectedAircraftHex = nil
+                }
+                return
+            }
+            if let a = annotation as? BaseAnnotation {
+                // A tap on empty map clears it; a reload of the list replaces every annotation.
+                if model.selectedBaseID == a.base.id, bases[a.base.id] === a {
+                    model.selectedBaseID = nil
                 }
                 return
             }

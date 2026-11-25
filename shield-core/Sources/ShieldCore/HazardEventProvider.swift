@@ -67,6 +67,10 @@ public protocol HazardEventProvider: Sendable {
     func aircraft(in box: GeoBox) async throws -> AircraftLayer
     /// Whether `aircraft(in:)` has anything behind it; the map offers the layer only then.
     var supportsAircraft: Bool { get }
+    /// Every military base listed on Wikidata (ADR 29), worldwide.
+    func bases() async throws -> BaseLayer
+    /// Whether `bases()` has anything behind it; the map offers the layer only then.
+    var supportsBases: Bool { get }
     /// Whether `changes(after:)` streams anything (S3.6). Defaults to false.
     var supportsLiveChanges: Bool { get }
     /// Live updates after `cursor`. Ends or throws when the connection drops; the caller
@@ -77,4 +81,8 @@ public protocol HazardEventProvider: Sendable {
 extension HazardEventProvider {
     public func aircraft(in box: GeoBox) async throws -> AircraftLayer { .empty }
     public var supportsAircraft: Bool { false }
+    public func bases() async throws -> BaseLayer {
+        BaseLayer(bases: [], updatedAt: nil, attribution: "Wikidata", license: "CC0 1.0", note: "")
+    }
+    public var supportsBases: Bool { false }
 }

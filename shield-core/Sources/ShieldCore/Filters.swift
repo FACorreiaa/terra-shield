@@ -104,11 +104,14 @@ public struct SavedFilters: Sendable, Equatable {
     public var query: EventQuery
     public var showsDetections: Bool
     public var showsConflicts: Bool
+    public var showsBases: Bool
 
-    public init(query: EventQuery = EventQuery(), showsDetections: Bool = false, showsConflicts: Bool = false) {
+    public init(query: EventQuery = EventQuery(), showsDetections: Bool = false, showsConflicts: Bool = false,
+                showsBases: Bool = false) {
         self.query = query
         self.showsDetections = showsDetections
         self.showsConflicts = showsConflicts
+        self.showsBases = showsBases
     }
 }
 
@@ -139,6 +142,8 @@ public struct FilterStore: Sendable {
         var includeResolved: Bool?
         /// Added with the conflicts layer (ADR 27); optional for the same reason.
         var showsConflicts: Bool?
+        /// Added with the bases layer (ADR 29); optional for the same reason.
+        var showsBases: Bool?
     }
 
     public func load() -> SavedFilters {
@@ -160,7 +165,7 @@ public struct FilterStore: Sendable {
         if query.types.isEmpty { query.types = standard.types }
         if query.kinds.isEmpty { query.kinds = standard.kinds }
         return SavedFilters(query: query, showsDetections: blob.showsDetections,
-                            showsConflicts: blob.showsConflicts ?? false)
+                            showsConflicts: blob.showsConflicts ?? false, showsBases: blob.showsBases ?? false)
     }
 
     public func save(_ filters: SavedFilters) {
@@ -172,7 +177,8 @@ public struct FilterStore: Sendable {
             window: q.window,
             showsDetections: filters.showsDetections,
             includeResolved: q.includeResolved,
-            showsConflicts: filters.showsConflicts
+            showsConflicts: filters.showsConflicts,
+            showsBases: filters.showsBases
         )
         if let data = try? JSONEncoder().encode(blob) { defaults.set(data, forKey: key) }
     }

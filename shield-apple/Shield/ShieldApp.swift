@@ -21,6 +21,8 @@ struct ShieldApp: App {
         if env["SHIELD_DETECTIONS"] == "1" { model.showsDetections = true }
         // … with the armed-conflicts layer on (`SHIELD_CONFLICTS=1`).
         if env["SHIELD_CONFLICTS"] == "1" { model.showsConflicts = true }
+        // … with the military-bases layer on (`SHIELD_BASES=1`).
+        if env["SHIELD_BASES"] == "1" { model.showsBases = true }
         // … and with an event selected (`SHIELD_SELECT=<event id>`).
         if let id = env["SHIELD_SELECT"].flatMap(UUID.init(uuidString:)) { model.selectedEventID = id }
         // … and with a set of filters on (`SHIELD_FILTER_DEMO=1`): moderate and up, warnings
