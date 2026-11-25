@@ -85,6 +85,18 @@ private let firePoints = """
         #expect(!s.truncated)
     }
 
+    @Test func hazardsByDefaultConflictsOnlyWhenNamed() async throws {
+        let (p, t) = provider(["/v1/events": (.ok, worldView)])
+        let viewport = MapViewport(box: .world, zoom: 2)
+        // Every hazard type is the server's default: no `type` (ADR 27, conflicts opt-in).
+        _ = try await p.snapshot(matching: EventQuery(), in: viewport)
+        #expect(try query(t)["type"] == nil)
+        // The conflicts layer names its type and asks for any age.
+        _ = try await p.snapshot(matching: .conflicts, in: viewport)
+        let q = try query(t)
+        #expect(q["type"] == "conflict" && q["kind"] == "observed" && q["since"] == nil)
+    }
+
     @Test func gridDetectionsBelowZoomSix() async throws {
         let (p, t) = provider(["/v1/fires": (.ok, fireGrid)])
         let layer = try await p.detections(in: MapViewport(box: .world, zoom: 3))

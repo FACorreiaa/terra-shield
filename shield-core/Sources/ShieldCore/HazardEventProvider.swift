@@ -11,7 +11,7 @@ public struct EventQuery: Sendable, Hashable {
 
     /// The default view (DESIGN.md §10.6): every type, minor and up, detections off, last 24 h.
     public init(
-        types: Set<HazardType> = Set(HazardType.allCases),
+        types: Set<HazardType> = Set(HazardType.hazards),
         minimumSeverity: Severity = .minor,
         kinds: Set<EventKind> = [.observed, .warning, .forecast],
         includeResolved: Bool = false,
@@ -25,6 +25,10 @@ public struct EventQuery: Sendable, Hashable {
         self.window = window
         self.country = country
     }
+
+    /// The conflicts layer (ADR 27): every conflict the server still shows. No time window: the
+    /// server keeps each one 90 days after its end date, and the dates are months old.
+    public static let conflicts = EventQuery(types: [.conflict], kinds: [.observed], window: nil)
 
     public func matches(_ e: HazardEvent, now: Date = .now) -> Bool {
         guard types.contains(e.type), e.severity >= minimumSeverity, kinds.contains(e.kind) else { return false }

@@ -484,6 +484,7 @@ struct MapScreen: View {
                     MapControls(
                         isRefreshing: model.phase == .loading,
                         showsDetections: $model.showsDetections,
+                        showsConflicts: $model.showsConflicts,
                         fitWorld: fitWorld,
                         refresh: { model.reload() }
                     )
@@ -511,6 +512,14 @@ struct MapScreen: View {
                     }
                     .transition(.opacity)
                 }
+                if model.showsConflicts {
+                    HStack {
+                        ConflictLegend(count: model.conflicts?.totalCount, truncated: model.conflicts?.truncated ?? false,
+                                       failed: model.conflictsFailed)
+                        Spacer()
+                    }
+                    .transition(.opacity)
+                }
                 Spacer()
                 bottom(showsNotices: showsNotices)
                     // Clear of the map's attribution ("Maps · Legal"), which must stay
@@ -521,6 +530,7 @@ struct MapScreen: View {
             .animation(ShieldMotion.standard, value: model.phase)
             .animation(ShieldMotion.spring, value: model.selectedEventID)
             .animation(ShieldMotion.standard, value: model.showsDetections)
+            .animation(ShieldMotion.standard, value: model.showsConflicts)
             .animation(ShieldMotion.standard, value: model.toast)
         }
         // A toast is read out once and leaves after 6 s; a newer one restarts the clock.
@@ -649,11 +659,28 @@ private struct ProgressLine: View {
 private struct MapControls: View {
     var isRefreshing: Bool
     @Binding var showsDetections: Bool
+    @Binding var showsConflicts: Bool
     var fitWorld: () -> Void
     var refresh: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
+            // Armed conflicts (ADR 27): a layer beside hazards, off by default.
+            Button { showsConflicts.toggle() } label: {
+                Image(systemName: HazardType.conflict.sfSymbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(showsConflicts ? Color.accent : Color.ink)
+                    .frame(width: 44, height: 44)
+                    .background(showsConflicts ? Color.accent.opacity(0.14) : .clear)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Armed conflicts")
+            .accessibilityValue(showsConflicts ? "Shown" : "Hidden")
+            .accessibilityAddTraits(.isToggle)
+            .help(showsConflicts ? "Hide armed conflicts" : "Show armed conflicts")
+            .keyboardShortcut("c", modifiers: [.command, .option])
+            Divider().overlay(Color.ink.opacity(ShieldAlpha.hairline))
             // Off by default (DESIGN.md §5). The word is "heat detections", never "fires".
             Button { showsDetections.toggle() } label: {
                 Image(systemName: "thermometer.high")
@@ -733,6 +760,43 @@ private struct DetectionLegend: View {
         }
         if case .points(_, truncated: true) = layer { parts.append("Zoom in for all") }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// The conflicts layer's key: what is shown, and that it is not live (BACKLOG L2 copy).
+private struct ConflictLegend: View {
+    var count: Int?
+    var truncated = false
+    var failed: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: ShieldSpace.s1) {
+            HStack(spacing: ShieldSpace.s2) {
+                Image(systemName: HazardType.conflict.sfSymbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .accessibilityHidden(true)
+                Text(headline)
+                    .font(ShieldFont.meta.weight(.semibold))
+            }
+            .foregroundStyle(failed ? Color.warning : Color.ink)
+            Text("Conflict data are monthly research estimates (UCDP), not live reports.")
+                .font(ShieldFont.meta)
+                .foregroundStyle(Color.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, ShieldSpace.s3)
+        .padding(.vertical, ShieldSpace.s2)
+        .frame(maxWidth: 360, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: ShieldRadius.md))
+        .overlay(RoundedRectangle(cornerRadius: ShieldRadius.md).strokeBorder(Color.ink.opacity(ShieldAlpha.hairline)))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var headline: String {
+        if failed { return "Armed conflicts didn’t load" }
+        guard let count else { return "Armed conflicts · loading…" }
+        let n = count == 0 ? "none in this view" : count == 1 ? "1 in this view" : "\(count) in this view"
+        return "Armed conflicts, past 90 days · \(n)" + (truncated ? " · zoom in for all" : "")
     }
 }
 

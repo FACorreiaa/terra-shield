@@ -225,6 +225,16 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - The cards replace the map until finished (the iPhone map's sheet can't sit under a modal).
      - The empty-country line reads "No active events in Iceland from covered sources."
      - The empty state on the map itself (sheet hidden) keeps words only: no mascot on the map (§11).
+
+**Conflicts layer, Apple (ADR 27; built 2026-11-19).** Owner verdicts pending:
+- Glyph `scope` (web: Lucide `crosshair`) in `tokens.json → hazardType.conflict`.
+- Conflict markers use the severity shape and colour like hazards, plus a dashed ring when the
+  location is approximate. Conflict clusters get a dashed ring and a small `scope` badge.
+- The toggle sits in the map controls above heat detections. No category menus (still unapproved).
+- The layer ignores the hazard filters: every conflict UCDP still lists, minor and up.
+- The list shows conflicts in their own section after the hazards; the stat strip stays hazards only.
+- The adsb.lol row on Sources reads "Fetched only while the flights layer is shown, at most once a
+  minute" and "Not fetched yet" / "Fetched 5 min ago" (`onDemand`, #43).
 8. **S3.8 macOS.** `NavigationSplitView` shell, inspector, keyboard shortcuts (DESIGN §10).
 9. **Phase 2 Web.** The same catalog in Svelte, plus the MapLibre style (DESIGN §9).
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,

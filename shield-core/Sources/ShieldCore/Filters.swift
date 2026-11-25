@@ -59,7 +59,7 @@ extension EventQuery {
     public func label(for filter: ActiveFilter) -> String {
         switch filter {
         case .types:
-            let chosen = HazardType.allCases.filter(types.contains)
+            let chosen = HazardType.hazards.filter(types.contains)
             return chosen.count <= 2 ? chosen.map(\.label).joined(separator: ", ") : "\(chosen.count) types"
         case .severity:
             return "\(minimumSeverity.label)+"
@@ -103,10 +103,12 @@ private extension String {
 public struct SavedFilters: Sendable, Equatable {
     public var query: EventQuery
     public var showsDetections: Bool
+    public var showsConflicts: Bool
 
-    public init(query: EventQuery = EventQuery(), showsDetections: Bool = false) {
+    public init(query: EventQuery = EventQuery(), showsDetections: Bool = false, showsConflicts: Bool = false) {
         self.query = query
         self.showsDetections = showsDetections
+        self.showsConflicts = showsConflicts
     }
 }
 
@@ -135,6 +137,8 @@ public struct FilterStore: Sendable {
         var showsDetections: Bool
         /// Added after version 1 shipped, so optional: a blob without it still reads.
         var includeResolved: Bool?
+        /// Added with the conflicts layer (ADR 27); optional for the same reason.
+        var showsConflicts: Bool?
     }
 
     public func load() -> SavedFilters {
@@ -144,7 +148,7 @@ public struct FilterStore: Sendable {
         let standard = EventQuery()
         var query = standard
         let excludedTypes = Set(blob.excludedTypes.compactMap(HazardType.init(rawValue:)))
-        query.types = Set(HazardType.allCases).subtracting(excludedTypes)
+        query.types = Set(HazardType.hazards).subtracting(excludedTypes)
         query.minimumSeverity = Severity(rawValue: blob.minimumSeverity) ?? standard.minimumSeverity
         let excludedKinds = Set(blob.excludedKinds.compactMap(EventKind.init(rawValue:)))
         query.kinds = Set(EventQuery.eventKinds).subtracting(excludedKinds)
@@ -155,18 +159,20 @@ public struct FilterStore: Sendable {
         // Never restore a query that shows nothing: the UI can't produce one.
         if query.types.isEmpty { query.types = standard.types }
         if query.kinds.isEmpty { query.kinds = standard.kinds }
-        return SavedFilters(query: query, showsDetections: blob.showsDetections)
+        return SavedFilters(query: query, showsDetections: blob.showsDetections,
+                            showsConflicts: blob.showsConflicts ?? false)
     }
 
     public func save(_ filters: SavedFilters) {
         let q = filters.query
         let blob = Blob(
-            excludedTypes: HazardType.allCases.filter { !q.types.contains($0) }.map(\.rawValue),
+            excludedTypes: HazardType.hazards.filter { !q.types.contains($0) }.map(\.rawValue),
             minimumSeverity: q.minimumSeverity.rawValue,
             excludedKinds: EventQuery.eventKinds.filter { !q.kinds.contains($0) }.map(\.rawValue),
             window: q.window,
             showsDetections: filters.showsDetections,
-            includeResolved: q.includeResolved
+            includeResolved: q.includeResolved,
+            showsConflicts: filters.showsConflicts
         )
         if let data = try? JSONEncoder().encode(blob) { defaults.set(data, forKey: key) }
     }

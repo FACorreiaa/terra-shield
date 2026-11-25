@@ -162,10 +162,18 @@ struct EventDetailView: View {
     private var kindAndTimes: some View {
         VStack(alignment: .leading, spacing: ShieldSpace.s2) {
             HStack(spacing: ShieldSpace.s2) {
-                KindChip(kind: event.kind)
+                if event.type == .conflict {
+                    // Not one of the four hazard kinds: a research estimate (docs/attrs.md, UCDP).
+                    Text("Monthly estimate (UCDP)")
+                        .font(ShieldFont.meta.weight(.semibold))
+                        .foregroundStyle(Color.ink)
+                } else {
+                    KindChip(kind: event.kind)
+                }
                 if event.isResolved {
                     ResolvedLabel(event: event)
-                } else if !isGone {
+                } else if !isGone, event.type != .conflict {
+                    // A conflict is "past 90 days", never live (BACKLOG L2).
                     Text("Active")
                         .font(ShieldFont.meta)
                         .foregroundStyle(Color.muted)
@@ -177,7 +185,7 @@ struct EventDetailView: View {
                         GridRow {
                             Text(time.label)
                                 .foregroundStyle(Color.muted)
-                            Text(Freshness.stamp(time.date, now: context.date))
+                            Text(time.dateOnly ? HazardEvent.utcDay(time.date) : Freshness.stamp(time.date, now: context.date))
                                 .foregroundStyle(Color.ink)
                                 .monospacedDigit()
                         }

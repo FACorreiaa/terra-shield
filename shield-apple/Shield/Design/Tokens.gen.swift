@@ -137,6 +137,7 @@ extension HazardType {
         case .snowIce: "snowflake"
         case .tsunami: "water.waves.and.arrow.trianglehead.up"
         case .other: "exclamationmark.triangle.fill"
+        case .conflict: "scope"
         }
     }
 }

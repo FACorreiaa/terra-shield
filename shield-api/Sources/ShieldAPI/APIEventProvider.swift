@@ -251,7 +251,8 @@ extension Operations.ListEvents.Input.Query {
         }
         let severities = Severity.allCases.filter { $0 >= q.minimumSeverity }
         self.init(
-            _type: csv(q.types, all: HazardType.allCases.count),
+            // Every hazard is the server's default; conflicts only when named (ADR 27).
+            _type: q.types == Set(HazardType.hazards) ? nil : q.types.map(\.rawValue).sorted().joined(separator: ","),
             severity: csv(severities, all: Severity.allCases.count),
             kind: csv(q.kinds, all: EventKind.allCases.count),
             // Omitted for active only, the server's default.

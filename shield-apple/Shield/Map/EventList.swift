@@ -13,7 +13,7 @@ struct EventList: View {
 
     var body: some View {
         if let snapshot = model.snapshot {
-            if snapshot.totalCount == 0 {
+            if snapshot.totalCount == 0 && (model.conflicts?.events.isEmpty ?? true) {
                 message {
                     // The list, not the map, so the Sentinel may stand here (DESIGN.md §11).
                     EmptyState {
@@ -51,7 +51,7 @@ struct EventList: View {
         // Most severe, then newest; resolved events last.
         let events = snapshot.events.sortedForDisplay()
         let clustered = snapshot.totalCount - snapshot.events.count
-        return rows(events)
+        return rows(events, conflicts: model.conflicts)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if clustered > 0 || snapshot.truncated {
                     footnote(clustered: clustered, listed: events.count, truncated: snapshot.truncated)
@@ -60,25 +60,69 @@ struct EventList: View {
     }
 
     @ViewBuilder
-    private func rows(_ events: [HazardEvent]) -> some View {
+    private func rows(_ events: [HazardEvent], conflicts: MapSnapshot?) -> some View {
         #if os(macOS)
         // A selection list, so ↑ / ↓ move through the events (DESIGN.md §10 shortcuts).
-        List(events, selection: $model.selectedEventID) { event in
-            row(event)
+        List(selection: $model.selectedEventID) {
+            ForEach(events) { row($0) }
+            if let conflicts { conflictSection(conflicts) }
         }
         .listStyle(.sidebar)
         #else
-        List(events) { event in
-            Button { model.selectedEventID = event.id } label: { row(event) }
-                .buttonStyle(.plain)
-                .listRowBackground(model.selectedEventID == event.id ? Color.raised : Color.clear)
-                .listRowSeparatorTint(Color.hairline)
-                .listRowInsets(EdgeInsets(top: ShieldSpace.s2, leading: ShieldSpace.s5,
-                                          bottom: ShieldSpace.s2, trailing: ShieldSpace.s5))
+        List {
+            ForEach(events) { listRow($0) }
+            if events.isEmpty, conflicts != nil {
+                Text("No hazards in this view from covered sources.")
+                    .font(ShieldFont.body)
+                    .foregroundStyle(Color.muted)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: ShieldSpace.s3, leading: ShieldSpace.s5,
+                                              bottom: ShieldSpace.s3, trailing: ShieldSpace.s5))
+            }
+            if let conflicts { conflictSection(conflicts) }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         #endif
+    }
+
+    #if os(iOS)
+    private func listRow(_ event: HazardEvent) -> some View {
+        Button { model.selectedEventID = event.id } label: { row(event) }
+            .buttonStyle(.plain)
+            .listRowBackground(model.selectedEventID == event.id ? Color.raised : Color.clear)
+            .listRowSeparatorTint(Color.hairline)
+            .listRowInsets(EdgeInsets(top: ShieldSpace.s2, leading: ShieldSpace.s5,
+                                      bottom: ShieldSpace.s2, trailing: ShieldSpace.s5))
+    }
+    #endif
+
+    /// Armed conflicts (ADR 27): their own section after the hazards, never mixed into them.
+    private func conflictSection(_ conflicts: MapSnapshot) -> some View {
+        let events = conflicts.events.sortedForDisplay()
+        let clustered = conflicts.totalCount - conflicts.events.count
+        return Section {
+            #if os(macOS)
+            ForEach(events) { row($0) }
+            #else
+            ForEach(events) { listRow($0) }
+            #endif
+        } header: {
+            VStack(alignment: .leading, spacing: ShieldSpace.s1) {
+                Text("Armed conflicts · past 90 days")
+                    .font(ShieldFont.micro)
+                    .tracking(ShieldTracking.micro)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.muted)
+                Text(clustered > 0
+                     ? "Monthly research estimates (UCDP). \(clustered) more grouped on the map; zoom in to list them."
+                     : "Monthly research estimates (UCDP), not live reports.")
+                    .font(ShieldFont.meta)
+                    .foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, ShieldSpace.s2)
+        }
     }
 
     private func row(_ event: HazardEvent) -> some View {

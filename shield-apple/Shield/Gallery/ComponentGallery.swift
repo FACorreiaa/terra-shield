@@ -99,11 +99,21 @@ struct ComponentGallery: View {
             source("Stale source", success: -19 * 3600, stale: true, poll: 600),
             source("Monthly source", success: -1800, stale: false, poll: 21_600, cadence: "monthly release",
                    coverage: "Armed-conflict events, monthly research estimates"),
+            {
+                // Fetched only while its layer is on (adsb.lol, #43).
+                var s = source("On-demand source", success: nil, stale: false, poll: 60,
+                               coverage: "Live aircraft positions")
+                s.onDemand = true
+                return s
+            }(),
         ]
         return VStack(alignment: .leading, spacing: ShieldSpace.s3) {
             DisclaimerBanner(style: .inline)
             DisclaimerBanner(style: .footer)
-            ForEach(rows) { SourceRow(source: $0, now: now) }
+            // The on-demand row first: it's the newest case (#43).
+            ForEach(rows.filter { $0.onDemand == true } + rows.filter { $0.onDemand != true }) {
+                SourceRow(source: $0, now: now)
+            }
         }
         .padding(ShieldSpace.s4)
         .frame(maxWidth: 420)

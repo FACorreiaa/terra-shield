@@ -31,11 +31,24 @@ struct EventRow: View {
                         .foregroundStyle(Color.muted)
                         .labelStyle(.titleAndIcon)
                 }
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: ShieldSpace.s2) { kindAndSource }
-                    VStack(alignment: .leading, spacing: ShieldSpace.s1) { kindAndSource }
+                if event.type == .conflict {
+                    // A monthly estimate: deaths and its dates, never "updated N ago" (attrs.md).
+                    if let deaths = event.sourceSeverity {
+                        Text(deaths).font(ShieldFont.meta).foregroundStyle(Color.ink)
+                    }
+                    Text(event.conflictDateLine)
+                        .font(ShieldFont.meta)
+                        .foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: ShieldSpace.s2) { kindAndSource }
+                        VStack(alignment: .leading, spacing: ShieldSpace.s1) { kindAndSource }
+                    }
                 }
-                if event.isResolved {
+                if event.type == .conflict {
+                    EmptyView()
+                } else if event.isResolved {
                     ResolvedLabel(event: event)
                 } else {
                     FreshnessLabel(updatedAt: event.updatedAt, fetchedAt: lastFetch,
@@ -70,6 +83,9 @@ struct EventRow: View {
     /// Like the marker's label, plus what a list can add (DESIGN.md §14): "M6.1 earthquake off
     /// Coquimbo. Severe earthquake, observed, updated 12 min ago, source USGS."
     private var accessibilityText: String {
+        if event.type == .conflict {
+            return "\(event.title). " + EventMarkerView.spoken(event, isStale: false)
+        }
         var parts = [
             "\(event.severity.label) \(event.type.label.lowercased())",
             event.kind.label.lowercased(),

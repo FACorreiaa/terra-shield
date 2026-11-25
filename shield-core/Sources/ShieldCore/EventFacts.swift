@@ -45,6 +45,7 @@ extension HazardEvent {
 
     /// One line on why the severity reads as it does, or nil when the badge says it all.
     public var severityNote: String? {
+        if type == .conflict { return conflictSeverityNote }
         if isPrescribed { return "A planned, controlled fire, shown as minor whatever its size." }
         if attrs["guidance"]?.boolValue == true {
             // PTWC threat forecasts (#25): advice to governments, never a warning to the public.
@@ -106,6 +107,9 @@ extension HazardEvent {
         if type == .tsunami, attrs["center"] != nil {
             return tsunamiFigures
         }
+        if type == .conflict {
+            return conflictFigures
+        }
         if let quake = earthquake {
             add("Magnitude", quake.magnitude.map { m in
                 [String(format: "%.1f", m), quake.magnitudeType].compactMap { $0 }.joined(separator: " ")
@@ -153,11 +157,14 @@ extension HazardEvent {
 public struct DetailTime: Sendable, Hashable, Identifiable {
     public var label: String
     public var date: Date
+    /// Shown as a day ("10 Sep"), never as "N ago": a conflict's dates are months old estimates.
+    public var dateOnly: Bool
     public var id: String { label }
 
-    public init(label: String, date: Date) {
+    public init(label: String, date: Date, dateOnly: Bool = false) {
         self.label = label
         self.date = date
+        self.dateOnly = dateOnly
     }
 }
 
@@ -166,6 +173,7 @@ extension HazardEvent {
     /// expires. A time equal to the one before it is left out (MeteoAlarm's onset is also its
     /// observation time).
     public func detailTimes(now: Date = .now) -> [DetailTime] {
+        if type == .conflict { return conflictTimes }
         var out: [DetailTime] = []
         func add(_ label: String, _ date: Date?) {
             guard let date, out.last?.date != date else { return }
@@ -226,7 +234,9 @@ extension HazardEvent {
 
     /// Where the marker is not: a forecast sits on the earthquake, and its countries come from
     /// the forecast's list (`attrs.geometry == "epicenter"`). Nil when the map draws the coasts.
+    /// A conflict geocoded only roughly says so (docs/attrs.md, `locationPrecision`).
     public var locationNote: String? {
+        if type == .conflict { return conflictLocationNote }
         guard type == .tsunami, attrs["geometry"]?.stringValue == "epicenter" else { return nil }
         return "Shown at the earthquake’s epicentre. The waves reach the places listed below."
     }
@@ -304,5 +314,109 @@ extension HazardEvent {
             parts.append(Locale(identifier: "en").localizedString(forRegionCode: iso2) ?? iso2)
         }
         return parts.joined(separator: " · ")
+    }
+}
+
+// MARK: - Armed conflicts (UCDP, ADR 27; docs/attrs.md)
+
+extension HazardEvent {
+    /// Anything but an exact geocode is drawn as approximate.
+    public var isApproximateLocation: Bool {
+        type == .conflict && attrs["locationPrecision"]?.stringValue.map { $0 != "exact" } == true
+    }
+
+    /// docs/severity.md "Armed conflicts": the level is the best death estimate; provisional
+    /// while UCDP checks the row, or when one row sums a month or more of incidents.
+    fileprivate var conflictSeverityNote: String {
+        let basis = "Rated from UCDP’s best estimate of deaths."
+        guard severityProvisional else { return basis }
+        if let status = attrs["codeStatus"]?.stringValue, status != "Clear" {
+            return "\(basis) Provisional: UCDP is still checking this event (\(status))."
+        }
+        return "\(basis) Provisional: one total for incidents over a month or more."
+    }
+
+    fileprivate var conflictLocationNote: String? {
+        switch attrs["locationPrecision"]?.stringValue {
+        case "within_25km": "Approximate location: within 25 km of the point shown."
+        case "admin2": "Approximate location: UCDP places this at the district’s centre."
+        case "admin1": "Approximate location: UCDP places this at the province’s centre."
+        case "area": "Approximate location: UCDP records a wider area or a line, shown at its centre."
+        default: nil
+        }
+    }
+
+    fileprivate var conflictFigures: [KeyFigure] {
+        var out: [KeyFigure] = []
+        func add(_ label: String, _ value: String?, lead: Bool = false) {
+            guard let value, !value.isEmpty else { return }
+            out.append(KeyFigure(label: label, value: value, isLead: lead && out.isEmpty))
+        }
+        func int(_ key: String) -> Int? { attrs[key]?.doubleValue.map { Int($0) } }
+        func string(_ key: String) -> String? { attrs[key]?.stringValue }
+        func deaths(_ n: Int) -> String { n == 1 ? "1 death" : "\(Figures.number(Double(n))) deaths" }
+
+        add("Deaths", int("deathsBest").map { Figures.number(Double($0)) }, lead: true)
+        if let low = int("deathsLow"), let high = int("deathsHigh"), low != high {
+            add("Estimate range", "\(Figures.number(Double(low)))–\(Figures.number(Double(high)))")
+        }
+        let violence: String? = switch string("violenceType") {
+            case "state_based": "State-based (a government is a side)"
+            case "non_state": "Non-state (organized groups)"
+            case "one_sided": "One-sided (against civilians)"
+            default: nil
+        }
+        add("Violence", violence)
+        add("Conflict", string("conflictName"))
+        let civilians = int("deathsCivilians") ?? 0
+        let sideB = string("sideB")
+        if let a = string("sideA") { add("Side A", "\(a) · \(deaths(int("deathsSideA") ?? 0))") }
+        if let sideB {
+            let n = sideB == "Civilians" ? civilians : (int("deathsSideB") ?? 0)
+            add("Side B", "\(sideB) · \(deaths(n))")
+        }
+        if sideB != "Civilians", civilians > 0 { add("Civilians", deaths(civilians)) }
+        if let unknown = int("deathsUnknown"), unknown > 0 { add("Unknown", deaths(unknown)) }
+        let location: String? = switch string("locationPrecision") {
+            case "within_25km": "Within 25 km"
+            case "admin2": "District (approximate)"
+            case "admin1": "Province (approximate)"
+            case "area": "Wider area (approximate)"
+            default: nil
+        }
+        add("Location", location)
+        if let status = string("codeStatus"), status != "Clear" { add("UCDP review", status) }
+        add("Sources used", int("sourceCount").map(String.init))
+        return out
+    }
+
+    /// From and To (or one Date), then when the app stops showing it: days, not times.
+    fileprivate var conflictTimes: [DetailTime] {
+        var out: [DetailTime] = []
+        let from = startedAt ?? observedAt
+        if Self.utcDay(from) == Self.utcDay(observedAt) {
+            out.append(DetailTime(label: "Date", date: observedAt, dateOnly: true))
+        } else {
+            out.append(DetailTime(label: "From", date: from, dateOnly: true))
+            out.append(DetailTime(label: "To", date: observedAt, dateOnly: true))
+        }
+        if let raw = attrs["expiresAt"]?.stringValue, let until = try? Date(raw, strategy: .iso8601) {
+            out.append(DetailTime(label: "Shown until", date: until, dateOnly: true))
+        }
+        return out
+    }
+
+    /// The row's line, in place of "updated N ago": "9 Aug – 10 Sep · monthly estimate (UCDP)".
+    public var conflictDateLine: String {
+        let from = startedAt ?? observedAt
+        let days = Self.utcDay(from) == Self.utcDay(observedAt)
+            ? Self.utcDay(observedAt) : "\(Self.utcDay(from)) – \(Self.utcDay(observedAt))"
+        return "\(days) · monthly estimate (UCDP)"
+    }
+
+    /// "10 Sep", in UTC: UCDP dates are days without a time zone.
+    public static func utcDay(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(timeZone: TimeZone(identifier: "UTC")!)
+            .locale(Locale(identifier: "en_GB")).day().month(.abbreviated))
     }
 }

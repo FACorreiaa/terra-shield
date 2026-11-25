@@ -15,6 +15,9 @@ final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
     var failure: (any Error)?
     var fireFailure: (any Error)?
     var sourcesFailure: (any Error)?
+    var conflictFailure: (any Error)?
+    private var _conflictRequests: [EventQuery] = []
+    var conflictRequests: [EventQuery] { lock.withLock { _conflictRequests } }
 
     var requests: [MapViewport] { lock.withLock { _requests } }
     var fireRequests: Int { lock.withLock { _fireRequests } }
@@ -30,6 +33,13 @@ final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
     }
 
     func snapshot(matching query: EventQuery, in viewport: MapViewport) async throws -> MapSnapshot {
+        // The conflicts layer's own request, counted apart from the map's.
+        if query.types == [.conflict] {
+            lock.withLock { _conflictRequests.append(query) }
+            if let conflictFailure { throw conflictFailure }
+            return MapSnapshot(events: [ConflictFixture.yemen()], clusters: [], truncated: false,
+                               generatedAt: .init(timeIntervalSince1970: 0))
+        }
         lock.withLock { _requests.append(viewport) }
         if let delay = delays[viewport.zoom] { try await Task.sleep(for: delay) }
         if let failure { throw failure }

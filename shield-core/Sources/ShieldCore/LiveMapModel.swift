@@ -80,6 +80,22 @@ public final class LiveMapModel {
         }
     }
 
+    /// Armed conflicts in view (ADR 27): their own snapshot, so they never join the hazard
+    /// counts, clusters or list. Nil while the layer is off.
+    public private(set) var conflicts: MapSnapshot?
+    /// The conflicts layer's last load failed; the hazards are unaffected.
+    public private(set) var conflictsFailed = false
+
+    /// The conflicts layer; off by default. Saved with the filters.
+    public var showsConflicts = false {
+        didSet {
+            guard showsConflicts != oldValue, !restoring else { return }
+            if !showsConflicts { conflicts = nil; conflictsFailed = false }
+            save()
+            reload()
+        }
+    }
+
     /// The FIRMS layer; off by default (DESIGN.md §5). Saved with the filters.
     public var showsDetections = false {
         didSet {
@@ -133,6 +149,7 @@ public final class LiveMapModel {
     public var selectedEvent: HazardEvent? {
         guard let selectedEventID else { return nil }
         if let shown = snapshot?.events.first(where: { $0.id == selectedEventID }) { return shown }
+        if let conflict = conflicts?.events.first(where: { $0.id == selectedEventID }) { return conflict }
         if chosenEvent?.id == selectedEventID { return chosenEvent }
         // Out of the snapshot (panned away, joined a cluster, opened by id, or gone): the detail's
         // copy keeps it on screen.
@@ -177,6 +194,7 @@ public final class LiveMapModel {
             restoring = true
             query = saved.query
             showsDetections = saved.showsDetections
+            showsConflicts = saved.showsConflicts
             restoring = false
         }
     }
@@ -185,7 +203,7 @@ public final class LiveMapModel {
     @ObservationIgnored private var restoring = false
 
     private func save() {
-        filterStore?.save(SavedFilters(query: query, showsDetections: showsDetections))
+        filterStore?.save(SavedFilters(query: query, showsDetections: showsDetections, showsConflicts: showsConflicts))
     }
 
     /// The map settled on a new region. Loads after `debounce` unless another change follows.
@@ -399,10 +417,12 @@ public final class LiveMapModel {
 
     private func load(generation: Int) async {
         let viewport = viewport, query = query, wantsDetections = showsDetections, provider = provider
+        let wantsConflicts = showsConflicts
         async let events = Self.capture { try await provider.snapshot(matching: query, in: viewport) }
         async let fires = Self.detections(from: provider, in: viewport, if: wantsDetections)
+        async let conflictList = Self.conflicts(from: provider, in: viewport, if: wantsConflicts)
         async let sourceList = Self.capture { try await provider.sources() }
-        let (eventResult, fireResult, sourceResult) = await (events, fires, sourceList)
+        let (eventResult, fireResult, conflictResult, sourceResult) = await (events, fires, conflictList, sourceList)
         // A newer load started meanwhile: its answer is the one to show.
         guard generation == self.generation, !Task.isCancelled else { return }
 
@@ -416,6 +436,16 @@ public final class LiveMapModel {
             phase = .failed(LoadFailure(error))
         }
         if case .success(let list) = sourceResult { setSources(list) }
+        switch conflictResult {
+        case .success(let layer)?:
+            // Off again while it loaded: drop it.
+            if showsConflicts { conflicts = layer }
+            conflictsFailed = false
+        case .failure(let error)?:
+            if !LoadFailure.isCancellation(error) { conflictsFailed = true }
+        case nil:
+            break
+        }
         switch fireResult {
         case .success(let layer)?:
             detections = layer
@@ -470,6 +500,13 @@ public final class LiveMapModel {
     /// Waits for an in-flight area fetch (tests).
     func settleArea() async {
         await areaTask?.value
+    }
+
+    private nonisolated static func conflicts(
+        from provider: any HazardEventProvider, in viewport: MapViewport, if wanted: Bool
+    ) async -> Result<MapSnapshot, any Error>? {
+        guard wanted else { return nil }
+        return await capture { try await provider.snapshot(matching: .conflicts, in: viewport) }
     }
 
     private nonisolated static func detections(
