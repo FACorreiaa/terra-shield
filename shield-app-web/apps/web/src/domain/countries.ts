@@ -9,6 +9,7 @@ import type { GeoBox } from "./geo.ts";
 import { geoBox, longitudeSpan, WORLD } from "./geo.ts";
 import type { EventType } from "./taxonomy.ts";
 import { compareSeverity, eventType, isAtLeast, typeLabel } from "./taxonomy.ts";
+import { fold } from "./text.ts";
 
 type Country = components["schemas"]["Country"];
 type CountrySummary = components["schemas"]["CountrySummary"];
@@ -39,17 +40,11 @@ const WRAPPED_SPAN = 300;
 const HALF_TURN = 180;
 const FULL_TURN = 360;
 const ISO2 = /^[A-Z]{2}$/u;
-const DIACRITICS = /\p{Diacritic}/gu;
 
 /** "PT" for "pt" or " Pt ", undefined for anything that isn't two letters A–Z (the API answers 400). */
 function normalizedCode(raw: string): string | undefined {
   const code = raw.trim().toUpperCase();
   return ISO2.test(code) ? code : undefined;
-}
-
-/** Lower case without accents, so "Côte" matches "cote". */
-function fold(text: string): string {
-  return text.normalize("NFD").replaceAll(DIACRITICS, "").toLowerCase();
 }
 
 /** 0 for an exact ISO code, 1 for a name that starts with the text, 2 for one that contains it. */

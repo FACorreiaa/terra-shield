@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 
 import { AppFrame } from "@/app/shell/AppFrame.tsx";
 import { LiveMapProvider } from "@/app/shell/LiveMapProvider.tsx";
+import { MapSearchProvider } from "@/app/shell/MapSearchProvider.tsx";
 
 /**
  * The app's pathless layout. Every map-backed section (`/map`, later `/c/$iso2`, `/sources`, …)
@@ -11,9 +12,11 @@ import { LiveMapProvider } from "@/app/shell/LiveMapProvider.tsx";
 function AppLayout(): ReactElement {
   return (
     <LiveMapProvider>
-      <AppFrame>
-        <Outlet />
-      </AppFrame>
+      <MapSearchProvider>
+        <AppFrame>
+          <Outlet />
+        </AppFrame>
+      </MapSearchProvider>
     </LiveMapProvider>
   );
 }

@@ -12,8 +12,11 @@ const VELOCITY_WINDOW_MS = 80;
 const MS_PER_SECOND = 1000;
 /** How many recent pointer samples are kept for the release velocity. */
 const VELOCITY_SAMPLES = 8;
-/** Presses on these keep their own meaning (a click, typing) instead of starting a drag. */
-const INTERACTIVE = "input, textarea, select, a, button:not([data-sheet-handle])";
+/**
+ * Presses on these keep their own meaning (a click, typing) instead of starting a drag. The search
+ * field's whole box counts, its padding and magnifier too.
+ */
+const INTERACTIVE = "input, textarea, select, a, button:not([data-sheet-handle]), [data-search-field]";
 
 interface Sample {
   height: number;

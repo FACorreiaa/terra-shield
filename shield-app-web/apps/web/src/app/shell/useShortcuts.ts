@@ -7,6 +7,8 @@ import { fitWorld } from "@/features/map/useHazardMap.ts";
 
 import type { LiveMap } from "./liveMapContext.ts";
 import { useLiveMap } from "./liveMapContext.ts";
+import type { MapSearch } from "./mapSearchContext.ts";
+import { useMapSearch } from "./mapSearchContext.ts";
 import { SECTIONS } from "./sections.ts";
 import type { Shortcut } from "./shortcuts.ts";
 import { neighbour, shortcutFor } from "./shortcuts.ts";
@@ -18,6 +20,7 @@ interface ShortcutTargets {
 
 interface Context extends ShortcutTargets {
   live: LiveMap;
+  search: MapSearch;
   goTo: (to: "/map") => void;
 }
 
@@ -31,7 +34,11 @@ function revealSelected(id: string): void {
   });
 }
 
-function step({ live }: Context, direction: 1 | -1): boolean {
+function step({ live, search }: Context, direction: 1 | -1): boolean {
+  // While searching, the list under the results is hidden: stepping through it would select blind.
+  if (search.active) {
+    return false;
+  }
   const next = neighbour(live.list, live.selectedId, direction);
   if (next === undefined) {
     return false;
@@ -51,7 +58,11 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
   },
   next: (context) => step(context, 1),
   previous: (context) => step(context, -1),
-  clear: ({ live }) => {
+  clear: ({ live, search }) => {
+    if (search.active) {
+      search.end();
+      return true;
+    }
     live.select(undefined);
     return live.selectedId !== undefined;
   },
@@ -76,6 +87,7 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
     void live.events.refetch();
     return true;
   },
+  search: ({ search }) => search.focus(),
   help: ({ help }) => {
     help.current?.showModal();
     return true;
@@ -85,12 +97,13 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
 /** Binds the shortcuts in `shortcuts.ts` to the app: sections, selection, map and refresh. */
 function useShortcuts(targets: ShortcutTargets): void {
   const live = useLiveMap();
+  const search = useMapSearch();
   const navigate = useNavigate();
   const run = useEffectEvent((shortcut: Shortcut): boolean => {
     const goTo = (to: "/map"): void => {
       void navigate({ to });
     };
-    return HANDLERS[shortcut.action]({ ...targets, live, goTo }, shortcut);
+    return HANDLERS[shortcut.action]({ ...targets, live, search, goTo }, shortcut);
   });
 
   useEffect(() => {

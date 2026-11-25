@@ -3,25 +3,22 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement } from "react";
 import { useCallback } from "react";
 
+import { geoBox } from "@/domain/geo.ts";
+
 import { ClusterMarker } from "./ClusterMarker.tsx";
 import { ExtremeHalo } from "./ExtremeHalo.tsx";
-import { insetsPlus } from "./mapInsets.ts";
+import { fitBox } from "./fitBox.ts";
 import { MapMarker } from "./MapMarker.tsx";
 import { markerSize } from "./markerArt.ts";
 
 const CLUSTER_FIT = { breathingRoom: 48, maxZoom: 7 } as const;
-const FULL_TURN = 360;
 
-/** Zooms to a cluster's extent; a box across ±180° is unwrapped so the camera takes the short way. */
+/** Zooms to a cluster's extent. */
 function fitCluster(map: MapLibreMap, cluster: EventCluster): void {
-  const [west, south, east, north] = cluster.bbox;
-  if (west === undefined || south === undefined || east === undefined || north === undefined) {
-    return;
+  const box = geoBox(cluster.bbox);
+  if (box !== undefined) {
+    fitBox(map, box, CLUSTER_FIT);
   }
-  map.fitBounds([west, south, east < west ? east + FULL_TURN : east, north], {
-    padding: insetsPlus(CLUSTER_FIT.breathingRoom),
-    maxZoom: CLUSTER_FIT.maxZoom,
-  });
 }
 
 function ClusterPin({ map, cluster }: { map: MapLibreMap; cluster: EventCluster }): ReactElement {

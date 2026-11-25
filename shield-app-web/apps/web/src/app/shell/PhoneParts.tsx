@@ -1,14 +1,13 @@
 import type { ReactElement } from "react";
-import { use, useCallback } from "react";
+import { useCallback } from "react";
 
 import { toggling } from "@/domain/filters.ts";
 import type { StatFilter } from "@/domain/statStrip.ts";
 import { FilterChips } from "@/features/filters/FilterChips.tsx";
 import { ErrorBanner } from "@/features/monitor/ErrorBanner.tsx";
-import { CompactStatStrip, StatStrip } from "@/features/monitor/StatStrip.tsx";
+import { StatStrip } from "@/features/monitor/StatStrip.tsx";
 
 import { useLiveMap } from "./liveMapContext.ts";
-import { RestingDetent } from "./sheetDetents.ts";
 import { useCells } from "./useCells.ts";
 import { useRetry } from "./useRetry.ts";
 
@@ -46,21 +45,4 @@ function SheetStrip(): ReactElement {
   );
 }
 
-/**
- * Always in view, even at peek: the title and the compact strip. From half height up the full strip
- * takes over in the sheet's body, so the line hides but keeps its height and the peek never shifts.
- */
-function SheetHeader(): ReactElement {
-  const detent = use(RestingDetent);
-  const cells = useCells();
-  return (
-    <div className="flex flex-col gap-1 px-4 pb-3">
-      <h1 className="text-title text-ink">Live events</h1>
-      <div className={detent === "peek" ? undefined : "invisible"}>
-        <CompactStatStrip cells={cells} />
-      </div>
-    </div>
-  );
-}
-
-export { PhoneTopStack, SheetHeader, SheetStrip };
+export { PhoneTopStack, SheetStrip };
