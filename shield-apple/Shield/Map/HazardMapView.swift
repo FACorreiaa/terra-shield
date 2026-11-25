@@ -145,10 +145,10 @@ struct HazardMapView {
             // crashed the app on "Show the whole world" (2026-11-25). Crossing zoom 6, every
             // event marker is replaced instead, so `viewFor` configures fresh views.
             if reclustering {
-                hazards.renewEvents(on: map)
-                conflictSet.renewEvents(on: map)
+                hazards.renewEvents().apply(to: map)
+                conflictSet.renewEvents().apply(to: map)
             }
-            if let snapshot { hazards.diff(snapshot, on: map) }
+            if let snapshot { hazards.diff(snapshot).apply(to: map) }
             if restyle { restyleVisibleMarkers(on: map) }
             syncSelection(on: map)
         }
@@ -156,7 +156,8 @@ struct HazardMapView {
         /// The conflicts layer's snapshot; nil (layer off) removes every conflict annotation.
         func apply(conflicts: MapSnapshot?) {
             guard let map else { return }
-            conflictSet.diff(conflicts ?? MapSnapshot(events: [], clusters: [], truncated: false, generatedAt: .now), on: map)
+            conflictSet.diff(conflicts ?? MapSnapshot(events: [], clusters: [], truncated: false, generatedAt: .now))
+                .apply(to: map)
             syncSelection(on: map)
         }
 
@@ -497,18 +498,29 @@ private struct AnnotationSet {
 
     init(isConflict: Bool) { self.isConflict = isConflict }
 
+    /// What to take off the map and put on it. Applied by the caller once the set's mutation has
+    /// ended: removing the selected annotation calls `didDeselect` at once, which reads the
+    /// sets, and a read during a `mutating` call is an exclusivity violation (a trap).
+    @MainActor struct Changes {
+        var removed: [any MKAnnotation] = []
+        var added: [any MKAnnotation] = []
+
+        func apply(to map: MKMapView) {
+            if !removed.isEmpty { map.removeAnnotations(removed) }
+            if !added.isEmpty { map.addAnnotations(added) }
+        }
+    }
+
     /// Replaces every event annotation with a new one for the same event, so MapKit drops the
     /// old views and asks `viewFor` again. Replaced in the set before removal: `didDeselect`
     /// then sees the old selected annotation is no longer the live one and keeps the selection.
-    mutating func renewEvents(on map: MKMapView) {
-        guard !events.isEmpty else { return }
+    mutating func renewEvents() -> Changes {
         let old = Array(events.values)
         events = events.mapValues { EventAnnotation($0.event) }
-        map.removeAnnotations(old)
-        map.addAnnotations(Array(events.values))
+        return Changes(removed: old, added: Array(events.values))
     }
 
-    mutating func diff(_ snapshot: MapSnapshot, on map: MKMapView) {
+    mutating func diff(_ snapshot: MapSnapshot) -> Changes {
         var removed: [any MKAnnotation] = []
         var added: [any MKAnnotation] = []
 
@@ -534,7 +546,6 @@ private struct AnnotationSet {
             added.append(annotation)
         }
 
-        if !removed.isEmpty { map.removeAnnotations(removed) }
-        if !added.isEmpty { map.addAnnotations(added) }
+        return Changes(removed: removed, added: added)
     }
 }
