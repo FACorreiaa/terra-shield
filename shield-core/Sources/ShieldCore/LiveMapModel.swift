@@ -741,6 +741,9 @@ public final class LiveMapModel {
                 self.historicAnswered = wanted
                 self.historicFailed = false
                 self.historicFailedAt = nil
+                // A view that moved while this was asked waited on it; if the answer doesn't
+                // serve it after all (too dense for chips, cut short), ask for it now.
+                self.startHistoric()
             case .failure(let error):
                 if LoadFailure.isCancellation(error) { return }
                 self.historicFailed = true

@@ -202,6 +202,25 @@ enum HistoricFixture {
         #expect(p.historicRequests.count == 2)
     }
 
+    /// A zoom-in while the wider view's request is in flight waits for it; when that answer turns
+    /// out too dense for chips, the zoomed-in view is asked for at once, not at the next move.
+    @Test func aZoomInWaitingOnATooDenseAnswerIsAskedForWhenItArrives() async {
+        let p = ScriptedProvider()
+        p.historicDelay = .milliseconds(80)
+        p.historicAnswer = HistoricFixture.points(Array(repeating: HistoricFixture.fortress,
+                                                        count: HistoricLayer.chipLimit + 1))
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        for _ in 0..<200 where p.historicRequests.isEmpty { try? await Task.sleep(for: .milliseconds(2)) }
+        let inside = MapViewport(box: GeoBox(minLongitude: 10.2, minLatitude: 47.2, maxLongitude: 10.8, maxLatitude: 47.8), zoom: 11)
+        m.viewportDidChange(inside)
+        await m.settleMap()
+        #expect(p.historicRequests.count == 1) // the request in flight covers it
+        for _ in 0..<200 where p.historicRequests.count < 2 { try? await Task.sleep(for: .milliseconds(5)) }
+        #expect(p.historicRequests.map(\.box) == [alps.box, inside.box])
+    }
+
     @Test func changingTheKindsAsksAgainWithOnlyThoseKinds() async {
         let p = ScriptedProvider()
         let m = model(p)
