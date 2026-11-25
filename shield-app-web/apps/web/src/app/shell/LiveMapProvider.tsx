@@ -35,14 +35,14 @@ function useNow(): Date {
  */
 function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   const [view, setView] = useState<View>(WHOLE_WORLD);
-  const { selectedId, select } = useUrlSelection();
+  const { selectedId, select, chosen, choose } = useUrlSelection();
   const [map, setMap] = useState<MapLibreMap>();
   const now = useNow();
   const { query } = useSavedFilters();
   const events = useEvents(view, query);
   const { shown, status, failure } = useShownEvents(events, now);
   const { list, clusters } = useDisplayed(shown);
-  const { selected, detail, selectedShape } = useSelectedEvent(selectedId, list);
+  const { selected, detail, selectedShape } = useSelectedEvent(selectedId, list, chosen);
   const { sources, staleSources } = useSourceHealth(now);
   const value = useMemo<LiveMap>(
     () => ({
@@ -52,6 +52,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       setMap,
       selectedId,
       select,
+      choose,
       selected,
       detail,
       selectedShape,
@@ -72,6 +73,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       map,
       selectedId,
       select,
+      choose,
       selected,
       detail,
       selectedShape,

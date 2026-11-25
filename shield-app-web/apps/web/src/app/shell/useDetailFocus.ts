@@ -7,7 +7,9 @@ const DETAIL_HEADING = "data-detail-heading";
 
 /** Focus went with the element that held it (a row the sheet replaced, a Close button removed). */
 function focusLost(): boolean {
-  return document.activeElement === null || document.activeElement === document.body;
+  const active = document.activeElement;
+  // A section hidden under the detail keeps its focused row mounted; focus there is lost to sight.
+  return active === null || active === document.body || active.closest("[hidden]") !== null;
 }
 
 /** Puts keyboard focus on the list's row for `id`, once the list is in place. */

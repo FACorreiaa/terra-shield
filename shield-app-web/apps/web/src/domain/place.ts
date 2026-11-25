@@ -9,17 +9,20 @@ function countryName(iso2: string): string {
   return ISO2.test(iso2) ? (regionNames.of(iso2) ?? iso2) : iso2;
 }
 
+/** One of an event's countries in words: "Chile", or "Off the coast of Chile, 38 km". */
+function phrase(country: HazardEvent["countries"][number]): string {
+  const name = countryName(country.iso2);
+  if (country.relation === "within") {
+    return name;
+  }
+  return country.distanceKm === undefined
+    ? `Off the coast of ${name}`
+    : `Off the coast of ${name}, ${Math.round(country.distanceKm)} km`;
+}
+
 /** "Chile", or "Off the coast of Chile, 38 km": never "in" for nearby (DESIGN.md §15). */
 function place(event: Pick<HazardEvent, "countries">): string | undefined {
-  const names = event.countries.map((country) => {
-    const name = countryName(country.iso2);
-    if (country.relation === "within") {
-      return name;
-    }
-    return country.distanceKm === undefined
-      ? `Off the coast of ${name}`
-      : `Off the coast of ${name}, ${Math.round(country.distanceKm)} km`;
-  });
+  const names = event.countries.map(phrase);
   return names.length > 0 ? names.join(", ") : undefined;
 }
 
@@ -37,4 +40,4 @@ function nearbyWords(event: Pick<HazardEvent, "countries">, iso2: string, name: 
     : `Near ${name}, ${Math.round(link.distanceKm)} km offshore`;
 }
 
-export { countryName, nearbyWords, place };
+export { countryName, nearbyWords, phrase, place };

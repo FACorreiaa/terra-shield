@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { MapSearch } from "./mapSearchContext.ts";
 import { MapSearchContext, SEARCH_AREA } from "./mapSearchContext.ts";
 import { useIsWide } from "./useBreakpoint.ts";
+import { usePage } from "./usePage.ts";
 
 /** Whether keyboard focus is in the field or on one of its results. */
 function focusInSearch(): boolean {
@@ -35,6 +36,17 @@ function MapSearchProvider({ children }: { children: ReactNode }): ReactElement 
     field.current?.focus();
     return field.current !== null;
   }, []);
+  // The Countries list hides the field, so a search carried there from another section ends.
+  // Adjusted during render; the field is gone, so there is no focus to look after.
+  const { listing } = usePage();
+  const [wasListing, setWasListing] = useState(listing);
+  if (listing !== wasListing) {
+    setWasListing(listing);
+    if (listing) {
+      setText("");
+      setEditing(false);
+    }
+  }
   const value = useMemo<MapSearch>(
     () => ({ text, setText, editing, setEditing, active: (editing && !wide) || text.trim() !== "", end, focus, field }),
     [text, editing, wide, end, focus],

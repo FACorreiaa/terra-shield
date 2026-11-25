@@ -1,11 +1,11 @@
 import type { HazardEvent } from "@shield/api-client";
-import { MapPin, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { locationNote } from "@/domain/eventFacts.ts";
-import { place } from "@/domain/place.ts";
 import type { MarkerState } from "@/features/map/markerArt.ts";
 
+import { CountryLinks } from "./CountryLinks.tsx";
 import { EventGlyph } from "./EventGlyph.tsx";
 
 /** DESIGN.md §12: the types that get a background behind the detail's header; the rest keep the plain panel. */
@@ -55,7 +55,6 @@ function markerState(event: HazardEvent, stale: boolean): MarkerState {
 }
 
 function DetailHeader({ event, stale, gone, onClose }: DetailHeaderProps): ReactElement {
-  const where = place(event);
   const note = locationNote(event);
   const muted = event.status === "resolved" || gone;
   return (
@@ -75,12 +74,7 @@ function DetailHeader({ event, stale, gone, onClose }: DetailHeaderProps): React
         >
           {event.title}
         </h2>
-        {where === undefined ? undefined : (
-          <p className="flex items-start gap-1.5 text-meta text-muted">
-            <MapPin className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            {where}
-          </p>
-        )}
+        <CountryLinks countries={event.countries} />
         {note === undefined ? undefined : <p className="text-meta text-muted">{note}</p>}
       </div>
       <button

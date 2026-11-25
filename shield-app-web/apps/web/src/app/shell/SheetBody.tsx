@@ -9,13 +9,15 @@ import { SheetStrip } from "./PhoneParts.tsx";
 import { SearchPanel } from "./SearchPanel.tsx";
 import { SelectedDetail } from "./SelectedDetail.tsx";
 import { RestingDetent } from "./sheetDetents.ts";
+import { usePage } from "./usePage.ts";
 
-/** The section, under the full strip from half height up. */
+/** The section, under the map's full strip from half height up; Countries has its own numbers. */
 function SectionBody({ children }: { children: ReactNode }): ReactElement {
   const detent = use(RestingDetent);
+  const { onMap } = usePage();
   return (
     <>
-      {detent === "peek" ? undefined : <SheetStrip />}
+      {detent === "peek" || !onMap ? undefined : <SheetStrip />}
       {children}
     </>
   );
@@ -23,21 +25,26 @@ function SectionBody({ children }: { children: ReactNode }): ReactElement {
 
 /**
  * What the sheet's body shows: search's results while searching (they win over a selection, as in
- * MapSheet.swift), else the selected event, else the section. The disclaimer closes it, so it is
- * always one scroll away; the event's detail carries its own.
+ * MapSheet.swift), else the selected event, else the section. The section stays mounted under
+ * them, so a country keeps its filter and camera. The disclaimer closes it, so it is always one
+ * scroll away; the event's detail carries its own.
  */
 function SheetBody({ children }: { children: ReactNode }): ReactElement {
   const { selectedId } = useLiveMap();
   const { active } = useMapSearch();
-  if (!active && selectedId !== undefined) {
-    return <SelectedDetail />;
-  }
+  const detail = !active && selectedId !== undefined;
   return (
     <>
-      {active ? <SearchPanel /> : <SectionBody>{children}</SectionBody>}
-      <footer className="border-t border-hairline px-4 py-4">
-        <DisclaimerBanner variant="footer" />
-      </footer>
+      {active ? <SearchPanel /> : undefined}
+      {detail ? <SelectedDetail /> : undefined}
+      <div hidden={active || detail}>
+        <SectionBody>{children}</SectionBody>
+      </div>
+      {detail ? undefined : (
+        <footer className="border-t border-hairline px-4 py-4">
+          <DisclaimerBanner variant="footer" />
+        </footer>
+      )}
     </>
   );
 }

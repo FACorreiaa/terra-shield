@@ -50,10 +50,16 @@ function setChromeMoving(moving: boolean): void {
  * Runs `move` once the chrome has settled: after this frame's layout (an inspector closing), and
  * after a sheet that started moving has come to rest. Fitting earlier would use the insets of the
  * chrome as it was; the apps wait for the sheet the same way. A newer move replaces a waiting one.
+ * Returns a cancel for the move, while it still waits.
  */
-function whenChromeRests(move: () => void): void {
+function whenChromeRests(move: () => void): () => void {
   chrome.waiting = move;
   requestAnimationFrame(flush);
+  return () => {
+    if (chrome.waiting === move) {
+      chrome.waiting = undefined;
+    }
+  };
 }
 
 export { insetsPlus, mapInsets, setChromeMoving, setMapInsets, whenChromeRests };

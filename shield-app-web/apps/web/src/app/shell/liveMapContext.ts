@@ -19,6 +19,8 @@ interface LiveMap {
   selectedId: string | undefined;
   /** Selects an event, or clears the selection with `undefined`. */
   select: (id: string | undefined) => void;
+  /** Selects an event from outside the map's list (a country's), which the map then draws too. */
+  choose: (event: HazardEvent) => void;
   /** The selected event: the map's copy, else the detail's, else as last seen once gone. */
   selected: HazardEvent | undefined;
   /** The selection's detail as it loads (DESIGN.md §10.3); undefined with nothing selected. */

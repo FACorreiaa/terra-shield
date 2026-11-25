@@ -30,12 +30,16 @@ function useHeldAnswer(id: string | undefined, data: DetailAnswer | undefined): 
  * detail's own (a shared link, an event panned away or folded into a cluster), else the event as
  * last seen once its source has dropped it. Keyed on the id, so none of those closes the detail.
  */
-function useSelectedEvent(selectedId: string | undefined, list: readonly HazardEvent[]): SelectedEvent {
+function useSelectedEvent(
+  selectedId: string | undefined,
+  list: readonly HazardEvent[],
+  chosen: HazardEvent | undefined,
+): SelectedEvent {
   const listed = useMemo(() => list.find((event) => event.id === selectedId), [list, selectedId]);
   const query = useEventDetail(selectedId, listed?.updatedAt);
   const answer = useHeldAnswer(selectedId, query.data);
   const loaded = answer?.found === true ? answer.detail : undefined;
-  const current = listed ?? loaded;
+  const current = listed ?? loaded ?? chosen;
   const [seen, setSeen] = useState<HazardEvent>();
   // Adjusted during render: the last copy seen, for "gone".
   if (current !== undefined && current !== seen) {

@@ -106,7 +106,7 @@ features/
   settings/    SettingsPage
 components/    SeverityBadge, KindChip, SourceBadge, FreshnessLabel, DisclaimerBanner, EmptyState, SampleDataBadge, BottomSheet, Inspector, ui/*
 app/shell/     DesktopShell (sidebar · map · inspector), MobileShell (map · capsule · sheet), useBreakpoint, shortcuts.ts
-routes/        index (landing), _app (layout: persistent map), _app.map, _app.e.$id, _app.c.$iso2, _app.countries, _app.sources, _app.saved, _app.saved.$regionId, _app.alerts, _app.settings
+routes/        index (landing), _app (layout: persistent map), _app.map, _app.e.$id, _app.countries.index, _app.countries.$iso2 (+ c.$iso2 redirect), _app.sources, _app.saved, _app.saved.$regionId, _app.alerts, _app.settings
 ```
 
 Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
@@ -125,7 +125,7 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
 - [ ] Remove the unused deps: three, @react-three/_, @deck.gl/_, react-hook-form, @hookform/resolvers. A grep of `src/` confirmed there are no imports.
 - [ ] Add terra-draw (+ the maplibre adapter), @axe-core/playwright and zod (already present; now used).
 - [ ] Verify MapLibre 6's projection API (`setProjection({type:"globe"|"mercator"})`, sky/atmosphere) in `node_modules` before W2 relies on it.
-- [ ] Routes per the file structure. `_app` is a pathless layout that keeps one `HazardMap` mounted across `/map`, `/e/$id`, `/c/$iso2`, … . Route-level code splitting; MapLibre loads only under `_app`.
+- [ ] Routes per the file structure. `_app` is a pathless layout that keeps one `HazardMap` mounted across `/map`, `/e/$id`, `/countries/$iso2`, … . Route-level code splitting; MapLibre loads only under `_app`.
 - [ ] `lib/storage.ts` + tests (corrupt JSON, wrong version → defaults).
 - [ ] Domain ports with tests, each mirroring the matching ShieldCore test cases: `taxonomy`, `sort`, `freshness` (+stamp, resolvedWords, isStale), `eventFacts`, `filters`, `countries`, `sources`, `statStrip`, `viewport`.
 - [ ] Move the existing e2e from `/` to `/map`.
@@ -222,7 +222,7 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
   - `RevisionTimeline`: rename-only revisions dropped; "Area updated".
   - Footer: disclaimer + Share (copies the `/e/{id}` URL).
   - States: stale banner, resolved (`ok` chip, desaturated header), gone (404 → "This event is no longer published by its source" + source home).
-- [ ] **`CountryView`** (`/c/$iso2`, plus the Countries sidebar list with active counts):
+- [x] **`CountryView`** (`/countries/$iso2`, `/c/$iso2` redirects; plus the Countries sidebar list with active counts):
   - Header: name, ISO mono, freshness. Map fits `mapBox` (antimeridian rule).
   - `StatStrip`: Active · Severe+ · Official warnings ("100+" when capped).
   - `TypeSeverityMatrix`: cells filter the list.
