@@ -129,6 +129,26 @@ func TestRetryAfterSnoozes(t *testing.T) {
 	}
 }
 
+// NotReady snoozes (no attempt spent, no error recorded) until the job is
+// maxNotReady old, then fails like any error.
+func TestNotReadySnoozesThenFails(t *testing.T) {
+	src := &fakeSource{info: domain.SourceInfo{ID: "fake"}, err: &NotReady{After: 5 * time.Minute, Reason: "waiting"}}
+	w, states := newWorker(src)
+	j := job("fake")
+	j.CreatedAt = w.now().Add(-time.Hour)
+	var snooze *rivertype.JobSnoozeError
+	if err := w.Work(context.Background(), j); !errors.As(err, &snooze) || snooze.Duration != 5*time.Minute {
+		t.Fatalf("err %v, want a 5m snooze", err)
+	}
+	if states.errors["fake"] != "" {
+		t.Fatalf("a wait is not an error: %+v", states.errors)
+	}
+	j.CreatedAt = w.now().Add(-maxNotReady)
+	if err := w.Work(context.Background(), j); err == nil || errors.As(err, &snooze) {
+		t.Fatalf("past maxNotReady the poll must fail: %v", err)
+	}
+}
+
 func TestUnknownSourceIsCanceled(t *testing.T) {
 	w, _ := newWorker(&fakeSource{info: domain.SourceInfo{ID: "fake"}})
 	var cancel *rivertype.JobCancelError
@@ -152,6 +172,19 @@ func TestPeriodicJobs(t *testing.T) {
 	w := &HousekeepWorker{sources: byID([]Source{hk}), logger: slog.New(slog.DiscardHandler)}
 	if err := w.Work(context.Background(), &river.Job[HousekeepArgs]{Args: HousekeepArgs{Source: "hk"}}); err != nil || hk.ran != 1 {
 		t.Fatalf("housekeep ran %d err %v", hk.ran, err)
+	}
+}
+
+type patientSource struct{ fakeSource }
+
+func (patientSource) PollAttempts() int { return 8 }
+
+func TestPollAttempts(t *testing.T) {
+	if got := pollAttempts(&fakeSource{}); got != pollMaxAttempts {
+		t.Errorf("default %d", got)
+	}
+	if got := pollAttempts(&patientSource{}); got != 8 {
+		t.Errorf("patient source %d, want 8", got)
 	}
 }
 

@@ -96,6 +96,19 @@ type GeoDataset struct {
 	LoadedAt time.Time
 }
 
+type HistoricSite struct {
+	Qid         string
+	Name        string
+	Description *string
+	Kind        string
+	Class       string
+	Lat         float64
+	Lon         float64
+	Iso2        *string
+	CountryHint *string
+	UpdatedAt   time.Time
+}
+
 type MeteoalarmArea struct {
 	Code    string
 	Country string

@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -96,19 +95,22 @@ type Store interface {
 	Count(ctx context.Context) (int, error)
 }
 
-// Source is the ingest adapter.
-type Source struct {
-	endpoint string
-	client   *fetch.Client
-	store    Store
-	now      func() time.Time
-	// pause waits between queries; see Poll.
-	pause func(ctx context.Context, d time.Duration) error
+// baseAnswer is one class's parsed answer.
+type baseAnswer struct {
+	bases []domain.MilitaryBase
+	hints map[string]string
 }
 
-// New builds the adapter. client should allow QueryTimeout per request.
+// Source is the ingest adapter.
+type Source struct {
+	q     *pacer[baseAnswer]
+	store Store
+}
+
+// New builds the adapter. client should allow QueryTimeout per request and
+// bodies of tens of megabytes.
 func New(client *fetch.Client, store Store) *Source {
-	return &Source{endpoint: Endpoint, client: client, store: store, now: time.Now, pause: sleep}
+	return &Source{q: newPacer[baseAnswer](client), store: store}
 }
 
 // Info implements ingest.Source.
@@ -128,41 +130,37 @@ func (*Source) Info() domain.SourceInfo {
 	}
 }
 
+// PollAttempts implements ingest.PatientSource: a retry resumes.
+func (*Source) PollAttempts() int { return pollAttempts }
+
 // PollTimeout implements ingest.SlowSource: 16 queries of up to a minute,
-// each followed by a pause as long as the query.
-func (*Source) PollTimeout() time.Duration { return 35 * time.Minute }
+// each after a wait as long as the last query, and taking turns at the
+// gate with the historic source, which polls on the same tick (see pacer).
+// A retry resumes.
+func (*Source) PollTimeout() time.Duration { return time.Hour }
 
 // Poll implements ingest.Source. It replaces the whole layer, or nothing.
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
+	s.q.begin()
 	var all []domain.MilitaryBase
 	hints := map[string]string{}
 	seen := map[string]bool{}
-	for i, c := range Classes {
-		start := s.now()
-		resp, err := s.client.Get(ctx, s.endpoint+"?format=json&query="+url.QueryEscape(Query(c.QID)), fetch.Validators{})
+	for _, c := range Classes {
+		a, err := s.q.run(ctx, c.QID, c.Label, Query(c.QID), func(body []byte) (baseAnswer, error) {
+			b, h, err := Parse(body, c)
+			return baseAnswer{b, h}, err
+		})
 		if err != nil {
-			return ingest.Result{}, fmt.Errorf("%s: %w", c.Label, err)
+			return ingest.Result{}, err
 		}
-		// The service allows each client 60 s of query time a minute and
-		// answers 429 beyond it (seen on a cold poll, 2026-11-25). Resting
-		// as long as each query took keeps the poll at half that budget.
-		if i < len(Classes)-1 {
-			if err := s.pause(ctx, s.now().Sub(start)); err != nil {
-				return ingest.Result{}, err
-			}
-		}
-		bases, h, err := Parse(resp.Body, c)
-		if err != nil {
-			return ingest.Result{}, fmt.Errorf("%s: %w", c.Label, err)
-		}
-		for i := range bases {
-			if seen[bases[i].QID] {
+		for i := range a.bases {
+			if seen[a.bases[i].QID] {
 				continue // already taken by a more specific class
 			}
-			seen[bases[i].QID] = true
-			all = append(all, bases[i])
-			if iso := h[bases[i].QID]; iso != "" {
-				hints[bases[i].QID] = iso
+			seen[a.bases[i].QID] = true
+			all = append(all, a.bases[i])
+			if iso := a.hints[a.bases[i].QID]; iso != "" {
+				hints[a.bases[i].QID] = iso
 			}
 		}
 	}
@@ -171,12 +169,14 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		return ingest.Result{}, err
 	}
 	if held > 0 && float64(len(all)) < float64(held)*(1-maxShrink) {
+		s.q.finish() // a retry must ask again, not replay the short answer
 		return ingest.Result{}, fmt.Errorf("%d bases against %d stored: refusing to drop more than %.0f%% in one poll", len(all), held, maxShrink*100)
 	}
-	n, err := s.store.Replace(ctx, all, hints, s.now().UTC())
+	n, err := s.store.Replace(ctx, all, hints, s.q.now().UTC())
 	if err != nil {
 		return ingest.Result{}, err
 	}
+	s.q.finish()
 	return ingest.Result{Upserted: n}, nil
 }
 
@@ -276,15 +276,4 @@ func point(wkt string) (lon, lat float64, ok bool) {
 		return 0, 0, false
 	}
 	return lon, lat, true
-}
-
-func sleep(ctx context.Context, d time.Duration) error {
-	t := time.NewTimer(d)
-	defer t.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-t.C:
-		return nil
-	}
 }

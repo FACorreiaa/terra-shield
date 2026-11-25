@@ -305,6 +305,50 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "503": { $ref: "#/components/responses/Unavailable" }
         default: { $ref: "#/components/responses/Error" }
+  /v1/historic:
+    get:
+      operationId: listHistoricSites
+      tags: [historic]
+      summary: Historic sites listed on Wikidata (forts, castles, bunkers, war cemeteries), a static layer separate from events.
+      description: >
+        Named items with coordinates from Wikidata (CC0), refreshed weekly,
+        in three kinds a client can filter: `military` (forts,
+        fortifications, bunkers, barracks, arsenals, hillforts and military
+        bases no longer in use), `castle`, and `memorial` (military museums
+        and war cemeteries). Installations on `/v1/bases` are never here;
+        some sites here are still in use (see `note`). Without `zoom` or
+        below 8, sites are counted in grid cells (`HistoricCell` features,
+        360/2^(zoom+5) degrees, with a count per kind, `bbox` required from
+        zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite`
+        features), `bbox` is required, and at most 10,000 are returned
+        (`truncated` says when more matched). Show `note` with the layer
+        and link each site to its Wikidata item (`url`). Cached for an
+        hour.
+      parameters:
+        - $ref: "#/components/parameters/BBox"
+        - $ref: "#/components/parameters/Zoom"
+        - name: kind
+          in: query
+          description: "Comma-separated kinds to include; all when absent."
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { type: string, enum: [military, castle, memorial] }
+      responses:
+        "200":
+          description: Sites or cells.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+          content:
+            application/geo+json:
+              schema: { $ref: "#/components/schemas/HistoricFeatureCollection" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        default: { $ref: "#/components/responses/Error" }
   /v1/stream:
     get:
       operationId: streamEvents
@@ -768,6 +812,61 @@ components:
           anyOf:
             - $ref: "#/components/schemas/FireDetection"
             - $ref: "#/components/schemas/FireCell"
+    HistoricSite:
+      type: object
+      description: One historic site (zoom 8 and above).
+      required: [id, name, kind, class, url]
+      properties:
+        id: { type: string, description: "Wikidata item ID.", examples: [Q1076034] }
+        name: { type: string, examples: [Castelo de São Jorge] }
+        description: { type: string, description: "Wikidata's English description." }
+        kind:
+          description: "Filter group. More kinds will come (general historic buildings): hide sites of a kind the client does not know, or draw them in a neutral style; never as military."
+          anyOf:
+            - { type: string, enum: [military, castle, memorial] }
+            - { type: string }
+        class: { type: string, description: "Wikidata class in English.", examples: [star fort] }
+        country: { type: string, description: "ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.", examples: [PT] }
+        url: { type: string, format: uri, description: "The Wikidata item." }
+    HistoricCell:
+      type: object
+      description: Sites counted in one grid cell (zoom below 8).
+      required: [count, kinds]
+      properties:
+        count: { type: integer, minimum: 1 }
+        kinds:
+          type: object
+          description: "Sites per kind in the cell."
+          additionalProperties: { type: integer }
+    HistoricFeature:
+      type: object
+      required: [type, geometry, properties]
+      properties:
+        type: { type: string, enum: [Feature] }
+        geometry: { $ref: "#/components/schemas/Geometry" }
+        properties:
+          description: A HistoricSite, or a HistoricCell when the collection's aggregation is "grid".
+          anyOf:
+            - $ref: "#/components/schemas/HistoricSite"
+            - $ref: "#/components/schemas/HistoricCell"
+    HistoricFeatureCollection:
+      type: object
+      required: [type, aggregation, features, truncated, attribution, license, note]
+      properties:
+        type: { type: string, enum: [FeatureCollection] }
+        aggregation:
+          type: string
+          enum: [none, grid]
+          description: grid when features are HistoricCells.
+        cellDegrees: { type: number, format: double, description: "Grid cell size, when aggregation is grid." }
+        features:
+          type: array
+          items: { $ref: "#/components/schemas/HistoricFeature" }
+        truncated: { type: boolean, description: "More sites matched than were returned (points only)." }
+        updatedAt: { type: string, format: date-time, description: "When Shield last refreshed the sites returned (points only)." }
+        attribution: { type: string, examples: [Wikidata] }
+        license: { type: string, examples: [CC0 1.0] }
+        note: { type: string, description: "What the layer is; show it with the layer." }
     BaseList:
       type: object
       required: [bases, attribution, license, note]
