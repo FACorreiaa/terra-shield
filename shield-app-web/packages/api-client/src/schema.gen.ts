@@ -163,6 +163,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What changed over a window, 24 hours by default.
+         * @description One net change per event: new (first seen active, or listed again), ended, escalated or downgraded (severity now against the window's start; a round trip is no change). An event that arrived and ended inside the window is ended. Geometry-only updates are not changes. Counts cover every change; the list is cut at `limit`, most severe first, newest first within a severity. Events stored before Shield recorded first-seen times are never new; a source's first poll, or the first after an outage, reports what it lists as new (compare `startedAt`). Conflicts only when named, as in /v1/events.
+         */
+        get: operations["listChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/fires": {
         parameters: {
             query?: never;
@@ -475,7 +495,7 @@ export interface components {
         Revision: {
             /** Format: date-time */
             at: string;
-            /** @description Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined. */
+            /** @description Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined. A severity change across versions of a warning (MeteoAlarm, ADR 33) also carries "supersedes", the replaced ids as an array of strings; skip values that are not objects. */
             changes: {
                 [key: string]: unknown;
             };
@@ -505,6 +525,58 @@ export interface components {
             officialWarnings: boolean;
             /** @description Ids of the sources that cover the country. */
             sources: string[];
+        };
+        /**
+         * @description How an event changed over the window.
+         * @enum {string}
+         */
+        ChangeKind: "new" | "escalated" | "downgraded" | "ended";
+        ChangeCounts: {
+            new: number;
+            escalated: number;
+            downgraded: number;
+            ended: number;
+        };
+        /** @description One event's net change; enough to list and pin it. GET /v1/events/{id} has the rest. */
+        Change: {
+            /** Format: uuid */
+            eventId: string;
+            change: components["schemas"]["ChangeKind"];
+            /**
+             * Format: date-time
+             * @description When it arrived, ended, or last changed severity.
+             */
+            at: string;
+            type: components["schemas"]["OpenEventType"];
+            kind: components["schemas"]["EventKind"];
+            severity: components["schemas"]["Severity"];
+            fromSeverity?: components["schemas"]["Severity"];
+            sourceSeverity?: string;
+            title: string;
+            /** @description Source id, as in /v1/sources. */
+            source: string;
+            centroid: components["schemas"]["Coordinate"];
+            /** @description ISO 3166-1 alpha-2 codes, within or nearby. */
+            countries: string[];
+            /** Format: date-time */
+            startedAt?: string;
+        };
+        Changes: {
+            /** Format: date-time */
+            since: string;
+            /** Format: date-time */
+            generatedAt: string;
+            counts: components["schemas"]["ChangeCounts"];
+            /** @description Changes per type, sorted by type; kinds with none are omitted. */
+            byType: {
+                type: components["schemas"]["OpenEventType"];
+                counts: {
+                    [key: string]: number;
+                };
+            }[];
+            changes: components["schemas"]["Change"][];
+            /** @description True when more changes matched than `limit`. */
+            truncated: boolean;
         };
         CountrySummary: {
             country: components["schemas"]["Country"];
@@ -1090,6 +1162,46 @@ export interface operations {
             304: components["responses"]["NotModified"];
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            503: components["responses"]["Unavailable"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listChanges: {
+        parameters: {
+            query?: {
+                /** @description Window start, RFC 3339, within the last 7 days; up to a minute past either bound is clamped to it. Default: 24 hours ago. */
+                since?: string;
+                /** @description Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for. */
+                category?: components["parameters"]["Category"];
+                /** @description Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both. */
+                type?: string;
+                /** @description Comma-separated severities, matched against the severity now. */
+                severity?: string;
+                /** @description ISO 3166-1 alpha-2; events within the country or nearby offshore. */
+                country?: string;
+                /** @description Most changes listed (counts are never cut). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The changes. */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control": components["headers"]["CacheControl"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Changes"];
+                };
+            };
+            304: components["responses"]["NotModified"];
+            400: components["responses"]["BadRequest"];
             429: components["responses"]["TooManyRequests"];
             503: components["responses"]["Unavailable"];
             default: components["responses"]["Error"];

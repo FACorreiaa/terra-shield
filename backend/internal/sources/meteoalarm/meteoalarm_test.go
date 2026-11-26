@@ -380,6 +380,9 @@ func TestPollReconcilesSnapshot(t *testing.T) {
 	if len(store.upserted) != 1 || store.upserted[0].SourceEventID != "new-orange" {
 		t.Fatalf("upserted %v, want only new-orange", store.upserted)
 	}
+	if got := fmt.Sprint(store.upserted[0].Supersedes); got != "[old-yellow]" {
+		t.Fatalf("new-orange supersedes %s, want [old-yellow]", got)
+	}
 	// Replaced: deleted, the new version carries it on. Vanished: resolved,
 	// kept in history. The empty ES feed touches nothing.
 	if got := fmt.Sprint(store.deleted); got != "[old-yellow]" {
@@ -387,5 +390,44 @@ func TestPollReconcilesSnapshot(t *testing.T) {
 	}
 	if got := fmt.Sprint(store.resolved); got != "[vanished]" {
 		t.Fatalf("resolved %s, want only the vanished PT warning", got)
+	}
+}
+
+// v2 and v3 both listed, v3 naming only v2: v3 replaces the stored v1
+// too, so it carries on v1's history.
+func TestPollFollowsSupersededChain(t *testing.T) {
+	alert := func(id, msgType, refs, level string) string {
+		r := ""
+		if refs != "" {
+			r = `"references": "` + refs + `",`
+		}
+		return `{"alert": {"identifier": "` + id + `", "status": "Actual", "msgType": "` + msgType + `", "sent": "2026-11-16T10:00:00Z", ` + r + ` "info": [
+   {"language": "en", "headline": "Wind", "expires": "2026-11-17T00:00:00Z", "parameter": [{"valueName": "awareness_level", "value": "` + level + `"}],
+    "area": [{"areaDesc": "A", "geocode": [{"valueName": "EMMA_ID", "value": "PT001"}]}]}]}}`
+	}
+	feed := `{"warnings": [` +
+		alert("v2", "Update", "sender,v1,2026-11-16T09:00:00Z", "3; orange; Severe") + `,` +
+		alert("v3", "Update", "sender,v2,2026-11-16T10:00:00Z", "3; orange; Severe") + `]}`
+	s, store := newTestSource(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(feed))
+	}, Country{"PT", "portugal"})
+	if _, err := s.Poll(t.Context(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.upserted) != 1 || store.upserted[0].SourceEventID != "v3" {
+		t.Fatalf("upserted %v, want only v3", store.upserted)
+	}
+	if got := fmt.Sprint(store.upserted[0].Supersedes); got != "[v2 v1]" {
+		t.Fatalf("v3 supersedes %s, want [v2 v1]", got)
+	}
+}
+
+func TestSupersededBy(t *testing.T) {
+	refs := map[string][]string{"c": {"b"}, "b": {"a"}, "a": {"c"}} // a cycle ends
+	if got := fmt.Sprint(supersededBy([]string{"b"}, refs)); got != "[b a c]" {
+		t.Fatalf("got %s", got)
+	}
+	if supersededBy(nil, refs) != nil {
+		t.Fatal("nothing replaced")
 	}
 }

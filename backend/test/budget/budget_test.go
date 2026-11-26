@@ -53,6 +53,8 @@ func TestBudget(t *testing.T) {
 		{"fires points (zoom 7, Iberia)", "/v1/fires?zoom=7&bbox=-10,36,4,44", ""},
 		{"countries", "/v1/countries", ""},
 		{"sources", "/v1/sources", ""},
+		{"changes, 24 h, at most 500", "/v1/changes?limit=500", ""},
+		{"changes, 7 days, at most 500", "/v1/changes?limit=500&since=" + time.Now().Add(-(6*24+23)*time.Hour).UTC().Format(time.RFC3339), ""},
 	}
 	probes = append(probes, discovered(t, client, base)...)
 

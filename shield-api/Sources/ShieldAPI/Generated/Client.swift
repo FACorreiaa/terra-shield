@@ -1241,6 +1241,219 @@ public struct Client: APIProtocol {
             }
         )
     }
+    /// What changed over a window, 24 hours by default.
+    ///
+    /// One net change per event: new (first seen active, or listed again), ended, escalated or downgraded (severity now against the window's start; a round trip is no change). An event that arrived and ended inside the window is ended. Geometry-only updates are not changes. Counts cover every change; the list is cut at `limit`, most severe first, newest first within a severity. Events stored before Shield recorded first-seen times are never new; a source's first poll, or the first after an outage, reports what it lists as new (compare `startedAt`). Conflicts only when named, as in /v1/events.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/changes`.
+    /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)`.
+    public func listChanges(_ input: Operations.ListChanges.Input) async throws -> Operations.ListChanges.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.ListChanges.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/v1/changes",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "since",
+                    value: input.query.since
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "category",
+                    value: input.query.category
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "type",
+                    value: input.query._type
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "severity",
+                    value: input.query.severity
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "country",
+                    value: input.query.country
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "limit",
+                    value: input.query.limit
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let headers: Operations.ListChanges.Output.Ok.Headers = .init(
+                        eTag: try converter.getOptionalHeaderFieldAsURI(
+                            in: response.headerFields,
+                            name: "ETag",
+                            as: Components.Headers.ETag.self
+                        ),
+                        cacheControl: try converter.getOptionalHeaderFieldAsURI(
+                            in: response.headerFields,
+                            name: "Cache-Control",
+                            as: Components.Headers.CacheControl.self
+                        )
+                    )
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.ListChanges.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas.Changes.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(
+                        headers: headers,
+                        body: body
+                    ))
+                case 304:
+                    return .notModified(.init())
+                case 400:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Components.Responses.BadRequest.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .badRequest(.init(body: body))
+                case 429:
+                    let headers: Components.Responses.TooManyRequests.Headers = .init(retryAfter: try converter.getOptionalHeaderFieldAsURI(
+                        in: response.headerFields,
+                        name: "Retry-After",
+                        as: Swift.Int.self
+                    ))
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Components.Responses.TooManyRequests.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .tooManyRequests(.init(
+                        headers: headers,
+                        body: body
+                    ))
+                case 503:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Components.Responses.Unavailable.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .serviceUnavailable(.init(body: body))
+                default:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Components.Responses._Error.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Components.Schemas._Error.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .`default`(
+                        statusCode: response.status.code,
+                        .init(body: body)
+                    )
+                }
+            }
+        )
+    }
     /// Satellite fire detections (NASA FIRMS), a separate layer from events (ADR 10).
     ///
     /// Detections are thermal anomalies, not confirmed wildfires. Without `zoom` or below 6, detections are aggregated into grid cells for a heatmap (`FireCell` features, cell size 360/2^(zoom+5) degrees, about 8 px); from zoom 6, each detection is a point (`FireDetection` features), `bbox` is required, and at most 25,000 points are returned, newest first (`truncated` says when more matched). Detections arrive about 3 h after the satellite pass. Cached for 60 s: FIRMS updates every 15 min at most.

@@ -105,6 +105,26 @@ func (q *Queries) ActiveEventStarts(ctx context.Context, sourceID string) ([]Act
 	return items, nil
 }
 
+const adoptSupersededRevisions = `-- name: AdoptSupersededRevisions :exec
+UPDATE event_revisions SET event_id = $1
+WHERE event_id IN (SELECT p.id FROM events p WHERE p.source_id = $2
+                   AND p.source_event_id = ANY($3::text[]) AND p.id <> $1)
+`
+
+type AdoptSupersededRevisionsParams struct {
+	EventID    uuid.UUID
+	SourceID   string
+	Supersedes []string
+}
+
+// Moves the revisions of the warnings a new version supersedes onto it
+// before they are deleted, so a chain of versions keeps one history: the
+// severity at the window's start survives v1 -> v2 -> v3.
+func (q *Queries) AdoptSupersededRevisions(ctx context.Context, arg AdoptSupersededRevisionsParams) error {
+	_, err := q.db.Exec(ctx, adoptSupersededRevisions, arg.EventID, arg.SourceID, arg.Supersedes)
+	return err
+}
+
 const assignEventCountries = `-- name: AssignEventCountries :exec
 WITH e AS (
     SELECT geom AS geog, geom::geometry AS g, ST_Area(geom) AS m2,
@@ -522,11 +542,39 @@ func (q *Queries) StreamFloor(ctx context.Context) (int64, error) {
 	return seq, err
 }
 
+const superseded = `-- name: Superseded :one
+SELECT COALESCE((array_agg(severity ORDER BY array_position(ARRAY['minor','moderate','severe','extreme'], severity) DESC NULLS LAST,
+                                             updated_at DESC, id))[1], '')::text AS severity,
+       COALESCE(bool_or(status = 'active'), false)::bool AS any_active
+FROM events
+WHERE source_id = $1 AND source_event_id = ANY($2::text[])
+`
+
+type SupersededParams struct {
+	SourceID   string
+	Supersedes []string
+}
+
+type SupersededRow struct {
+	Severity  string
+	AnyActive bool
+}
+
+// The warnings a new version supersedes, to record the change across
+// versions as a revision of the new one: their highest severity, active
+// or ended (” when none is stored), and whether any is still active.
+func (q *Queries) Superseded(ctx context.Context, arg SupersededParams) (SupersededRow, error) {
+	row := q.db.QueryRow(ctx, superseded, arg.SourceID, arg.Supersedes)
+	var i SupersededRow
+	err := row.Scan(&i.Severity, &i.AnyActive)
+	return i, err
+}
+
 const upsertEvent = `-- name: UpsertEvent :one
 INSERT INTO events (
     source_id, source_event_id, type, kind, status, severity, source_severity,
     title, summary, geom, centroid, started_at, observed_at, updated_at, ended_at,
-    fetched_at, url, attrs, change_op
+    fetched_at, url, attrs, change_op, first_seen_at
 ) SELECT
     $1, $2, $3, $4, $5, $6, $7,
     $8, $9, r.g::geography,
@@ -534,7 +582,17 @@ INSERT INTO events (
              ST_PointOnSurface(r.g))::geography,
     $12, $13, $14, $15,
     now(), $16, $17,
-    CASE WHEN $5::text = 'resolved' THEN 'resolved' ELSE 'created' END
+    CASE WHEN $5::text = 'resolved' THEN 'resolved' ELSE 'created' END,
+    -- First seen active: now, or, for a new version of warnings it
+    -- supersedes (MeteoAlarm), when the earliest of them was first seen,
+    -- so an update is not reported as a new warning. Never set on an
+    -- event that arrives already resolved, or on conflict (kept as is).
+    CASE WHEN $5::text = 'resolved' THEN NULL
+         WHEN EXISTS (SELECT 1 FROM events p WHERE p.source_id = $1
+                      AND p.source_event_id = ANY($18::text[]))
+         THEN (SELECT min(p.first_seen_at) FROM events p WHERE p.source_id = $1
+               AND p.source_event_id = ANY($18::text[]))
+         ELSE now() END
 FROM (
     -- Feeds send the odd self-intersecting polygon; repair it here so
     -- country assignment and the map never trip over it. The structure
@@ -545,7 +603,7 @@ FROM (
     SELECT CASE WHEN ST_IsEmpty(v.s) THEN ST_MakeValid(v.raw) ELSE v.s END AS g
     FROM (
         SELECT x.raw, ST_MakeValid(x.raw, 'method=structure keepcollapsed=false') AS s
-        FROM (SELECT ST_Force2D(ST_GeomFromGeoJSON($18::text)) AS raw) x
+        FROM (SELECT ST_Force2D(ST_GeomFromGeoJSON($19::text)) AS raw) x
     ) v
 ) r
 ON CONFLICT (source_id, source_event_id) DO UPDATE SET
@@ -601,6 +659,7 @@ type UpsertEventParams struct {
 	EndedAt        *time.Time
 	Url            *string
 	Attrs          []byte
+	Supersedes     []string
 	Geom           string
 }
 
@@ -626,6 +685,7 @@ func (q *Queries) UpsertEvent(ctx context.Context, arg UpsertEventParams) (uuid.
 		arg.EndedAt,
 		arg.Url,
 		arg.Attrs,
+		arg.Supersedes,
 		arg.Geom,
 	)
 	var id uuid.UUID

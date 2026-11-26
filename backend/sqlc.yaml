@@ -31,6 +31,16 @@ sql:
             go_type: github.com/google/uuid.UUID
   - engine: postgresql
     schema: db/migrations
+    queries: db/queries/changes
+    gen:
+      go:
+        package: changesdb
+        out: internal/store/changesdb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides: *overrides
+  - engine: postgresql
+    schema: db/migrations
     queries: db/queries/events
     gen:
       go:

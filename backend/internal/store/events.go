@@ -10,6 +10,7 @@ import (
 	"shield/internal/domain"
 	"shield/internal/store/eventsdb"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -64,6 +65,37 @@ func (r *EventRepository) Upsert(ctx context.Context, sourceID string, events []
 	return changed, nil
 }
 
+// adoptSuperseded carries a new version's history on from the warnings it
+// replaces (MeteoAlarm): their revisions move onto it, and the change
+// across versions is recorded as one of its own: a severity change, and,
+// when every one it replaces had ended, that it is active again.
+func adoptSuperseded(ctx context.Context, q *eventsdb.Queries, sourceID string, id uuid.UUID, e *domain.Event, prior eventsdb.SupersededRow) error {
+	if err := q.AdoptSupersededRevisions(ctx, eventsdb.AdoptSupersededRevisionsParams{
+		EventID: id, SourceID: sourceID, Supersedes: e.Supersedes,
+	}); err != nil {
+		return err
+	}
+	if prior.Severity == "" || e.Status != domain.StatusActive {
+		return nil // nothing stored to carry on, or arrived ended
+	}
+	changes := map[string]any{}
+	if prior.Severity != e.Severity {
+		changes["severity"] = map[string]any{"from": prior.Severity, "to": e.Severity}
+	}
+	if !prior.AnyActive {
+		changes["status"] = map[string]any{"from": string(domain.StatusResolved), "to": string(domain.StatusActive)}
+	}
+	if len(changes) == 0 {
+		return nil
+	}
+	changes["supersedes"] = e.Supersedes
+	body, err := json.Marshal(changes)
+	if err != nil {
+		return err
+	}
+	return q.InsertEventRevision(ctx, eventsdb.InsertEventRevisionParams{EventID: id, Changes: body})
+}
+
 // upsertOne writes one event. A new event already past retention (a
 // resolved event a feed still lists long after it ended) is not inserted:
 // the purge would delete it again within the hour, under a new id.
@@ -85,6 +117,15 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	if !existed && domain.PastRetention(e, horizon) {
 		return false, nil
 	}
+	// A new version of warnings it replaces: what they were, read before
+	// it is written, to record the change across versions.
+	var prior eventsdb.SupersededRow
+	if !existed && len(e.Supersedes) > 0 {
+		prior, err = q.Superseded(ctx, eventsdb.SupersededParams{SourceID: sourceID, Supersedes: e.Supersedes})
+		if err != nil {
+			return false, fmt.Errorf("superseded %s/%s: %w", sourceID, e.SourceEventID, err)
+		}
+	}
 
 	id, err := q.UpsertEvent(ctx, eventsdb.UpsertEventParams{
 		SourceID:       sourceID,
@@ -105,6 +146,7 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 		EndedAt:        e.EndedAt,
 		Url:            nonEmpty(e.URL),
 		Attrs:          attrsJSON,
+		Supersedes:     e.Supersedes,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil // unchanged
@@ -114,6 +156,10 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	}
 	if existed {
 		if err := recordRevision(ctx, q, key, &before); err != nil {
+			return false, fmt.Errorf("revision %s/%s: %w", sourceID, e.SourceEventID, err)
+		}
+	} else if len(e.Supersedes) > 0 {
+		if err := adoptSuperseded(ctx, q, sourceID, id, e, prior); err != nil {
 			return false, fmt.Errorf("revision %s/%s: %w", sourceID, e.SourceEventID, err)
 		}
 	}

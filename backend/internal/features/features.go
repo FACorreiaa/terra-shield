@@ -7,6 +7,7 @@ import (
 
 	"shield/internal/features/aircraft"
 	"shield/internal/features/bases"
+	"shield/internal/features/changes"
 	"shield/internal/features/countries"
 	"shield/internal/features/events"
 	"shield/internal/features/fires"
@@ -22,6 +23,7 @@ import (
 // features without a database, and their handlers answer 503.
 type Deps struct {
 	Countries countries.Repository
+	Changes   changes.Repository
 	Events    events.Repository
 	Fires     fires.Repository
 	Sources   sources.Lister
@@ -38,6 +40,7 @@ func All(d Deps) []server.Feature {
 		ops.New(),
 		events.New(d.Events),
 		countries.New(d.Countries),
+		changes.New(d.Changes),
 		fires.New(d.Fires),
 		sources.New(d.Sources),
 		stream.New(d.Stream, d.Logger),
