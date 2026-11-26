@@ -137,6 +137,15 @@ struct MapScreen: View {
                 for _ in 0..<40 where model.bases == nil { try? await Task.sleep(for: .milliseconds(250)) }
                 model.selectedBaseID = id
             }
+            // Automation: `SHIELD_SITE=<Wikidata ID>` selects that historic site once an answer
+            // holds it (`SHIELD_HISTORIC=1` turns the layer on at launch).
+            .task {
+                guard let id = ProcessInfo.processInfo.environment["SHIELD_SITE"] else { return }
+                for _ in 0..<60 where model.historic?.sites.contains(where: { $0.id == id }) != true {
+                    try? await Task.sleep(for: .milliseconds(250))
+                }
+                model.selectedHistoricID = id
+            }
             // Screenshot automation: `SHIELD_COUNTRY=PT` opens Portugal's overview.
             .task {
                 guard let code = ProcessInfo.processInfo.environment["SHIELD_COUNTRY"] else { return }
@@ -154,10 +163,12 @@ struct MapScreen: View {
                     sidebarSearchFocused = false
                     return .handled
                 }
-                if model.selectedEventID != nil || model.selectedAircraftHex != nil || model.selectedBaseID != nil {
+                if model.selectedEventID != nil || model.selectedAircraftHex != nil || model.selectedBaseID != nil
+                    || model.selectedHistoricID != nil {
                     model.selectedEventID = nil
                     model.selectedAircraftHex = nil
                     model.selectedBaseID = nil
+                    model.selectedHistoricID = nil
                     return .handled
                 }
                 guard country != nil else { return .ignored }
@@ -239,6 +250,14 @@ struct MapScreen: View {
                     } else if let base = model.selectedBase {
                         ScrollView {
                             BaseDetailView(base: base, layer: model.bases, close: { model.selectedBaseID = nil })
+                                .padding(ShieldSpace.s5)
+                        }
+                        .background(Color.panel)
+                        .inspectorColumnWidth(min: 320, ideal: 350, max: 380)
+                    } else if let site = model.selectedHistoricSite {
+                        ScrollView {
+                            HistoricDetailView(site: site, layer: model.historic,
+                                               close: { model.selectedHistoricID = nil })
                                 .padding(ShieldSpace.s5)
                         }
                         .background(Color.panel)
@@ -398,7 +417,7 @@ struct MapScreen: View {
                 guard !active, let previous = detentBeforeSearch else { return }
                 detentBeforeSearch = nil
                 guard detent == .large, model.selectedEventID == nil, model.selectedAircraftHex == nil,
-                      model.selectedBaseID == nil, country == nil else { return }
+                      model.selectedBaseID == nil, model.selectedHistoricID == nil, country == nil else { return }
                 withAnimation(ShieldMotion.spring) { detent = previous }
             }
             // A marker tapped while the sheet peeks: open far enough to show the event and
@@ -412,6 +431,10 @@ struct MapScreen: View {
                 withAnimation(ShieldMotion.spring) { detent = .medium }
             }
             .onChange(of: model.selectedBaseID) { _, selected in
+                guard selected != nil, detent == .height(peekHeight) else { return }
+                withAnimation(ShieldMotion.spring) { detent = .medium }
+            }
+            .onChange(of: model.selectedHistoricID) { _, selected in
                 guard selected != nil, detent == .height(peekHeight) else { return }
                 withAnimation(ShieldMotion.spring) { detent = .medium }
             }
@@ -506,8 +529,15 @@ struct MapScreen: View {
     /// The inspector is open while an event is selected and there is one to show.
     private var inspectorShown: Binding<Bool> {
         Binding(get: { (model.selectedEventID != nil && model.selectedEvent != nil) || model.selectedAircraft != nil
-                    || model.selectedBase != nil },
-                set: { if !$0 { model.selectedEventID = nil; model.selectedAircraftHex = nil; model.selectedBaseID = nil } })
+                    || model.selectedBase != nil || model.selectedHistoricSite != nil },
+                set: {
+                    if !$0 {
+                        model.selectedEventID = nil
+                        model.selectedAircraftHex = nil
+                        model.selectedBaseID = nil
+                        model.selectedHistoricID = nil
+                    }
+                })
     }
 
     /// The selected event in full (DESIGN.md §10.3), for the sheet and the inspector alike.
@@ -612,6 +642,7 @@ struct MapScreen: View {
                         showsConflicts: $model.showsConflicts,
                         showsFlights: model.provider.supportsAircraft ? $model.showsFlights : nil,
                         showsBases: model.provider.supportsBases ? $model.showsBases : nil,
+                        showsHistoric: model.provider.supportsHistoric ? $model.showsHistoric : nil,
                         fitWorld: fitWorld,
                         refresh: { model.reload() }
                     )
@@ -653,6 +684,13 @@ struct MapScreen: View {
                     }
                     .transition(.opacity)
                 }
+                if model.showsHistoric {
+                    HStack {
+                        HistoricLegend(model: model)
+                        Spacer()
+                    }
+                    .transition(.opacity)
+                }
                 if model.showsConflicts {
                     HStack {
                         ConflictLegend(count: model.conflicts?.totalCount, truncated: model.conflicts?.truncated ?? false,
@@ -680,6 +718,7 @@ struct MapScreen: View {
             .animation(ShieldMotion.standard, value: model.showsConflicts)
             .animation(ShieldMotion.standard, value: model.showsFlights)
             .animation(ShieldMotion.standard, value: model.showsBases)
+            .animation(ShieldMotion.standard, value: model.showsHistoric)
             .animation(ShieldMotion.standard, value: model.toast)
         }
         // A toast is read out once and leaves after 6 s; a newer one restarts the clock.
@@ -813,6 +852,8 @@ private struct MapControls: View {
     var showsFlights: Binding<Bool>?
     /// Nil when the provider has no bases (sample data).
     var showsBases: Binding<Bool>?
+    /// Nil when the provider has no historic sites (sample data).
+    var showsHistoric: Binding<Bool>?
     var fitWorld: () -> Void
     var refresh: () -> Void
 
@@ -852,6 +893,24 @@ private struct MapControls: View {
                 .accessibilityAddTraits(.isToggle)
                 .help(showsBases.wrappedValue ? "Hide military bases" : "Show military bases")
                 .keyboardShortcut("b", modifiers: [.command, .option])
+                Divider().overlay(Color.ink.opacity(ShieldAlpha.hairline))
+            }
+            // Historic sites (ADR 30): off by default, saved with the filters.
+            if let showsHistoric {
+                Button { showsHistoric.wrappedValue.toggle() } label: {
+                    Image(systemName: "building.columns")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(showsHistoric.wrappedValue ? Color.accent : Color.ink)
+                        .frame(width: 44, height: 44)
+                        .background(showsHistoric.wrappedValue ? Color.accent.opacity(0.14) : .clear)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Historic sites")
+                .accessibilityValue(showsHistoric.wrappedValue ? "Shown" : "Hidden")
+                .accessibilityAddTraits(.isToggle)
+                .help(showsHistoric.wrappedValue ? "Hide historic sites" : "Show historic sites")
+                .keyboardShortcut("s", modifiers: [.command, .option])
                 Divider().overlay(Color.ink.opacity(ShieldAlpha.hairline))
             }
             // Armed conflicts (ADR 27): a layer beside hazards, off by default.

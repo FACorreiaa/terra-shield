@@ -43,6 +43,7 @@ struct HazardMapView {
         map.register(LocalClusterView.self, forAnnotationViewWithReuseIdentifier: LocalClusterView.reuseID)
         map.register(AircraftMarkerView.self, forAnnotationViewWithReuseIdentifier: AircraftMarkerView.reuseID)
         map.register(BaseMarkerView.self, forAnnotationViewWithReuseIdentifier: BaseMarkerView.reuseID)
+        map.register(HistoricMarkerView.self, forAnnotationViewWithReuseIdentifier: HistoricMarkerView.reuseID)
         map.delegate = coordinator
         coordinator.map = map
         map.setRegion(Coordinator.startRegion, animated: false)
@@ -62,6 +63,7 @@ struct HazardMapView {
         coordinator.apply(conflicts: model.conflicts)
         coordinator.apply(flights: model.flights, selectedHex: model.selectedAircraftHex)
         coordinator.apply(bases: model.bases, selectedID: model.selectedBaseID)
+        coordinator.apply(historic: model.historic, selected: model.selectedHistoricSite)
         coordinator.apply(detections: model.detections)
         coordinator.apply(area: model.selectedGeometry, of: model.selectedEvent)
         if fitWorldRequest != coordinator.fitWorldRequest {
@@ -123,6 +125,13 @@ struct HazardMapView {
         private var bases: [String: BaseAnnotation] = [:]
         private var selectedBaseID: String?
         private var appliedBases: BaseLayer?
+        /// Historic sites by Wikidata ID (ADR 30), kept across answers: a pan adds and removes
+        /// only the sites that came into or left the answer.
+        private var historicSites: [String: HistoricAnnotation] = [:]
+        private var selectedSiteID: String?
+        private var appliedHistoric: HistoricLayer?
+        private var appliedSelectedSite: HistoricSite?
+        private var historicDots: HistoricDotsOverlay?
         private var area: (geometry: EventGeometry, event: HazardEvent, isStale: Bool, overlay: any MKOverlay)?
 
         init(model: LiveMapModel) {
@@ -226,6 +235,74 @@ struct HazardMapView {
             }
         }
 
+        /// From zoom 8, adds and removes the sites that entered or left the answer, keeping the
+        /// rest; below it, swaps the grid overlay. The selected site keeps its marker while the
+        /// answer leaves it out (a grid, or a pan away), so the sheet's site stays on the map.
+        func apply(historic layer: HistoricLayer?, selected: HistoricSite?) {
+            guard let map, layer != appliedHistoric || selected != appliedSelectedSite else { return }
+            let oldSelected = selectedSiteID
+            // Before adding: `viewFor` reads it for the new annotations.
+            selectedSiteID = selected?.id
+            appliedSelectedSite = selected
+            if layer != appliedHistoric {
+                appliedHistoric = layer
+                apply(historicDots: layer)
+            }
+
+            var wanted = layer?.drawsChips == true ? layer?.sites ?? [] : []
+            if let selected, !wanted.contains(where: { $0.id == selected.id }) { wanted.append(selected) }
+            let ids = Set(wanted.map(\.id))
+            // Out of the dictionary before MapKit hears of it: removing the selected annotation
+            // deselects it at once, and `didDeselect` must not take that for the user's tap.
+            let gone = historicSites.filter { !ids.contains($0.key) }
+            for id in gone.keys { historicSites[id] = nil }
+            if !gone.isEmpty { map.removeAnnotations(Array(gone.values)) }
+            var added: [HistoricAnnotation] = []
+            for site in wanted where historicSites[site.id]?.site != site {
+                if let old = historicSites[site.id] {
+                    historicSites[site.id] = nil
+                    map.removeAnnotation(old)
+                }
+                let annotation = HistoricAnnotation(site)
+                historicSites[site.id] = annotation
+                added.append(annotation)
+            }
+            if !added.isEmpty { map.addAnnotations(added) }
+
+            if selectedSiteID != oldSelected {
+                for id in [oldSelected, selectedSiteID].compactMap({ $0 }) {
+                    guard let annotation = historicSites[id] else { continue }
+                    if id == oldSelected { map.deselectAnnotation(annotation, animated: false) }
+                    (map.view(for: annotation) as? HistoricMarkerView)?
+                        .configure(annotation.site, isSelected: id == selectedSiteID)
+                }
+            }
+            // MapKit's own selection follows the model's, as events' does: a site the app chose
+            // (`SHIELD_SITE`, an annotation replaced by a changed site) is then cleared by a tap on
+            // empty map like one the user tapped.
+            if let selectedSiteID, let annotation = historicSites[selectedSiteID],
+               !map.selectedAnnotations.contains(where: { $0 === annotation }) {
+                map.selectAnnotation(annotation, animated: false)
+            }
+        }
+
+        /// The grid, or sites too many for chips, as dots under everything else on the map: the
+        /// selected event's footprint, the detections and every marker.
+        private func apply(historicDots layer: HistoricLayer?) {
+            guard let map else { return }
+            if let old = historicDots { map.removeOverlay(old) }
+            historicDots = nil
+            guard let layer, !layer.drawsChips else { return }
+            switch layer.content {
+            case .grid(let cells, _) where cells.isEmpty: return
+            case .points(let sites, _) where sites.isEmpty: return
+            default: break
+            }
+            let overlay = HistoricDotsOverlay(layer.content)
+            map.insertOverlay(overlay, at: 0, level: .aboveRoads)
+            historicDots = overlay
+        }
+
         /// Swaps the detection overlay when its data changes; an empty layer removes it.
         func apply(detections: DetectionLayer) {
             guard let map, detections != detectionOverlay?.layer ?? .empty else { return }
@@ -248,8 +325,12 @@ struct HazardMapView {
             guard let geometry, let event, let overlay = EventArea.overlay(for: geometry) else { return }
             // Recorded first: MapKit asks for the renderer during the insert, and caches it.
             area = (geometry, event, stale, overlay)
-            // Index 0: below the detection layer (DESIGN.md §9, layer order).
-            map.insertOverlay(overlay, at: 0, level: .aboveRoads)
+            // Below the detection layer (DESIGN.md §9, layer order), above the historic grid.
+            if let historicDots {
+                map.insertOverlay(overlay, above: historicDots)
+            } else {
+                map.insertOverlay(overlay, at: 0, level: .aboveRoads)
+            }
         }
 
         private func restyleVisibleMarkers(on map: MKMapView) {
@@ -399,6 +480,10 @@ struct HazardMapView {
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: BaseMarkerView.reuseID, for: a)
                 (view as? BaseMarkerView)?.configure(a.base, isSelected: a.base.id == selectedBaseID)
                 return view
+            case let a as HistoricAnnotation:
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: HistoricMarkerView.reuseID, for: a)
+                (view as? HistoricMarkerView)?.configure(a.site, isSelected: a.site.id == selectedSiteID)
+                return view
             case let a as MKClusterAnnotation:
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: LocalClusterView.reuseID, for: a)
                 (view as? LocalClusterView)?.configure(a)
@@ -410,6 +495,7 @@ struct HazardMapView {
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: any MKOverlay) -> MKOverlayRenderer {
             if let overlay = overlay as? DetectionOverlay { return DetectionRenderer(overlay) }
+            if let overlay = overlay as? HistoricDotsOverlay { return HistoricDotsRenderer(overlay) }
             if let area, overlay === area.overlay { return EventArea.renderer(for: overlay, event: area.event, isStale: staleSources.contains(area.event.source)) }
             return MKOverlayRenderer(overlay: overlay)
         }
@@ -431,6 +517,8 @@ struct HazardMapView {
                 model.selectedAircraftHex = a.aircraft.hex
             case let a as BaseAnnotation:
                 model.selectedBaseID = a.base.id
+            case let a as HistoricAnnotation:
+                model.selectedHistoricID = a.site.id
             case let a as ServerClusterAnnotation:
                 mapView.deselectAnnotation(a, animated: false)
                 zoom(to: a.cluster.box, on: mapView)
@@ -455,6 +543,14 @@ struct HazardMapView {
                 // A tap on empty map clears it; a reload of the list replaces every annotation.
                 if model.selectedBaseID == a.base.id, bases[a.base.id] === a {
                     model.selectedBaseID = nil
+                }
+                return
+            }
+            if let a = annotation as? HistoricAnnotation {
+                // A tap on empty map clears it; an answer that drops or replaces the annotation
+                // has already taken it out of `historicSites`.
+                if model.selectedHistoricID == a.site.id, historicSites[a.site.id] === a {
+                    model.selectedHistoricID = nil
                 }
                 return
             }

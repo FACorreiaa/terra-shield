@@ -23,6 +23,18 @@ struct FilterSheet: View {
                 section("Kind") { kindToggles }
                 section("Updated in the last") { windowPicker }
                 section("Status") { statusToggle }
+                if model.provider.supportsHistoric {
+                    section("Historic sites") {
+                        historicToggles
+                        // The layer's own description (ADR 30): the phone's legend leaves it out.
+                        if let note = model.historic?.note {
+                            Text(note)
+                                .font(ShieldFont.meta)
+                                .foregroundStyle(Color.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
             }
             .padding(ShieldSpace.s5)
         }
@@ -135,6 +147,32 @@ struct FilterSheet: View {
 
     private func kindRow(_ kind: EventKind, isOn: Binding<Bool>, disabled: Bool) -> some View {
         switchRow(kind.label, symbol: kind.sfSymbol, isOn: isOn, disabled: disabled)
+    }
+
+    // MARK: Historic sites
+
+    /// The layer's switch (the map's ⌥⌘S control) and its groups (ADR 30). The groups stay
+    /// settable with the layer off, and the last one stays on: the API reads none as all.
+    private var historicToggles: some View {
+        VStack(spacing: 0) {
+            switchRow("Show on the map", symbol: "building.columns", isOn: $model.showsHistoric, disabled: false)
+            ForEach(HistoricKind.allCases, id: \.self) { kind in
+                Divider().overlay(Color.ink.opacity(ShieldAlpha.hairline))
+                let on = model.historicKinds.contains(kind)
+                switchRow(kind.label, symbol: kind.sfSymbol, isOn: Binding(
+                    get: { on },
+                    set: { newValue in
+                        if newValue { model.historicKinds.insert(kind) } else { model.historicKinds.remove(kind) }
+                    }
+                ), disabled: on && model.historicKinds.count == 1)
+            }
+            Divider().overlay(Color.ink.opacity(ShieldAlpha.hairline))
+            // With the groups above, as on the web: only UNESCO World Heritage Sites of them.
+            switchRow("World Heritage Sites only", symbol: "checkmark.seal",
+                      isOn: $model.historicWorldHeritageOnly, disabled: false)
+        }
+        .padding(.horizontal, ShieldSpace.s3)
+        .background(Color.ink.opacity(ShieldAlpha.hairline / 2), in: RoundedRectangle(cornerRadius: ShieldRadius.md))
     }
 
     // MARK: Status

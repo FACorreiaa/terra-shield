@@ -66,7 +66,10 @@ public struct BaseLayer: Sendable, Hashable {
     }
 
     /// "Listed on Wikidata · refreshed 18 Nov 2026": a listing, never "active" (ADR 29).
-    public var listedLine: String {
+    public var listedLine: String { Self.listedLine(attribution: attribution, updatedAt: updatedAt) }
+
+    /// "Listed on Wikidata · refreshed 18 Nov 2026", for the layers listed on Wikidata.
+    static func listedLine(attribution: String, updatedAt: Date?) -> String {
         guard let updatedAt else { return "Listed on \(attribution)" }
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_GB")

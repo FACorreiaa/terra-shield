@@ -71,6 +71,10 @@ public protocol HazardEventProvider: Sendable {
     func bases() async throws -> BaseLayer
     /// Whether `bases()` has anything behind it; the map offers the layer only then.
     var supportsBases: Bool { get }
+    /// Historic sites listed on Wikidata (ADR 30): cells below zoom 8, points from zoom 8.
+    func historic(_ request: HistoricRequest) async throws -> HistoricLayer
+    /// Whether `historic(_:)` has anything behind it; the map offers the layer only then.
+    var supportsHistoric: Bool { get }
     /// Whether `changes(after:)` streams anything (S3.6). Defaults to false.
     var supportsLiveChanges: Bool { get }
     /// Live updates after `cursor`. Ends or throws when the connection drops; the caller
@@ -85,4 +89,9 @@ extension HazardEventProvider {
         BaseLayer(bases: [], updatedAt: nil, attribution: "Wikidata", license: "CC0 1.0", note: "")
     }
     public var supportsBases: Bool { false }
+    public func historic(_ request: HistoricRequest) async throws -> HistoricLayer {
+        HistoricLayer(content: .points([], truncated: false), updatedAt: nil, attribution: "Wikidata",
+                      license: "CC0 1.0", note: "")
+    }
+    public var supportsHistoric: Bool { false }
 }
