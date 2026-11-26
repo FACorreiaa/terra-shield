@@ -176,6 +176,25 @@ public struct HistoricLayer: Sendable, Hashable {
         }
     }
 
+    /// The answer with only the groups shown: sites of other groups, and of groups this version
+    /// doesn't know, leave; a cell keeps the count of the groups shown, and leaves at none.
+    public func filtered(to shown: Set<HistoricKind>) -> HistoricLayer {
+        guard shown.count < HistoricKind.allCases.count else { return self }
+        var out = self
+        switch content {
+        case .grid(let cells, let cellDegrees):
+            out.content = .grid(cells.compactMap { cell in
+                let n = cell.count(of: shown)
+                guard n > 0 else { return nil }
+                return HistoricCell(center: cell.center, count: n,
+                                    kinds: cell.kinds.filter { HistoricKind(rawValue: $0.key).map(shown.contains) ?? false })
+            }, cellDegrees: cellDegrees)
+        case .points(let sites, let truncated):
+            out.content = .points(sites.filter { $0.kind.map(shown.contains) ?? false }, truncated: truncated)
+        }
+        return out
+    }
+
     /// Sites in the box: those inside it, or for a grid the counts of the cells whose centre is.
     public func count(in box: GeoBox) -> Int {
         switch content {
@@ -222,12 +241,23 @@ public struct HistoricRequest: Sendable, Hashable {
     /// Whether this request's answer, `truncated` or not and holding `sites` sites, also serves
     /// `viewport` with `kinds` shown. Grid cells change size with the zoom; points don't, so any
     /// zoom from 8 inside the box is served, unless the answer was cut short or held too many
-    /// sites to draw as chips: a smaller view may then hold few enough.
+    /// sites to draw as chips: a smaller view may then hold few enough. An answer for more groups
+    /// than shown serves fewer, filtered on the device (`HistoricLayer.filtered(to:)`), unless its
+    /// sites were cut short: the server would send more of the groups left.
     public func serves(_ viewport: MapViewport, kinds shown: Set<HistoricKind>, truncated: Bool,
                        sites: Int = 0) -> Bool {
-        guard kinds == Self.sent(shown) else { return false }
+        let wanted = Self.sent(shown)
+        let narrower: Bool
+        if kinds == wanted {
+            narrower = false
+        } else if let wanted, kinds.map({ wanted.isSubset(of: $0) }) ?? true {
+            narrower = true
+        } else {
+            return false
+        }
         if viewport.zoom >= HistoricLayer.pointsZoom {
             guard isPoints, let box else { return false }
+            if narrower && truncated { return false }
             // Asking again for the same view would bring the same answer.
             if box == viewport.box { return true }
             return !truncated && sites <= HistoricLayer.chipLimit && box.contains(viewport.box)

@@ -269,12 +269,20 @@ struct HazardMapView {
             }
             if !added.isEmpty { map.addAnnotations(added) }
 
-            guard selectedSiteID != oldSelected else { return }
-            for id in [oldSelected, selectedSiteID].compactMap({ $0 }) {
-                guard let annotation = historicSites[id] else { continue }
-                if id == oldSelected { map.deselectAnnotation(annotation, animated: false) }
-                (map.view(for: annotation) as? HistoricMarkerView)?
-                    .configure(annotation.site, isSelected: id == selectedSiteID)
+            if selectedSiteID != oldSelected {
+                for id in [oldSelected, selectedSiteID].compactMap({ $0 }) {
+                    guard let annotation = historicSites[id] else { continue }
+                    if id == oldSelected { map.deselectAnnotation(annotation, animated: false) }
+                    (map.view(for: annotation) as? HistoricMarkerView)?
+                        .configure(annotation.site, isSelected: id == selectedSiteID)
+                }
+            }
+            // MapKit's own selection follows the model's, as events' does: a site the app chose
+            // (`SHIELD_SITE`, an annotation replaced by a changed site) is then cleared by a tap on
+            // empty map like one the user tapped.
+            if let selectedSiteID, let annotation = historicSites[selectedSiteID],
+               !map.selectedAnnotations.contains(where: { $0 === annotation }) {
+                map.selectAnnotation(annotation, animated: false)
             }
         }
 

@@ -171,7 +171,7 @@ final class HistoricDotsRenderer: MKOverlayRenderer, @unchecked Sendable {
         case .grid(let cells, let cellDegrees):
             isGrid = true
             let cellWidth = MKMapSize.world.width * cellDegrees / 360
-            // Relative to the busiest cell in view, on a log scale and squared: a lone fort is a
+            // Relative to the busiest cell in the answer (the world's below zoom 6), on a log scale and squared: a lone fort is a
             // faint speck, Flanders' hundreds of bunkers and cemeteries the brightest dot, and a
             // sparse region doesn't read as an even lattice.
             let peak = log1p(Double(cells.map(\.count).max() ?? 1))
@@ -196,6 +196,8 @@ final class HistoricDotsRenderer: MKOverlayRenderer, @unchecked Sendable {
     override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
         // Sites keep their screen size at every zoom: screen points / zoomScale = map points.
         let scale = isGrid ? 1 : 1 / Double(zoomScale)
+        // One fill colour; each dot's strength is the context's alpha, so nothing is allocated per dot.
+        context.setFillColor(color)
         if !isGrid {
             context.setStrokeColor(outline)
             context.setLineWidth(0.75 * scale)
@@ -205,7 +207,7 @@ final class HistoricDotsRenderer: MKOverlayRenderer, @unchecked Sendable {
             let rect = MKMapRect(x: dot.point.x - r, y: dot.point.y - r, width: 2 * r, height: 2 * r)
             guard mapRect.intersects(rect) else { continue }
             let shape = self.rect(for: rect)
-            context.setFillColor(color.copy(alpha: dot.alpha)!)
+            context.setAlpha(dot.alpha)
             context.fillEllipse(in: shape)
             if !isGrid { context.strokeEllipse(in: shape) }
         }

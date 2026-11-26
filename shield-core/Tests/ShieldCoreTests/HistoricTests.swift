@@ -85,6 +85,27 @@ enum HistoricFixture {
         #expect(r.serves(MapViewport(box: alps, zoom: 8), kinds: all, truncated: false, sites: HistoricLayer.chipLimit + 1))
     }
 
+    @Test func anAnswerForMoreGroupsServesFewerUnlessCutShort() {
+        let r = HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: all)
+        #expect(r.serves(MapViewport(box: alps, zoom: 9), kinds: [.castle], truncated: false))
+        #expect(!r.serves(MapViewport(box: alps, zoom: 9), kinds: [.castle], truncated: true))
+        let castles = HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: [.castle, .memorial])
+        #expect(castles.serves(MapViewport(box: alps, zoom: 9), kinds: [.castle], truncated: false))
+        #expect(!castles.serves(MapViewport(box: alps, zoom: 9), kinds: [.castle, .military], truncated: false))
+        #expect(!castles.serves(MapViewport(box: alps, zoom: 9), kinds: all, truncated: false))
+        let grid = HistoricRequest(MapViewport(box: alps, zoom: 4), kinds: all)
+        #expect(grid.serves(MapViewport(box: alps, zoom: 4), kinds: [.memorial], truncated: false))
+    }
+
+    @Test func filteringKeepsOnlyTheGroupsShown() {
+        let layer = HistoricFixture.points([HistoricFixture.neuschwanstein, HistoricFixture.fortress, HistoricFixture.tower])
+        #expect(layer.filtered(to: [.castle]).sites.map(\.id) == ["Q4048"])
+        #expect(layer.filtered(to: Set(HistoricKind.allCases)).sites.count == 3) // the unknown group too
+        let grid = HistoricFixture.grid(HistoricFixture.cells).filtered(to: [.castle])
+        guard case .grid(let cells, _) = grid.content else { Issue.record("expected a grid"); return }
+        #expect(cells.map(\.count) == [28]) // Sydney's memorials leave
+    }
+
     @Test func kindsAreSentOnlyWhenSomeAreOff() {
         #expect(HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: all).kinds == nil)
         let castles = HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: [.castle])
@@ -221,12 +242,95 @@ enum HistoricFixture {
         #expect(p.historicRequests.map(\.box) == [alps.box, inside.box])
     }
 
-    @Test func changingTheKindsAsksAgainWithOnlyThoseKinds() async {
+    /// Back inside the answer on screen while another view's request is in flight: that request
+    /// is dropped, so it can't replace what is shown with a view the map has left.
+    @Test func movingBackInsideTheAnswerDropsTheRequestInFlight() async {
         let p = ScriptedProvider()
         let m = model(p)
         m.showsHistoric = true
         m.viewportDidChange(alps)
         await m.settle()
+        p.historicDelay = .milliseconds(80)
+        let away = MapViewport(box: GeoBox(minLongitude: 20, minLatitude: 47, maxLongitude: 21, maxLatitude: 48), zoom: 9)
+        m.viewportDidChange(away)
+        for _ in 0..<200 where p.historicRequests.count < 2 { try? await Task.sleep(for: .milliseconds(2)) }
+        p.historicAnswer = HistoricFixture.points([])
+        m.viewportDidChange(alps)
+        await m.settleMap()
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(m.historic?.sites.count == 3)
+        #expect(p.historicRequests.count == 2)
+    }
+
+    /// Fewer groups need no request: the answer on screen is filtered at once, cells by their
+    /// count per group, and a site of a group the app doesn't know leaves with the filter.
+    @Test func narrowingTheKindsFiltersWhatIsShownWithoutAsking() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        m.selectedHistoricID = "Q3" // the tower, of a group the app doesn't know
+        m.historicKinds = [.castle]
+        await m.settle()
+        #expect(m.historic?.sites.map(\.id) == ["Q4048"])
+        #expect(m.selectedHistoricID == nil)
+        #expect(p.historicRequests.count == 1)
+
+        m.historicKinds = Set(HistoricKind.allCases) // served: the answer held every group
+        await m.settle()
+        #expect(m.historic?.sites.count == 3)
+        #expect(p.historicRequests.count == 1)
+
+        m.viewportDidChange(alpsWide)
+        await m.settle()
+        m.historicKinds = [.memorial]
+        await m.settle()
+        guard case .grid(let cells, _)? = m.historic?.content else {
+            Issue.record("expected a grid")
+            return
+        }
+        #expect(cells.map(\.count) == [24, 3])
+        #expect(cells.first?.kinds == ["memorial": 24])
+        #expect(p.historicRequests.count == 2)
+    }
+
+    /// Sites cut short can't be filtered: the server would send more of the groups left.
+    @Test func narrowingACutShortAnswerAsksAgain() async {
+        let p = ScriptedProvider()
+        p.historicAnswer = HistoricFixture.points([HistoricFixture.neuschwanstein, HistoricFixture.fortress], truncated: true)
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        m.historicKinds = [.military]
+        #expect(m.historic?.sites.map(\.id) == ["Q2"]) // never the castle meanwhile
+        await m.settle()
+        #expect(p.historicRequests.map(\.kinds) == [nil, [.military]])
+    }
+
+    @Test func aFailureDoesNotHoldBackADifferentView() async {
+        let p = ScriptedProvider()
+        p.historicFailure = URLError(.badServerResponse)
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        p.historicFailure = nil
+        m.viewportDidChange(alpsWide)
+        await m.settle()
+        #expect(p.historicRequests.count == 2)
+        #expect(!m.historicFailed && m.historic != nil)
+    }
+
+    @Test func moreKindsThanTheAnswerHeldAreAskedFor() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.historicKinds = [.castle]
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        #expect(p.historicRequests.last?.kinds == [.castle])
         m.historicKinds = [.castle, .memorial]
         await m.settle()
         #expect(p.historicRequests.last?.kinds == [.castle, .memorial])
@@ -286,14 +390,15 @@ enum HistoricFixture {
         let p = ScriptedProvider()
         p.historicDelay = .milliseconds(60)
         let m = model(p)
+        m.historicKinds = [.castle]
         m.viewportDidChange(alps)
         m.showsHistoric = true
         for _ in 0..<200 where p.historicRequests.isEmpty { try? await Task.sleep(for: .milliseconds(2)) }
         p.historicDelay = nil
-        p.historicAnswer = HistoricFixture.points([HistoricFixture.neuschwanstein])
-        m.historicKinds = [.castle]
+        m.historicKinds = Set(HistoricKind.allCases)
         try? await Task.sleep(for: .milliseconds(150))
-        #expect(m.historic?.sites.map(\.id) == ["Q4048"])
+        #expect(p.historicRequests.map(\.kinds) == [[.castle], nil])
+        #expect(m.historic?.sites.count == 3) // the castles-only answer, late, was dropped
     }
 
     @Test func aFailureKeepsTheLastLayerAndWaitsAMinuteFromTheRequest() async {

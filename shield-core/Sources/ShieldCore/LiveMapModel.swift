@@ -145,11 +145,15 @@ public final class LiveMapModel {
     public private(set) var historicFailed = false
     private var historicTask: Task<Void, Never>?
     private var historicGeneration = 0
-    /// What `historic` answers, so a view inside it is not asked again (the layer changes weekly).
+    /// The server's answer, before `historic` keeps only the groups shown.
+    @ObservationIgnored private var historicAnswer: HistoricLayer?
+    /// What `historicAnswer` answers, so a view inside it is not asked again (the layer changes weekly).
     private var historicAnswered: HistoricRequest?
     /// The request in flight, if any.
     private var historicAsking: HistoricRequest?
     private var historicFailedAt: Date?
+    /// The request that failed: only asking it again waits out the minute.
+    private var historicFailedRequest: HistoricRequest?
 
     /// The historic layer; off by default. Saved with the filters (no quota behind it).
     public var showsHistoric = false {
@@ -172,9 +176,13 @@ public final class LiveMapModel {
         didSet {
             if historicKinds.isEmpty { historicKinds = oldValue } // no observer re-entry
             guard historicKinds != oldValue, !restoring else { return }
-            if let kind = selectedHistoricSite?.kind, !historicKinds.contains(kind) { selectedHistoricID = nil }
+            if let site = selectedHistoricSite,
+               historicKinds.count < HistoricKind.allCases.count,
+               !(site.kind.map(historicKinds.contains) ?? false) { selectedHistoricID = nil }
             save()
             guard showsHistoric else { return }
+            // Fewer groups are filtered from the answer at once; more are asked for.
+            historic = historicAnswer?.filtered(to: historicKinds)
             // A deliberate change: asked at once, even within a minute of a failure.
             historicFailedAt = nil
             startHistoric()
@@ -194,8 +202,8 @@ public final class LiveMapModel {
     /// answer, zooming out turns it into a grid, and the iPhone sheet shrinks the view over it.
     public var selectedHistoricSite: HistoricSite? {
         guard let selectedHistoricID else { return nil }
+        if let chosenSite, chosenSite.id == selectedHistoricID { return chosenSite }
         return historic?.sites.first { $0.id == selectedHistoricID }
-            ?? chosenSite.flatMap { $0.id == selectedHistoricID ? $0 : nil }
     }
 
     private var chosenSite: HistoricSite?
@@ -707,28 +715,44 @@ public final class LiveMapModel {
         historicTask = nil
         historicGeneration += 1
         historic = nil
+        historicAnswer = nil
         historicFailed = false
         historicFailedAt = nil
+        historicFailedRequest = nil
         historicAnswered = nil
         historicAsking = nil
     }
 
+    /// Drops the request in flight, if any: its answer would replace one that serves the view.
+    private func dropHistoricRequest() {
+        guard historicTask != nil else { return }
+        historicTask?.cancel()
+        historicTask = nil
+        historicAsking = nil
+        historicGeneration += 1
+    }
+
     /// Asks for the current view's sites unless the last answer, or the request in flight, already
-    /// covers it. A failure waits a minute from when it was asked, as the bases layer does.
+    /// serves it. A failure waits a minute from when it was asked, as the bases layer does, but
+    /// only before asking the same again: a different view is asked at once.
     private func startHistoric() {
         guard showsHistoric, provider.supportsHistoric else { return }
         // Not before the map has reported a view: the default is the whole world at zoom 1.
         guard hasViewport else { return }
-        if let historicAnswered, let historic,
-           historicAnswered.serves(viewport, kinds: historicKinds, truncated: historic.isTruncated,
-                                   sites: historic.sites.count) { return }
+        if let historicAnswered, let historicAnswer, let historic,
+           historicAnswered.serves(viewport, kinds: historicKinds, truncated: historicAnswer.isTruncated,
+                                   sites: historic.sites.count) {
+            dropHistoricRequest()
+            return
+        }
         if historicTask != nil, let historicAsking,
            historicAsking.serves(viewport, kinds: historicKinds, truncated: false) { return }
-        if let historicFailedAt, now().timeIntervalSince(historicFailedAt) < 60 { return }
+        let wanted = HistoricRequest(viewport, kinds: historicKinds)
+        if wanted == historicFailedRequest, let historicFailedAt,
+           now().timeIntervalSince(historicFailedAt) < 60 { return }
         historicTask?.cancel()
         historicGeneration += 1
         let generation = historicGeneration, provider = provider, askedAt = now()
-        let wanted = HistoricRequest(viewport, kinds: historicKinds)
         historicAsking = wanted
         historicTask = Task { [weak self] in
             let result = await Self.capture { try await provider.historic(wanted) }
@@ -737,10 +761,12 @@ public final class LiveMapModel {
             self.historicAsking = nil
             switch result {
             case .success(let layer):
-                self.historic = layer
+                self.historicAnswer = layer
+                self.historic = layer.filtered(to: self.historicKinds)
                 self.historicAnswered = wanted
                 self.historicFailed = false
                 self.historicFailedAt = nil
+                self.historicFailedRequest = nil
                 // A view that moved while this was asked waited on it; if the answer doesn't
                 // serve it after all (too dense for chips, cut short), ask for it now.
                 self.startHistoric()
@@ -748,6 +774,7 @@ public final class LiveMapModel {
                 if LoadFailure.isCancellation(error) { return }
                 self.historicFailed = true
                 self.historicFailedAt = askedAt
+                self.historicFailedRequest = wanted
             }
         }
     }
