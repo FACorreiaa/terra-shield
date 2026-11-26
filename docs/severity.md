@@ -133,6 +133,22 @@ Rated by the strongest wind in NHC's forecast, the current one included, on the 
 `source_severity` is the current intensity and, when stronger, the forecast peak: "Cat 3 now, Cat 4 forecast",
 "45 kt now, 60 kt forecast". Rating by the peak is the owner's to change.
 
+## USGS volcano alert levels (ADR 35)
+
+Rated by the ground alert level, which is about people on the ground; the aviation colour code rates only a volcano
+with no ground level (UNASSIGNED: a seamount, an unmonitored volcano). A volcano at NORMAL is not a warning, whatever
+its colour, and is not stored.
+
+| Ground alert level | Aviation colour (no ground level) | Shield |
+|---|---|---|
+| NORMAL | GREEN | not a warning: skipped |
+| ADVISORY | YELLOW | moderate |
+| WATCH | ORANGE | severe |
+| WARNING | RED | extreme |
+
+`source_severity` gives both, as USGS names them: "Watch · aviation Orange", "aviation Orange" for a volcano with no
+ground level. The bands follow MeteoAlarm's colours (yellow moderate, orange severe, red extreme).
+
 ## Tsunami (NOAA warning centers; owner, 2026-11-19)
 
 US products (Hawaii, Alaska, the US West Coast, Guam, American Samoa, the Marianas, Puerto Rico, the Virgin
