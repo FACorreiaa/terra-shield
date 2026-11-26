@@ -60,13 +60,18 @@ type Event struct {
 	Title          string
 	Summary        string
 	Geometry       json.RawMessage // GeoJSON geometry, WGS84; Z is dropped
-	StartedAt      *time.Time
-	ObservedAt     time.Time
-	UpdatedAt      time.Time // the source's own last-update time
-	EndedAt        *time.Time
-	URL            string // official page for the event (ADR 12)
-	Attrs          map[string]any
-	CountryRule    CountryRule // zero: every country the geometry touches
+	// Position, when set, is where the hazard is (lon, lat), for the map
+	// pin; otherwise the pin is a point on the geometry. A forecast cone's
+	// surface is not where the storm is. Sources keep it in Attrs as well,
+	// so a move alone is a change.
+	Position    *[2]float64
+	StartedAt   *time.Time
+	ObservedAt  time.Time
+	UpdatedAt   time.Time // the source's own last-update time
+	EndedAt     *time.Time
+	URL         string // official page for the event (ADR 12)
+	Attrs       map[string]any
+	CountryRule CountryRule // zero: every country the geometry touches
 }
 
 // CountryRule narrows country assignment (ADR 4) for an event whose area

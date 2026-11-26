@@ -93,6 +93,26 @@ as its onset, so a stored start is kept.
 | `areas` | string[], **always** | Area names of every segment in force, sorted |
 | `endsAt` | date-time | When the event is expected to end (CAP `ends`, else the VTEC end); not an expiry, the event stays while NWS lists it |
 
+## NHC cyclone forecasts (ADR 32)
+
+One event is one storm. The pin (`centroid`) is the storm's center from the latest public advisory; the geometry is the
+latest forecast cone. Winds are knots, sustained over one minute.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `stormId` | string, **always** | NHC storm id: basin, number, year (`al052025`) |
+| `basin` | string, **always** | `AL` Atlantic, `EP` eastern North Pacific, `CP` central North Pacific (CPHC) |
+| `classification` | string, **always** | NHC code: `TD`, `STD`, `TS`, `STS`, `HU`, `PTC` (post-tropical), `PC` (potential), … |
+| `advisory` | string | Latest public advisory number, intermediate ones included (`011A`) |
+| `forecastAdvisory` | string, **always** | Advisory number of the forecast the cone and track come from (`011`) |
+| `forecastIssuedAt` | date-time, **always** | When that forecast was issued |
+| `position` | [lon, lat], **always** | The storm's center, as `centroid` |
+| `windKt` | number | Maximum sustained wind now |
+| `pressureMb` | number | Minimum central pressure now |
+| `movementDeg`, `movementMph` | number | Direction the storm is moving toward, and its speed |
+| `peakWindKt` | number, **always** | Strongest wind in the forecast (rates severity) |
+| `forecast` | object[], **always** | The track: `tau` (hours after the forecast's synoptic time), `at`, `lon`, `lat`, `windKt`, `gustKt`, `pressureMb` (initial point only), `stormType` (`TD`, `TS`, `HU`, `MH` major hurricane, `LO` remnant low, …); unknown values are left out |
+
 ## Tsunami (NOAA warning centers; ADR 25)
 
 Two kinds of event: US alerts (`kind=warning`, id `<center>-<incident>-<product>-warning|advisory|watch`, one event

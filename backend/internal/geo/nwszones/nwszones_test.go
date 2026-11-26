@@ -15,9 +15,9 @@ type rec struct {
 	rings             [][][2]float64 // nil: a null shape
 }
 
-// shapefile writes a zipped polygon shapefile with a STATE/ZONE/NAME dbf;
+// zipShapefile writes a zipped polygon shapefile with a STATE/ZONE/NAME dbf;
 // deleted marks dbf rows flagged as deleted.
-func shapefile(t *testing.T, recs []rec, deleted map[int]bool) []byte {
+func zipShapefile(t *testing.T, recs []rec, deleted map[int]bool) []byte {
 	t.Helper()
 	var shp bytes.Buffer
 	shp.Write(make([]byte, 100))
@@ -103,7 +103,7 @@ func square(x, y, s float64) [][2]float64 {
 }
 
 func TestParse(t *testing.T) {
-	zipped := shapefile(t, []rec{
+	zipped := zipShapefile(t, []rec{
 		{"HI", "001", "Niihau", [][][2]float64{square(-160.3, 21.7, 0.3)}},
 		// One zone over two records, the first with a hole: all rings kept.
 		{"GU", "001", "Guam", [][][2]float64{square(144.6, 13.2, 0.4), square(144.7, 13.3, 0.1)}},
@@ -135,9 +135,9 @@ func TestParseRejectsBadFiles(t *testing.T) {
 	good := []rec{{"HI", "001", "Niihau", [][][2]float64{square(-160.3, 21.7, 0.3)}}}
 	for name, zipped := range map[string][]byte{
 		"not a zip":      []byte("nope"),
-		"bad zone code":  shapefile(t, []rec{{"HI", "0A1", "x", good[0].rings}}, nil),
-		"point too far":  shapefile(t, []rec{{"HI", "001", "x", [][][2]float64{square(179.9, 0, 1)}}}, nil),
-		"ring too short": shapefile(t, []rec{{"HI", "001", "x", [][][2]float64{{{0, 0}, {1, 1}, {0, 0}}}}}, nil),
+		"bad zone code":  zipShapefile(t, []rec{{"HI", "0A1", "x", good[0].rings}}, nil),
+		"point too far":  zipShapefile(t, []rec{{"HI", "001", "x", [][][2]float64{square(179.9, 0, 1)}}}, nil),
+		"ring too short": zipShapefile(t, []rec{{"HI", "001", "x", [][][2]float64{{{0, 0}, {1, 1}, {0, 0}}}}}, nil),
 	} {
 		if _, err := Parse(zipped); err == nil {
 			t.Errorf("%s: parsed", name)

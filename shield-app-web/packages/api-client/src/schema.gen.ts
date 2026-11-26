@@ -384,6 +384,7 @@ export interface components {
             severityProvisional?: boolean;
             title: string;
             summary?: string;
+            /** @description Where to pin the event: a point on its geometry, or where the hazard is when the source says (a cyclone forecast's storm center, not a point on its cone). */
             centroid: components["schemas"]["Coordinate"];
             countries: components["schemas"]["EventCountry"][];
             /** Format: date-time */

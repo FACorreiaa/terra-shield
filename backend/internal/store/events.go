@@ -97,6 +97,8 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 		Title:          e.Title,
 		Summary:        nonEmpty(e.Summary),
 		Geom:           string(e.Geometry),
+		PositionLon:    positionPart(e.Position, 0),
+		PositionLat:    positionPart(e.Position, 1),
 		StartedAt:      e.StartedAt,
 		ObservedAt:     e.ObservedAt,
 		UpdatedAt:      e.UpdatedAt,
@@ -342,4 +344,13 @@ func recordRevision(ctx context.Context, q *eventsdb.Queries, key eventsdb.Event
 		return err
 	}
 	return q.InsertEventRevision(ctx, eventsdb.InsertEventRevisionParams{EventID: after.ID, Changes: body})
+}
+
+// positionPart is one coordinate of an event's position, nil without one.
+func positionPart(p *[2]float64, i int) *float64 {
+	if p == nil {
+		return nil
+	}
+	v := p[i]
+	return &v
 }

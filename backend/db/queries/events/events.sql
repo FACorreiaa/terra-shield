@@ -8,7 +8,9 @@ INSERT INTO events (
     fetched_at, url, attrs, change_op
 ) SELECT
     @source_id, @source_event_id, @type, @kind, @status, @severity, @source_severity,
-    @title, @summary, r.g::geography, ST_PointOnSurface(r.g)::geography,
+    @title, @summary, r.g::geography,
+    COALESCE(ST_SetSRID(ST_MakePoint(sqlc.narg('position_lon')::float8, sqlc.narg('position_lat')::float8), 4326),
+             ST_PointOnSurface(r.g))::geography,
     @started_at, @observed_at, @updated_at, @ended_at,
     now(), @url, @attrs,
     CASE WHEN @status::text = 'resolved' THEN 'resolved' ELSE 'created' END

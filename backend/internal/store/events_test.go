@@ -218,3 +218,40 @@ func TestEventActiveIDs(t *testing.T) {
 		t.Fatalf("other source %v %v", ids, err)
 	}
 }
+
+// An event's position, when given, is its pin; without one the pin is a
+// point on its geometry, as before.
+func TestEventPosition(t *testing.T) {
+	pool := testutil.DB(t)
+	seedWorld(t, pool)
+	ctx := context.Background()
+	repo := store.NewEventRepository(pool)
+	square, _ := json.Marshal(map[string]any{"type": "Polygon", "coordinates": [][][2]float64{
+		{{-20, 30}, {-20, 35}, {-15, 35}, {-15, 30}, {-20, 30}},
+	}})
+	at := time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC)
+	cone := func(id string, pos *[2]float64) domain.Event {
+		return domain.Event{
+			SourceEventID: id, Type: domain.TypeTropicalCyclone, Kind: domain.KindForecast, Status: domain.StatusActive,
+			Severity: "minor", Title: id, Geometry: square, Position: pos, ObservedAt: at, UpdatedAt: at,
+		}
+	}
+	if _, err := repo.Upsert(ctx, "test", []domain.Event{cone("pinned", &[2]float64{-19.5, 30.5}), cone("plain", nil)}); err != nil {
+		t.Fatal(err)
+	}
+	pin := func(id string) (float64, float64) {
+		t.Helper()
+		var lon, lat float64
+		if err := pool.QueryRow(ctx, `SELECT ST_X(centroid::geometry), ST_Y(centroid::geometry) FROM events WHERE source_event_id = $1`, id).Scan(&lon, &lat); err != nil {
+			t.Fatal(err)
+		}
+		return lon, lat
+	}
+	if lon, lat := pin("pinned"); lon != -19.5 || lat != 30.5 {
+		t.Fatalf("pinned event's pin at %v,%v", lon, lat)
+	}
+	var onSurface bool
+	if err := pool.QueryRow(ctx, `SELECT ST_Equals(centroid::geometry, ST_PointOnSurface(geom::geometry)) FROM events WHERE source_event_id = 'plain'`).Scan(&onSurface); err != nil || !onSurface {
+		t.Fatalf("unpinned event's pin is not on its surface: %v %v", onSurface, err)
+	}
+}
