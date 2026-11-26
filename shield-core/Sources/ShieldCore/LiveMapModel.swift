@@ -801,7 +801,11 @@ public final class LiveMapModel {
                                  truncated: false) { return }
         let wanted = HistoricRequest(viewport, kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
         if let historicFailedAt, now().timeIntervalSince(historicFailedAt) < historicHoldBack,
-           historicRateLimited || wanted == historicFailedRequest { return }
+           historicRateLimited || wanted == historicFailedRequest {
+            // Not asked: the legend says the view didn't load, not "loading" or the old count.
+            historicFailed = true
+            return
+        }
         historicTask?.cancel()
         historicGeneration += 1
         let generation = historicGeneration, provider = provider, askedAt = now()

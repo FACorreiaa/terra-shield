@@ -574,6 +574,55 @@ enum HistoricFixture {
         await m.settle()
     }
 
+    /// The selected site stays selected (and on the map) while new filters it still matches wait
+    /// for their answer.
+    @Test func theSelectedSiteOutlastsTheWaitForNewFilters() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.historicKinds = [.castle]
+        m.viewportDidChange(alps)
+        await m.settle()
+        let site = try! #require(m.historic?.sites.first)
+        m.selectedHistoricID = site.id
+        p.historicDelay = .milliseconds(60)
+        m.historicKinds = Set(HistoricKind.allCases) // more than asked for: waits for the answer
+        #expect(m.historic == nil)
+        #expect(m.selectedHistoricSite?.id == site.id)
+        await m.settle()
+        #expect(m.selectedHistoricID == site.id)
+    }
+
+    /// During a rate limit's hold-back, a view or filters the answer can't show are not asked for,
+    /// and the legend says so (didn't load) instead of "loading" or the old count.
+    @Test func whatAHoldBackLeavesUnaskedIsReportedAsNotLoaded() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.historicKinds = [.castle]
+        m.viewportDidChange(alps)
+        await m.settle()
+        p.historicFailure = SlowDown()
+        m.viewportDidChange(MapViewport(box: GeoBox(minLongitude: 20, minLatitude: 47, maxLongitude: 21, maxLatitude: 48), zoom: 9))
+        await m.settle()
+        m.viewportDidChange(alps)
+        await m.settle()
+        #expect(!m.historicFailed) // back inside the answer
+        m.historicKinds = Set(HistoricKind.allCases) // more than asked for, held back
+        await m.settle()
+        #expect(p.historicRequests.count == 2)
+        #expect(m.historic == nil)
+        #expect(m.historicFailed)
+        m.historicKinds = [.castle] // the answer shows it again
+        await m.settle()
+        #expect(m.historic != nil)
+        #expect(!m.historicFailed)
+        m.viewportDidChange(MapViewport(box: GeoBox(minLongitude: 30, minLatitude: 47, maxLongitude: 31, maxLatitude: 48), zoom: 9))
+        await m.settle()
+        #expect(p.historicRequests.count == 2)
+        #expect(m.historicFailed) // a new view, held back
+    }
+
     @Test func backInsideTheAnswerAfterAFailureClearsTheWarning() async {
         let p = ScriptedProvider()
         let m = model(p)
