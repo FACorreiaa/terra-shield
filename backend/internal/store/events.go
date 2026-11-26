@@ -137,6 +137,24 @@ func (r *EventRepository) ActiveIDs(ctx context.Context, sourceID string) ([]str
 	return eventsdb.New(r.pool).ActiveEventIDs(ctx, sourceID)
 }
 
+// ActiveStarts maps each of a source's active events to its start (zero
+// when it has none).
+func (r *EventRepository) ActiveStarts(ctx context.Context, sourceID string) (map[string]time.Time, error) {
+	rows, err := eventsdb.New(r.pool).ActiveEventStarts(ctx, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]time.Time, len(rows))
+	for _, row := range rows {
+		var at time.Time
+		if row.StartedAt != nil {
+			at = row.StartedAt.UTC()
+		}
+		out[row.SourceEventID] = at
+	}
+	return out, nil
+}
+
 // ActiveIDsWithAttr lists the source event ids of a source's active events
 // whose attrs[key] equals value.
 func (r *EventRepository) ActiveIDsWithAttr(ctx context.Context, sourceID, key, value string) ([]string, error) {

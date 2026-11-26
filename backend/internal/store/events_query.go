@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,40 @@ type querier interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
+// mapGeometry is an event's shape for a map at a given tolerance ($tol,
+// degrees): simplified, and without the parts too small to see. Coastal
+// warnings are made of zones that carry every islet (two thirds of the
+// 16,780 parts in the NWS forecast zones are under 1 km²), and
+// simplification keeps every part: one Chesapeake Bay warning was 1,084
+// parts. A part smaller than a pixel (the tolerance is half of one) is
+// dropped; if every part is, the largest stays, so no event loses its
+// shape. Only shapes with an area are filtered (multipolygons, and
+// collections that hold one, whose stray lines and points go with the
+// small parts): points, lines and single polygons pass as they are.
+//
+// ST_Simplify keeps collapsed rings (preserveCollapsed), so a small storm
+// stays visible at zoom 2. It is plain ST_Simplify, not the
+// topology-preserving variant: that one refuses to simplify rings that
+// would touch a neighbour, so on coastal zones it kept four times the
+// points and took 969 ms for what this does in 8 (all active events,
+// 2026-11-26). A map shape may self-intersect where parts were close; it
+// is drawn, never measured. Detail (GET /v1/events/{id}) and country
+// assignment use the stored shape.
+const mapGeometry = `ST_Simplify(
+  CASE WHEN GeometryType(e.geom::geometry) IN ('MULTIPOLYGON', 'GEOMETRYCOLLECTION') AND ST_NumGeometries(e.geom::geometry) > 1
+        AND ST_Area(e.geom::geometry) > 0 THEN COALESCE(
+    (SELECT ST_Collect(d.geom) FROM ST_Dump(e.geom::geometry) d WHERE ST_Area(d.geom) >= 4 * $tol * $tol),
+    (SELECT d.geom FROM ST_Dump(e.geom::geometry) d ORDER BY ST_Area(d.geom) DESC LIMIT 1))
+  ELSE e.geom::geometry END, $tol, true)`
+
+// mapDecimals is the coordinate precision a tolerance can show: one digit
+// finer than the tolerance, from 1 to 5 decimals. At zoom 2 (0.18°) two
+// decimals (1 km) are already finer than a pixel; digits are what gzip
+// cannot compress.
+func mapDecimals(tolerance float64) int {
+	return min(5, max(1, int(math.Ceil(-math.Log10(tolerance)))+1))
+}
+
 func listEvents(ctx context.Context, db querier, q domain.EventQuery) ([]domain.EventRecord, bool, error) {
 	if q.Limit <= 0 {
 		return nil, false, fmt.Errorf("event query: limit must be positive")
@@ -36,11 +71,13 @@ func listEvents(ctx context.Context, db querier, q domain.EventQuery) ([]domain.
 	var b sqlBuilder
 	geometry := "NULL::text"
 	if q.Geometry {
-		g := "e.geom::geometry"
+		g, digits := "e.geom::geometry", "5" // 5 decimals ≈ 1 m
 		if q.SimplifyDegrees > 0 {
-			g = "ST_SimplifyPreserveTopology(e.geom::geometry, " + b.arg(q.SimplifyDegrees) + ")"
+			tol := b.arg(q.SimplifyDegrees)
+			g = strings.ReplaceAll(mapGeometry, "$tol", tol+"::float8")
+			digits = b.arg(mapDecimals(q.SimplifyDegrees)) + "::int"
 		}
-		geometry = "ST_AsGeoJSON(" + g + ", 5)" // 5 decimals ≈ 1 m
+		geometry = "ST_AsGeoJSON(" + g + ", " + digits + ")"
 	}
 	distance, order := "NULL::float8", ""
 	if q.Near != nil {

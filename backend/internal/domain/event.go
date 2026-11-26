@@ -111,9 +111,15 @@ func (k Kind) Valid() bool {
 // Valid reports whether s is one of the statuses above.
 func (s Status) Valid() bool { return s == StatusActive || s == StatusResolved }
 
-// ForecastZone is one NWS public forecast zone (UGC code like HIZ001):
-// its rings as a GeoJSON MultiLineString, which the store assembles into
-// polygons.
+// ZoneRef names one NWS zone of a set (nwszones.Set.Kind): forecast,
+// fire or county.
+type ZoneRef struct {
+	Set, UGC string
+}
+
+// ForecastZone is one NWS zone (UGC code like HIZ001, or NCC037 for a
+// county): its rings as a GeoJSON MultiLineString, which the store
+// assembles into polygons.
 type ForecastZone struct {
 	UGC   string
 	State string

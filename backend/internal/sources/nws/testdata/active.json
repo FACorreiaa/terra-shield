@@ -1,0 +1,865 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4d3ce28d3a0e9e85b999569f6ef2da3e145507dd.002.1",
+   "type": "Feature",
+   "geometry": null,
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4d3ce28d3a0e9e85b999569f6ef2da3e145507dd.002.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.4d3ce28d3a0e9e85b999569f6ef2da3e145507dd.002.1",
+    "areaDesc": "Clatsop County Coast",
+    "geocode": {
+     "SAME": [
+      "041007"
+     ],
+     "UGC": [
+      "ORZ101"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/forecast/ORZ101"
+    ],
+    "references": [
+     {
+      "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f02eefe7b8673cdb38091b4d890a76a8e6a658b7.003.1",
+      "identifier": "urn:oid:2.49.0.1.840.0.f02eefe7b8673cdb38091b4d890a76a8e6a658b7.003.1",
+      "sender": "w-nws.webmaster@noaa.gov",
+      "sent": "2026-11-25T13:07:00-08:00"
+     }
+    ],
+    "sent": "2026-11-25T23:59:00-08:00",
+    "effective": "2026-11-25T23:59:00-08:00",
+    "onset": "2026-11-25T23:59:00-08:00",
+    "expires": "2026-11-26T16:00:00-08:00",
+    "ends": "2026-11-26T16:00:00-08:00",
+    "status": "Actual",
+    "messageType": "Update",
+    "category": "Met",
+    "severity": "Minor",
+    "certainty": "Likely",
+    "urgency": "Expected",
+    "event": "Coastal Flood Advisory",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Portland OR",
+    "headline": "Coastal Flood Advisory issued November 25 at 11:59PM PST until November 26 at 4:00PM PST by NWS Portland OR",
+    "description": "* WHAT...Tidal overflow flooding.\n\n* WHERE...Clatsop County Coast.\n\n* WHEN...Until 4 PM PST Thursday during periods of high tide.\n\n* IMPACTS...Minor flooding, up to one foot above ground level,\nduring high tides is expected in the low lying areas near\nbays, sloughs, and the lower reaches of the coastal rivers.\n\n* ADDITIONAL DETAILS...For the Clatsop County Coast, total tides\nat Astoria (Tongue Point) will be 11.9 feet at 2 PM PST Thursday\nNovember 26.",
+    "instruction": "A Coastal Flood Advisory means that tidal overflow flooding is\nexpected. Coastal residents in the warned area should be alert\nfor rising water, and take appropriate action to protect life and\nproperty.",
+    "response": "Monitor",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "CFWPQR"
+     ],
+     "WMOidentifier": [
+      "WHUS46 KPQR 260759"
+     ],
+     "NWSheadline": [
+      "COASTAL FLOOD ADVISORY REMAINS IN EFFECT UNTIL 4 PM PST THURSDAY"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "VTEC": [
+      "/O.CON.KPQR.CF.Y.0005.000000T0000Z-261127T0000Z/"
+     ],
+     "eventEndingTime": [
+      "2026-11-26T16:00:00-08:00"
+     ],
+     "expiredReferences": [
+      "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.1c22dbfd8e31131229524929e1e4640c0d2a470d.002.1,2026-11-25T02:31:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.d04911cf2762b8ace56e7547babcaf053ae628fd.002.1,2026-11-24T13:11:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.57a861ce046707b2385c2813ce29f963e6d0a502.002.1,2026-11-24T00:49:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.275be10ce47ea2d262918c399c31cfd17fca05eb.004.2,2026-11-23T13:33:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.3ae582945f1f2353264491f3bf2a438bac9f9854.001.2,2026-11-22T22:48:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.b3538a28f85029b5fd2779e2438e1c38deba11a3.001.3,2026-11-22T11:26:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.356ed8591a37177af660d1c51151a10f0d9477c7.001.1,2026-11-21T22:54:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.8b9c1a4084b7ce8318dcde2a8c4b07f9b09e4ad2.001.1,2026-11-21T11:49:00-08:00"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "NWS"
+     ],
+     "NationalWeatherService": [
+      "CFY"
+     ]
+    }
+   }
+  },
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4d3ce28d3a0e9e85b999569f6ef2da3e145507dd.001.1",
+   "type": "Feature",
+   "geometry": null,
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4d3ce28d3a0e9e85b999569f6ef2da3e145507dd.001.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.4d3ce28d3a0e9e85b999569f6ef2da3e145507dd.001.1",
+    "areaDesc": "South Washington Coast",
+    "geocode": {
+     "SAME": [
+      "053049"
+     ],
+     "UGC": [
+      "WAZ201"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/forecast/WAZ201"
+    ],
+    "references": [
+     {
+      "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f02eefe7b8673cdb38091b4d890a76a8e6a658b7.001.1",
+      "identifier": "urn:oid:2.49.0.1.840.0.f02eefe7b8673cdb38091b4d890a76a8e6a658b7.001.1",
+      "sender": "w-nws.webmaster@noaa.gov",
+      "sent": "2026-11-25T13:07:00-08:00"
+     }
+    ],
+    "sent": "2026-11-25T23:59:00-08:00",
+    "effective": "2026-11-25T23:59:00-08:00",
+    "onset": "2026-11-25T23:59:00-08:00",
+    "expires": "2026-11-26T17:00:00-08:00",
+    "ends": "2026-11-27T17:00:00-08:00",
+    "status": "Actual",
+    "messageType": "Update",
+    "category": "Met",
+    "severity": "Minor",
+    "certainty": "Likely",
+    "urgency": "Expected",
+    "event": "Coastal Flood Advisory",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Portland OR",
+    "headline": "Coastal Flood Advisory issued November 25 at 11:59PM PST until November 27 at 5:00PM PST by NWS Portland OR",
+    "description": "* WHAT...Tidal overflow flooding.\n\n* WHERE...South Washington Coast.\n\n* WHEN...Until 5 PM PST Friday during periods of high tide.\n\n* IMPACTS...Minor flooding, up to one foot above ground level,\nduring high tides is expected in the low lying areas near\nbays, sloughs, and the lower reaches of the coastal rivers.\n\n* ADDITIONAL DETAILS...For the South Washington Coast, total tides\nat Toke Point will be 12.9 feet at 1 PM PST Thursday November\n26, and 11.4 feet at 2 PM PST Friday November 27.",
+    "instruction": "A Coastal Flood Advisory means that tidal overflow flooding is\nexpected. Coastal residents in the warned area should be alert\nfor rising water, and take appropriate action to protect life and\nproperty.",
+    "response": "Monitor",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "CFWPQR"
+     ],
+     "WMOidentifier": [
+      "WHUS46 KPQR 260759"
+     ],
+     "NWSheadline": [
+      "COASTAL FLOOD ADVISORY REMAINS IN EFFECT UNTIL 5 PM PST FRIDAY"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "VTEC": [
+      "/O.CON.KPQR.CF.Y.0005.000000T0000Z-261128T0100Z/"
+     ],
+     "eventEndingTime": [
+      "2026-11-27T17:00:00-08:00"
+     ],
+     "expiredReferences": [
+      "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.1c22dbfd8e31131229524929e1e4640c0d2a470d.001.1,2026-11-25T02:31:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.d04911cf2762b8ace56e7547babcaf053ae628fd.001.1,2026-11-24T13:11:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.57a861ce046707b2385c2813ce29f963e6d0a502.001.1,2026-11-24T00:49:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.275be10ce47ea2d262918c399c31cfd17fca05eb.003.2,2026-11-23T13:33:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.3ae582945f1f2353264491f3bf2a438bac9f9854.001.2,2026-11-22T22:48:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.b3538a28f85029b5fd2779e2438e1c38deba11a3.001.3,2026-11-22T11:26:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.356ed8591a37177af660d1c51151a10f0d9477c7.001.1,2026-11-21T22:54:00-08:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.8b9c1a4084b7ce8318dcde2a8c4b07f9b09e4ad2.001.1,2026-11-21T11:49:00-08:00"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "NWS"
+     ],
+     "NationalWeatherService": [
+      "CFY"
+     ]
+    }
+   }
+  },
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.ffbcae0e4798787649b1d64d49e89c80e656c31d.001.1",
+   "type": "Feature",
+   "geometry": null,
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.ffbcae0e4798787649b1d64d49e89c80e656c31d.001.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.ffbcae0e4798787649b1d64d49e89c80e656c31d.001.1",
+    "areaDesc": "North Mobile Bay; South Mobile Bay; Mississippi Sound; Perdido Bay Area; Pensacola Bay Area including Santa Rosa Sound; Western Choctawhatchee Bay; Eastern Choctawhatchee Bay",
+    "geocode": {
+     "SAME": [
+      "077630",
+      "077631",
+      "077632",
+      "077633",
+      "077634",
+      "077635",
+      "077636"
+     ],
+     "UGC": [
+      "GMZ630",
+      "GMZ631",
+      "GMZ632",
+      "GMZ633",
+      "GMZ634",
+      "GMZ635",
+      "GMZ636"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/forecast/GMZ630",
+     "https://api.weather.gov/zones/forecast/GMZ631",
+     "https://api.weather.gov/zones/forecast/GMZ632",
+     "https://api.weather.gov/zones/forecast/GMZ633",
+     "https://api.weather.gov/zones/forecast/GMZ634",
+     "https://api.weather.gov/zones/forecast/GMZ635",
+     "https://api.weather.gov/zones/forecast/GMZ636"
+    ],
+    "references": [
+     {
+      "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.e3c009ea08cfcdff5058f5b32109582b85dfaec7.001.1",
+      "identifier": "urn:oid:2.49.0.1.840.0.e3c009ea08cfcdff5058f5b32109582b85dfaec7.001.1",
+      "sender": "w-nws.webmaster@noaa.gov",
+      "sent": "2026-11-25T18:09:00-06:00"
+     }
+    ],
+    "sent": "2026-11-26T01:57:00-06:00",
+    "effective": "2026-11-26T01:57:00-06:00",
+    "onset": "2026-11-26T01:57:00-06:00",
+    "expires": "2026-11-26T09:00:00-06:00",
+    "ends": "2026-11-26T09:00:00-06:00",
+    "status": "Actual",
+    "messageType": "Update",
+    "category": "Met",
+    "severity": "Minor",
+    "certainty": "Likely",
+    "urgency": "Expected",
+    "event": "Small Craft Advisory",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Mobile AL",
+    "headline": "Small Craft Advisory issued November 26 at 1:57AM CST until November 26 at 9:00AM CST by NWS Mobile AL",
+    "description": "* WHAT...Northwest winds 20 kt with gusts up to 25 kt and seas 1\nto 2 ft.\n\n* WHERE...Portions of the coastal waters of Alabama and\nnorthwest Florida.\n\n* WHEN...Until 9 AM CST this morning.\n\n* IMPACTS...Conditions will be hazardous to small craft.",
+    "instruction": "Inexperienced mariners, especially those operating smaller\nvessels, should avoid navigating in hazardous conditions.",
+    "response": "Avoid",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "MWWMOB"
+     ],
+     "WMOidentifier": [
+      "WHUS74 KMOB 260757"
+     ],
+     "NWSheadline": [
+      "SMALL CRAFT ADVISORY REMAINS IN EFFECT UNTIL 9 AM CST THIS MORNING"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "VTEC": [
+      "/O.CON.KMOB.SC.Y.0038.000000T0000Z-261126T1500Z/"
+     ],
+     "eventEndingTime": [
+      "2026-11-26T09:00:00-06:00"
+     ],
+     "expiredReferences": [
+      "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.cd9fc49a2d53a26aa3af10724eee218959a95992.001.1,2026-11-25T11:30:00-06:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.483a7ac630d49e671b85597e1b81a377c4424e69.001.1,2026-11-25T01:58:00-06:00"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "NWS"
+     ],
+     "NationalWeatherService": [
+      "SCY"
+     ]
+    }
+   }
+  },
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.d9351e34b4dfe644738213fa38f7f5b8c231b2fc.001.1",
+   "type": "Feature",
+   "geometry": null,
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.d9351e34b4dfe644738213fa38f7f5b8c231b2fc.001.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.d9351e34b4dfe644738213fa38f7f5b8c231b2fc.001.1",
+    "areaDesc": "Fulton; Mason",
+    "geocode": {
+     "SAME": [
+      "017057",
+      "017125"
+     ],
+     "UGC": [
+      "ILZ036",
+      "ILZ041"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/forecast/ILZ036",
+     "https://api.weather.gov/zones/forecast/ILZ041"
+    ],
+    "references": [],
+    "sent": "2026-11-25T11:16:00-06:00",
+    "effective": "2026-11-25T11:16:00-06:00",
+    "onset": "2026-11-25T12:00:00-06:00",
+    "expires": "2026-11-25T11:31:18-06:00",
+    "ends": "2026-11-26T18:00:00-06:00",
+    "status": "Actual",
+    "messageType": "Alert",
+    "category": "Met",
+    "severity": "Minor",
+    "certainty": "Observed",
+    "urgency": "Past",
+    "event": "Winter Weather Advisory",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Lincoln IL",
+    "headline": "The Winter Weather Advisory has been cancelled.",
+    "description": "The Winter Weather Advisory has been cancelled and is no longer in effect.",
+    "instruction": null,
+    "response": "AllClear",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "WSWILX"
+     ],
+     "WMOidentifier": [
+      "WWUS43 KILX 251716"
+     ],
+     "NWSheadline": [
+      "WINTER WEATHER ADVISORY IS CANCELLED"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "VTEC": [
+      "/O.CAN.KILX.WW.Y.0003.261125T1800Z-261127T0000Z/"
+     ],
+     "eventEndingTime": [
+      "2026-11-26T18:00:00-06:00"
+     ],
+     "expiredReferences": [
+      "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.a84a786e15189224290bdc996a33a6cc3ae14394.002.1,2026-11-25T02:55:00-06:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.532fb99de36b481a3f1e40c8d49283475c3344b0.004.1,2026-11-24T21:50:00-06:00"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "NWS"
+     ],
+     "NationalWeatherService": [
+      "WWY"
+     ]
+    }
+   }
+  },
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.eef5ebf2512dca34d4f1110d17ecda778a64d69b.001.1",
+   "type": "Feature",
+   "geometry": null,
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.eef5ebf2512dca34d4f1110d17ecda778a64d69b.001.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.eef5ebf2512dca34d4f1110d17ecda778a64d69b.001.1",
+    "areaDesc": "Northwest Pocahontas; Southeast Randolph",
+    "geocode": {
+     "SAME": [
+      "054075",
+      "054083"
+     ],
+     "UGC": [
+      "WVZ523",
+      "WVZ526"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/forecast/WVZ523",
+     "https://api.weather.gov/zones/forecast/WVZ526"
+    ],
+    "references": [],
+    "sent": "2026-11-26T00:52:00-05:00",
+    "effective": "2026-11-26T00:52:00-05:00",
+    "onset": "2026-11-26T00:52:00-05:00",
+    "expires": "2026-11-26T06:00:00-05:00",
+    "ends": null,
+    "status": "Actual",
+    "messageType": "Alert",
+    "category": "Met",
+    "severity": "Moderate",
+    "certainty": "Observed",
+    "urgency": "Expected",
+    "event": "Special Weather Statement",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Charleston WV",
+    "headline": "Special Weather Statement issued November 26 at 12:52AM EST by NWS Charleston WV",
+    "description": "Rain will continue to overspread the region this morning. However,\nthere will be a layer of cold air, with temperatures at or just\nbelow freezing along the higher ridges above 3,000 feet, causing\nprecipitation to fall as freezing rain. Light ice accretions may\noccur through about 6 AM EST before precipitation transitions\nback to rain for the remainder of the day. Please use extra\ncaution when traveling this morning.",
+    "instruction": null,
+    "response": "Execute",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "SPSRLX"
+     ],
+     "WMOidentifier": [
+      "WWUS81 KRLX 260552"
+     ],
+     "NWSheadline": [
+      "Areas of Freezing Rain Possible Through 6 AM EST"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "EAS-ORG": [
+      "WXR"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "SPS"
+     ],
+     "NationalWeatherService": [
+      "SPS"
+     ]
+    }
+   }
+  },
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.db574f009fbd4685e0bc9286a8fc5d17a3f47993.006.1",
+   "type": "Feature",
+   "geometry": null,
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.db574f009fbd4685e0bc9286a8fc5d17a3f47993.006.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.db574f009fbd4685e0bc9286a8fc5d17a3f47993.006.1",
+    "areaDesc": "Inland Flagler; Eastern Putnam",
+    "geocode": {
+     "SAME": [
+      "012035",
+      "012107"
+     ],
+     "UGC": [
+      "FLZ038",
+      "FLZ137"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/forecast/FLZ038",
+     "https://api.weather.gov/zones/forecast/FLZ137"
+    ],
+    "references": [
+     {
+      "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.0f97981d5610991deb134b29fe213f9e7ed54cc3.004.1",
+      "identifier": "urn:oid:2.49.0.1.840.0.0f97981d5610991deb134b29fe213f9e7ed54cc3.004.1",
+      "sender": "w-nws.webmaster@noaa.gov",
+      "sent": "2026-11-25T19:03:00-05:00"
+     }
+    ],
+    "sent": "2026-11-26T00:24:00-05:00",
+    "effective": "2026-11-26T00:24:00-05:00",
+    "onset": "2026-11-26T00:24:00-05:00",
+    "expires": "2026-11-26T15:00:00-05:00",
+    "ends": "2026-11-27T07:00:00-05:00",
+    "status": "Actual",
+    "messageType": "Update",
+    "category": "Met",
+    "severity": "Severe",
+    "certainty": "Likely",
+    "urgency": "Expected",
+    "event": "Coastal Flood Warning",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Jacksonville FL",
+    "headline": "Coastal Flood Warning issued November 26 at 12:24AM EST until November 27 at 7:00AM EST by NWS Jacksonville FL",
+    "description": "* WHAT...Significant coastal flooding.\n\n* WHERE...Inland Flagler and Eastern Putnam Counties.\n\n* WHEN...Until 7 AM EST Friday.\n\n* IMPACTS...Numerous roads may be closed. Low lying property\nincluding homes, businesses, and some critical infrastructure\nwill be inundated. Some shoreline erosion will occur.",
+    "instruction": "Take the necessary actions to protect flood-prone property. If\ntravel is required, do not drive around barricades or through\nwater of unknown depth.",
+    "response": "Avoid",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "CFWJAX"
+     ],
+     "WMOidentifier": [
+      "WHUS42 KJAX 260524"
+     ],
+     "NWSheadline": [
+      "COASTAL FLOOD WARNING NOW IN EFFECT UNTIL 7 AM EST FRIDAY"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "EAS-ORG": [
+      "WXR"
+     ],
+     "VTEC": [
+      "/O.EXT.KJAX.CF.W.0004.000000T0000Z-261127T1200Z/"
+     ],
+     "eventEndingTime": [
+      "2026-11-27T07:00:00-05:00"
+     ],
+     "expiredReferences": [
+      "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.dca05b7a0ccd9391b53d580ab2944847308f9f17.003.1,2026-11-25T10:47:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.b17005547ae09739a4b3cdc4432b71d8846f1361.004.1,2026-11-25T01:24:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.99c4337159d2e25a4c82574efddd131b6ee2e301.005.1,2026-11-24T20:18:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.31a509ce4a261a352e5fd52a0b5c6ab8e9f96b70.006.1,2026-11-24T12:00:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.6cd1e5754fe625801aca61e07d6cf04364d2af45.004.1,2026-11-24T00:48:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.2754d520c18cb190464cf72118c0daac46613eae.001.1,2026-11-23T12:45:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.d2115dccfa6c4a6f7576fa0af08419ee89a80ee9.002.1,2026-11-23T01:23:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.d5a505d8634b78a645ce6d517c67f2e0025029d3.004.1,2026-11-22T19:20:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.5388ab0739e8b241fd047124c3b233920058bae3.002.1,2026-11-22T13:37:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.0bd7583406e3892dc93cdd490c967674b936e7b8.002.1,2026-11-22T01:20:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.3ece3c3fc50fa88bbfdfbfe78426fd43970db789.004.1,2026-11-21T19:10:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.c1ae8f94e821fd9f18ccd31d1438759d2f0f8fce.002.1,2026-11-21T13:11:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.a6fa5086145354d0ed1a90a690364b8badc81719.003.1,2026-11-21T01:30:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.b35023e87a3125423830efe18304070444a2e4fb.003.1,2026-11-21T09:33:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.56c3d9cd681b61ce5e4fcac2a6acfb56593cabbe.003.1,2026-11-20T12:37:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.56c3d9cd681b61ce5e4fcac2a6acfb56593cabbe.002.2,2026-11-20T12:37:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.a8094d2fbc22c7077a041b0fe625afec219ee063.002.1,2026-11-20T11:40:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.50d34416579a97f2fc160e2d13f6788bb3330b5b.001.2,2026-11-20T01:30:00-05:00"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "CFW"
+     ],
+     "NationalWeatherService": [
+      "CFW"
+     ]
+    }
+   }
+  },
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.fcac1ff432428fcf3d77414d478ee511e29018a8.001.1",
+   "type": "Feature",
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -77.57,
+       34.74
+      ],
+      [
+       -77.48,
+       34.8
+      ],
+      [
+       -76.83,
+       34.93
+      ],
+      [
+       -76.6,
+       34.84
+      ],
+      [
+       -76.47,
+       34.73
+      ],
+      [
+       -76.46,
+       34.69
+      ],
+      [
+       -76.54,
+       34.59
+      ],
+      [
+       -76.56,
+       34.59
+      ],
+      [
+       -76.56,
+       34.64
+      ],
+      [
+       -76.68,
+       34.69
+      ],
+      [
+       -76.76,
+       34.7
+      ],
+      [
+       -77.01,
+       34.67
+      ],
+      [
+       -77.22,
+       34.61
+      ],
+      [
+       -77.35,
+       34.52
+      ],
+      [
+       -77.53,
+       34.45
+      ],
+      [
+       -77.58,
+       34.48
+      ],
+      [
+       -77.68,
+       34.72
+      ],
+      [
+       -77.57,
+       34.74
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.fcac1ff432428fcf3d77414d478ee511e29018a8.001.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.fcac1ff432428fcf3d77414d478ee511e29018a8.001.1",
+    "areaDesc": "Carteret, NC; Craven, NC; Jones, NC; Onslow, NC",
+    "geocode": {
+     "SAME": [
+      "037031",
+      "037049",
+      "037103",
+      "037133"
+     ],
+     "UGC": [
+      "NCC031",
+      "NCC049",
+      "NCC103",
+      "NCC133"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/county/NCC031",
+     "https://api.weather.gov/zones/county/NCC049",
+     "https://api.weather.gov/zones/county/NCC103",
+     "https://api.weather.gov/zones/county/NCC133"
+    ],
+    "references": [],
+    "sent": "2026-11-26T00:27:00-05:00",
+    "effective": "2026-11-26T00:27:00-05:00",
+    "onset": "2026-11-26T00:27:00-05:00",
+    "expires": "2026-11-26T03:30:00-05:00",
+    "ends": "2026-11-26T03:30:00-05:00",
+    "status": "Actual",
+    "messageType": "Alert",
+    "category": "Met",
+    "severity": "Severe",
+    "certainty": "Likely",
+    "urgency": "Immediate",
+    "event": "Flash Flood Warning",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Newport/Morehead City NC",
+    "headline": "Flash Flood Warning issued November 26 at 12:27AM EST until November 26 at 3:30AM EST by NWS Newport/Morehead City NC",
+    "description": "FFWMHX\n\nThe National Weather Service in Newport/Morehead City has issued a\n\n* Flash Flood Warning for...\nSouthwestern Carteret County in eastern North Carolina...\nSoutheastern Craven County in eastern North Carolina...\nSoutheastern Jones County in eastern North Carolina...\nOnslow County in eastern North Carolina...\n\n* Until 330 AM EST.\n\n* At 1227 AM EST, Doppler radar indicated heavy rain across the\nwarned area. Between 3.5 and 5.5 inches of rain have fallen. The\nexpected rainfall rate is 2.5 to 3.5 inches in 1 hour. Additional\nrainfall amounts of 2 to 3 inches are possible in the warned area.\nFlash flooding is ongoing or expected to begin shortly.\n\nHAZARD...Flash flooding caused by heavy rain.\n\nSOURCE...Radar indicated.\n\nIMPACT...Flash flooding of small creeks and streams, urban areas,\nhighways, streets and underpasses as well as other poor\ndrainage and low-lying areas.\n\n* Some locations that will experience flash flooding include...\nJacksonville, Havelock, Morehead City, Newport, Harkers Island,\nPiney Green, Camp Lejeune Center, Pumpkin Center, New River\nStation, Stella, Swansboro, Hubert, Cape Carteret, North River,\nStraits, Smyrna, Marshallberg, Pine Knoll Shores, Harlowe and\nSilverdale.",
+    "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nBe especially cautious at night when it is harder to recognize the\ndangers of flooding.\n\nPlease report observed flooding to local emergency services or law\nenforcement and request they pass this information to the National\nWeather Service when you can do so safely.",
+    "response": "Avoid",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "FFWMHX"
+     ],
+     "WMOidentifier": [
+      "WGUS52 KMHX 260527"
+     ],
+     "flashFloodDetection": [
+      "RADAR INDICATED"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "EAS-ORG": [
+      "WXR"
+     ],
+     "VTEC": [
+      "/O.NEW.KMHX.FF.W.0008.261126T0527Z-261126T0830Z/"
+     ],
+     "eventEndingTime": [
+      "2026-11-26T03:30:00-05:00"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "FFW"
+     ],
+     "NationalWeatherService": [
+      "FFW"
+     ]
+    }
+   }
+  },
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.a349a2d2170a4e63a78c7585fdb0580dda75fc36.001.1",
+   "type": "Feature",
+   "geometry": null,
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.a349a2d2170a4e63a78c7585fdb0580dda75fc36.001.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.a349a2d2170a4e63a78c7585fdb0580dda75fc36.001.1",
+    "areaDesc": "Palm Beach, FL",
+    "geocode": {
+     "SAME": [
+      "012099"
+     ],
+     "UGC": [
+      "FLC099"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/county/FLC099"
+    ],
+    "references": [],
+    "sent": "2026-11-21T22:00:00-05:00",
+    "effective": "2026-11-21T22:00:00-05:00",
+    "onset": "2026-11-21T22:00:00-05:00",
+    "expires": "2026-11-21T23:00:00-05:00",
+    "ends": "2026-11-21T22:00:00-05:00",
+    "status": "Actual",
+    "messageType": "Alert",
+    "category": "Met",
+    "severity": "Extreme",
+    "certainty": "Possible",
+    "urgency": "Future",
+    "event": "Tornado Watch",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Miami FL",
+    "headline": "Tornado Watch issued November 21 at 10:00PM EST until November 21 at 10:00PM EST by NWS Miami FL",
+    "description": "THE NATIONAL WEATHER SERVICE HAS ALLOWED TORNADO WATCH 706 TO\nEXPIRE FOR THE FOLLOWING AREAS\n\nIN FLORIDA THIS ALLOWS TO EXPIRE 1 COUNTY\n\nIN SOUTHEAST FLORIDA\n\nPALM BEACH\n\nTHIS INCLUDES THE CITIES OF BOCA RATON, BOYNTON BEACH,\nDELRAY BEACH, JUPITER, LION COUNTRY SAFARI PARK, WELLINGTON,\nAND WEST PALM BEACH.",
+    "instruction": null,
+    "response": "Monitor",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "WCNMFL"
+     ],
+     "WMOidentifier": [
+      "WWUS62 KMFL 220300"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "EAS-ORG": [
+      "WXR"
+     ],
+     "VTEC": [
+      "/O.EXP.KMFL.TO.A.0706.000000T0000Z-261122T0300Z/"
+     ],
+     "eventEndingTime": [
+      "2026-11-21T22:00:00-05:00"
+     ],
+     "expiredReferences": [
+      "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.bc2448dd1a1c540f7353251c819504d60a79c54c.001.1,2026-11-21T18:23:00-05:00"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "TOA"
+     ],
+     "NationalWeatherService": [
+      "TOA"
+     ]
+    }
+   }
+  },
+  {
+   "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.586f0669d6a52f40a371179b6fd4e965335ced48.001.1",
+   "type": "Feature",
+   "geometry": null,
+   "properties": {
+    "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.586f0669d6a52f40a371179b6fd4e965335ced48.001.1",
+    "@type": "wx:Alert",
+    "id": "urn:oid:2.49.0.1.840.0.586f0669d6a52f40a371179b6fd4e965335ced48.001.1",
+    "areaDesc": "North Snowy Range Foothills; Southern Laramie Valley; Southern Laramie Range",
+    "geocode": {
+     "SAME": [
+      "056001",
+      "056007",
+      "056021"
+     ],
+     "UGC": [
+      "WYZ427",
+      "WYZ428",
+      "WYZ429"
+     ]
+    },
+    "affectedZones": [
+     "https://api.weather.gov/zones/fire/WYZ427",
+     "https://api.weather.gov/zones/fire/WYZ428",
+     "https://api.weather.gov/zones/fire/WYZ429"
+    ],
+    "references": [
+     {
+      "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.5394bd510673eb98bbfd3de67035e624cee92608.001.1",
+      "identifier": "urn:oid:2.49.0.1.840.0.5394bd510673eb98bbfd3de67035e624cee92608.001.1",
+      "sender": "w-nws.webmaster@noaa.gov",
+      "sent": "2026-11-19T10:09:00-07:00"
+     }
+    ],
+    "sent": "2026-11-19T16:46:00-07:00",
+    "effective": "2026-11-19T16:46:00-07:00",
+    "onset": "2026-11-19T16:46:00-07:00",
+    "expires": "2026-11-19T18:00:00-07:00",
+    "ends": "2026-11-19T17:00:00-07:00",
+    "status": "Actual",
+    "messageType": "Update",
+    "category": "Met",
+    "severity": "Severe",
+    "certainty": "Likely",
+    "urgency": "Expected",
+    "event": "Red Flag Warning",
+    "sender": "w-nws.webmaster@noaa.gov",
+    "senderName": "NWS Cheyenne WY",
+    "headline": "Red Flag Warning issued November 19 at 4:46PM MST until November 19 at 5:00PM MST by NWS Cheyenne WY",
+    "description": "The relative humidity has increased above critical levels and the\nstrong winds have decreased. Hence, the Red Flag Warning will be\nallowed to expire.",
+    "instruction": null,
+    "response": "Prepare",
+    "note": null,
+    "parameters": {
+     "AWIPSidentifier": [
+      "RFWCYS"
+     ],
+     "WMOidentifier": [
+      "WWUS85 KCYS 192346"
+     ],
+     "NWSheadline": [
+      "RED FLAG WARNING WILL EXPIRE AT 5 PM MST THIS AFTERNOON"
+     ],
+     "BLOCKCHANNEL": [
+      "EAS",
+      "NWEM",
+      "CMAS"
+     ],
+     "VTEC": [
+      "/O.EXP.KCYS.FW.W.0048.000000T0000Z-261120T0000Z/"
+     ],
+     "eventEndingTime": [
+      "2026-11-19T17:00:00-07:00"
+     ]
+    },
+    "scope": "Public",
+    "code": "IPAWSv1.0",
+    "language": "en-US",
+    "web": "http://www.weather.gov",
+    "eventCode": {
+     "SAME": [
+      "NWS"
+     ],
+     "NationalWeatherService": [
+      "FWW"
+     ]
+    }
+   }
+  }
+ ]
+}

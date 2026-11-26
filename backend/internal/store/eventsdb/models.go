@@ -139,10 +139,11 @@ type MilitaryBasis struct {
 }
 
 type NwsZone struct {
-	Ugc   string
-	State string
-	Name  string
-	Geom  interface{}
+	Ugc     string
+	State   string
+	Name    string
+	Geom    interface{}
+	ZoneSet string
 }
 
 type Source struct {

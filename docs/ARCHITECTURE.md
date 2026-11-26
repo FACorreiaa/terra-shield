@@ -97,7 +97,7 @@ shield-app/
 │   │   ├── domain/                 # Event, SourceInfo, FireDetection, Country: no imports
 │   │   ├── store/                  # repositories (+ sqlc *db packages)
 │   │   ├── ingest/                 # River runner + workers; declares SourceStates/EventStore/FireStore
-│   │   ├── sources/{usgs,gdacs,eonet,firms,meteoalarm}/   # adapters + recorded testdata/
+│   │   ├── sources/{usgs,gdacs,eonet,firms,meteoalarm,tsunami,nws,…}/   # adapters + recorded testdata/
 │   │   ├── features/{events,countries,fires,sources,stream,ops}/   # HTTP features; each declares the interface it needs
 │   │   ├── realtime/              # per-pod change fan-out for /v1/stream (LISTEN → cursor read → subscribers)
 │   │   ├── features/params/       # shared bbox / zoom / time parsing
