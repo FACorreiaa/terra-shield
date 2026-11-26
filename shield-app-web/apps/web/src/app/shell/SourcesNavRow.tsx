@@ -3,14 +3,10 @@ import type { ReactElement } from "react";
 
 import { overallHealth } from "@/domain/sources.ts";
 import { HealthDot } from "@/features/sources/HealthDot.tsx";
+import { keepSelection } from "@/lib/keepSelection.ts";
 
 import { useLiveMap } from "./liveMapContext.ts";
 import { SOURCES_SECTION } from "./sections.ts";
-
-/** Changing section keeps the selected event open, as on the Mac. */
-function keepSelection(previous: { event?: string | undefined }): { event?: string | undefined } {
-  return { event: previous.event };
-}
 
 /**
  * Sources, pinned at the foot of the sidebar with the sources' overall health (Sidebar.swift

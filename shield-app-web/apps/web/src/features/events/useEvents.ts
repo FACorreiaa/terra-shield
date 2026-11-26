@@ -75,5 +75,12 @@ function useEvents(view: EventsView, query: EventQuery): UseQueryResult<EventLis
   });
 }
 
+const SOMETHING_WRONG = "Something went wrong loading events.";
+
+/** The failure in words for people; anything not written for them reads as a plain failure. */
+function failureWords(error: unknown): string {
+  return error instanceof LoadFailureError ? error.message : SOMETHING_WRONG;
+}
+
 export type { EventsView };
-export { eventsKey, LoadFailureError, request as requestEvents, useEvents };
+export { eventsKey, failureWords, LoadFailureError, request as requestEvents, useEvents };

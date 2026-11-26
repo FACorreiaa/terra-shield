@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-/** Flights' ages are read again every 10 s, so they never freeze (the apps' `TimelineView`). */
+/** Ages ("2 min ago") are read again every 10 s, so they never freeze (the apps' `TimelineView`). */
 const TICK_MS = 10_000;
 
 function useTick(): Date {

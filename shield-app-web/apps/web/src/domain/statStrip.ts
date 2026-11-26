@@ -92,6 +92,24 @@ function liveMapCells(
   ];
 }
 
+type Counted = Pick<EventList, "events" | "clusters" | "truncated">;
+
+/**
+ * The landing page's strip: the whole world under the default filters, which cells don't filter.
+ * Clusters say nothing about kind, so official warnings come from their own `kind=warning` answer,
+ * where every event and every clustered one is a warning: an exact count, not the map's "12+".
+ */
+function worldCells(all: Counted | undefined, warnings: Counted | undefined): StatCell[] {
+  const cells = liveMapCells(all).map(({ value, label }) => ({ value, label }));
+  const counted =
+    warnings === undefined
+      ? undefined
+      : warnings.events.filter((event) => event.status !== "resolved").length +
+        warnings.clusters.reduce((sum, cluster) => sum + cluster.count, 0);
+  const last = { value: text({ value: counted, isLowerBound: warnings?.truncated ?? false }), label: LABELS.warnings };
+  return [...cells.slice(0, -1), last];
+}
+
 /** The compact strip's words after each number: singular and plural (StatStrip.swift `units`). */
 const UNITS: Readonly<Record<string, { one: string; many: string }>> = {
   [LABELS.observed]: { one: "event", many: "events" },
@@ -116,4 +134,4 @@ function cellDescription(cell: StatCell): string {
 }
 
 export type { StatCell, StatFilter };
-export { cellDescription, compactWords, liveMapCells, UNKNOWN };
+export { cellDescription, compactWords, liveMapCells, UNKNOWN, worldCells };

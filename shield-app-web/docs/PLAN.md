@@ -270,16 +270,16 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
 
 ### W8 — Landing (`/`)
 
-- [ ] **Global header and footer (owner, 2026-11-25).** A thin header on every page, the map included: brand, nav (Map, Countries, Sources, Alerts), Settings. A full footer (disclaimer, Sources, Settings, attributions) on the landing and static pages; the map keeps its disclaimer strip. Settings itself stays in W9.
+- [x] **Global header and footer (owner, 2026-11-25; header over the map on desktop only, owner 2026-11-26).** A thin header on every page, the desktop map included: brand, nav (Map, Countries, Sources; Alerts and Settings join with W9). A full footer (disclaimer, Sources, Settings, attributions) on the landing and static pages; the map keeps its disclaimer strip. Settings itself stays in W9.
 
-- [ ] **Hero.** Lockup on Orbital Earth SVG under a radial vignette, plus `GLOBAL HAZARD INTELLIGENCE` and "Global hazard intelligence. Official sources, live." CTA "Open the live map" → `/map`.
-- [ ] **Live `StatStrip`.** From `/v1/events?zoom=1` (events + cluster counts summed) and a second `&kind=warning` query for Official warnings (checked: cluster counts sum to real numbers). Lower-bound rules apply; never sample numbers.
-- [ ] **"Know what you're looking at"** section: the four `KindChip`s + Sentinel. This replaces onboarding card 2.
-- [ ] **Sources strip** (names + attribution) and the disclaimer. This replaces card 3.
-- [ ] **Footer:** disclaimer, Sources, Settings.
-- [ ] **No MapLibre on this route.** Budget: LCP < 2.5 s on local preview, initial JS ≤ 200 KB gz.
-- [ ] **Meta tags:** title, description, OG image (lockup), `lang="en"`, favicon set from the shield crop.
-- [ ] **Tests:** e2e (CTA, disclaimer present, no network to the tile host).
+- [x] **Hero.** Lockup on Orbital Earth SVG under a radial vignette, plus `GLOBAL HAZARD INTELLIGENCE` and "Global hazard intelligence. Official sources, live." CTA "Open the live map" → `/map`.
+- [x] **Live `StatStrip`.** From `/v1/events?zoom=1` (events + cluster counts summed) and a second `&kind=warning` query for Official warnings (checked: cluster counts sum to real numbers). Lower-bound rules apply; never sample numbers.
+- [x] **"Know what you're looking at"** section: the four `KindChip`s + Sentinel. This replaces onboarding card 2.
+- [x] **Sources strip** (names + attribution) and the disclaimer. This replaces card 3.
+- [x] **Footer:** disclaimer, Sources (Settings with W9).
+- [x] **No MapLibre on this route.** Budget: LCP < 2.5 s on local preview, initial JS ≤ 200 KB gz.
+- [x] **Meta tags:** title, description, OG image (lockup), `lang="en"`, favicon set from the shield crop.
+- [x] **Tests:** e2e (CTA, disclaimer present, no network to the tile host).
 
 ### W9 — Saved regions + Alert center (browser-local) + Settings + docs
 

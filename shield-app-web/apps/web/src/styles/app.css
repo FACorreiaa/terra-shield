@@ -1,10 +1,14 @@
 @import "tailwindcss";
 @import "./tokens.gen.css";
-@import "maplibre-gl/dist/maplibre-gl.css";
 
 /* Dark-only MVP (DESIGN.md §3). */
 :root {
   color-scheme: dark;
+}
+
+/* Keyboard focus scrolled into view never lands under the site's sticky header (3 rem). */
+html {
+  scroll-padding-top: 3rem;
 }
 
 html,
@@ -22,8 +26,9 @@ body {
 }
 
 /* MapLibre's corner controls (the attribution) stay clear of the shell's chrome: the phone's sheet,
-   the desktop inspector. The shell sets the insets on the frame. */
-.maplibregl-ctrl-bottom-right {
+   the desktop inspector. The shell sets the insets on the frame. Scoped to the map so it outranks
+   MapLibre's own sheet, which loads later with the map's chunk. */
+.maplibregl-map .maplibregl-ctrl-bottom-right {
   right: var(--map-inset-right, 0px);
   bottom: var(--map-inset-bottom, 0px);
 }

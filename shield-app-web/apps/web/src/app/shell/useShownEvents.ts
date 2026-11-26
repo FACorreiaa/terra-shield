@@ -6,7 +6,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import type { LiveStatus } from "@/domain/liveStatus.ts";
 import { liveStatus } from "@/domain/liveStatus.ts";
 import { sortedForDisplay } from "@/domain/sort.ts";
-import { LoadFailureError } from "@/features/events/useEvents.ts";
+import { failureWords } from "@/features/events/useEvents.ts";
 
 interface Shown {
   /** The current response, else the last one that arrived. */
@@ -15,13 +15,6 @@ interface Shown {
   status: LiveStatus;
   /** Why the last request failed, in words for people, while online. */
   failure: string | undefined;
-}
-
-const SOMETHING_WRONG = "Something went wrong loading events.";
-
-/** The failure in words for people; anything not written for them reads as a plain failure. */
-function failureWords(error: unknown): string {
-  return error instanceof LoadFailureError ? error.message : SOMETHING_WRONG;
 }
 
 /** The browser's online state as TanStack Query sees it: offline, requests wait instead of failing. */

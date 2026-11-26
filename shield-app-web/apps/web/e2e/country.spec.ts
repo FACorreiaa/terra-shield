@@ -107,7 +107,7 @@ test.describe("countries, desktop", () => {
     await stubCountries(page, { CL: chileSummary() });
     await page.goto("/map");
     await page.getByRole("searchbox", { name: "Search countries or events" }).fill("ch");
-    await page.getByRole("link", { name: "Countries" }).click();
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Countries" }).click();
     await page.getByRole("link", { name: /^Chile, 3 active events/u }).click();
     await expect(page.getByRole("heading", { name: /^Chile/u })).toBeVisible();
     await expect(page.getByRole("searchbox", { name: "Search countries or events" })).toHaveValue("");
@@ -146,7 +146,7 @@ test.describe("countries, desktop", () => {
     const before = asked;
     await page.getByRole("link", { name: "Monitor" }).click();
     await expect(page.getByRole("searchbox", { name: "Filter countries" })).toHaveCount(0);
-    await page.getByRole("link", { name: "Countries" }).click();
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Countries" }).click();
     await expect.poll(() => asked).toBeGreaterThan(before);
   });
 

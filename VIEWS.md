@@ -548,6 +548,44 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - **Shortcuts with the map focused (all).** A click on the map left focus on its canvas, where
        every shortcut was ignored, so Escape couldn't close what the click opened. The map now keeps
        only its own keys (arrows, + − =), and the others work there.
+   - **W8: landing page, site header and footer.** `/` is the web's front door in place of the apps'
+     three onboarding cards (owner, 2026-11-19).
+     - **Hero (card 1):** the full lockup (a 576 px encode for a 224–288 px slot) on Orbital Earth
+       at the apps' 45 % under a vignette that never clears to the art, so the words over it sit
+       on a scrim; "Global hazard intelligence. Official sources, live." and "Open the live map".
+     - **World strip:** under the hero, on a panel ("Worldwide · past 24 h"), the strip counts the
+       whole world under the default filters from `/v1/events?zoom=1`, events plus everything
+       clustered. Official warnings come from a second `kind=warning` answer, so they are exact
+       where the map's strip says "12+". A dash while loading or failed, with the map's own words
+       for why (either answer failing says so, and the reason stays while it is asked again);
+       "+" when the server cut the list short; "Updated now" by this browser's clock, kept
+       current. The cells filter nothing.
+     - **Kinds (card 2):** "Know what you're looking at: observed, official warning, forecast,
+       satellite detection." over the Sentinel beside the four kind chips.
+     - **Sources:** every active source by name (linking to it) with the attribution it asks for,
+       as the Sources screen lists them, and "How each source is doing". Nothing while they load
+       or if they fail; no name is written into the page.
+     - **Close:** "Show me the map", then the footer.
+     - **Header:** a thin header with the nav mark (DESIGN.md §11) and Live map, Countries and
+       Sources (each 44 px tall, the current one in `ink`). It sits on the landing page, on a page
+       that isn't there and, as a bar above the sidebar and the map, on the desktop map (owner,
+       2026-11-26), where it replaces the sidebar's mark. The phone map keeps its capsule and its
+       whole height.
+     - **Footer:** the mark and promise, the same three links, and the disclaimer.
+     - **Weight:** no MapLibre and no live stream on `/`: the page and everything it imports come
+       to 153 KB gzipped of JavaScript. MapLibre's stylesheet now loads with the map, not with
+       every page.
+     - **Head:** title and description meta, Open Graph tags, and an apple-touch-icon from the
+       app icon.
+     - **Settings and Alerts not in the header or footer yet.** They arrive with W9; no link goes
+       nowhere meanwhile.
+     - **One closing link, no "Before you start".** The apps' third card shows the disclaimer over
+       "Show me the map"; the web puts the disclaimer in every page's footer instead of a second
+       time above it.
+     - **Footer attributions** are the sources section's (the landing page draws no map, so it has
+       no basemap credit to give).
+     - **`og:image` is root-relative** until the public host exists; Open Graph wants an absolute
+       URL.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 
