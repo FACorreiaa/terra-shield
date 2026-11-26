@@ -61,6 +61,14 @@ public protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /v1/countries/{iso2}/summary`.
     /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)`.
     func getCountrySummary(_ input: Operations.GetCountrySummary.Input) async throws -> Operations.GetCountrySummary.Output
+    /// What changed over a window, 24 hours by default.
+    ///
+    /// One net change per event: new (first seen active, or listed again), ended, escalated or downgraded (severity now against the window's start; a round trip is no change). An event that arrived and ended inside the window is ended. Geometry-only updates are not changes. Counts cover every change; the list is cut at `limit`, most severe first, newest first within a severity. Events stored before Shield recorded first-seen times are never new; a source's first poll, or the first after an outage, reports what it lists as new (compare `startedAt`). Conflicts only when named, as in /v1/events.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/changes`.
+    /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)`.
+    func listChanges(_ input: Operations.ListChanges.Input) async throws -> Operations.ListChanges.Output
     /// Satellite fire detections (NASA FIRMS), a separate layer from events (ADR 10).
     ///
     /// Detections are thermal anomalies, not confirmed wildfires. Without `zoom` or below 6, detections are aggregated into grid cells for a heatmap (`FireCell` features, cell size 360/2^(zoom+5) degrees, about 8 px); from zoom 6, each detection is a point (`FireDetection` features), `bbox` is required, and at most 25,000 points are returned, newest first (`truncated` says when more matched). Detections arrive about 3 h after the satellite pass. Cached for 60 s: FIRMS updates every 15 min at most.
@@ -188,6 +196,22 @@ extension APIProtocol {
     ) async throws -> Operations.GetCountrySummary.Output {
         try await getCountrySummary(Operations.GetCountrySummary.Input(
             path: path,
+            headers: headers
+        ))
+    }
+    /// What changed over a window, 24 hours by default.
+    ///
+    /// One net change per event: new (first seen active, or listed again), ended, escalated or downgraded (severity now against the window's start; a round trip is no change). An event that arrived and ended inside the window is ended. Geometry-only updates are not changes. Counts cover every change; the list is cut at `limit`, most severe first, newest first within a severity. Events stored before Shield recorded first-seen times are never new; a source's first poll, or the first after an outage, reports what it lists as new (compare `startedAt`). Conflicts only when named, as in /v1/events.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/changes`.
+    /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)`.
+    public func listChanges(
+        query: Operations.ListChanges.Input.Query = .init(),
+        headers: Operations.ListChanges.Input.Headers = .init()
+    ) async throws -> Operations.ListChanges.Output {
+        try await listChanges(Operations.ListChanges.Input(
+            query: query,
             headers: headers
         ))
     }
@@ -1427,6 +1451,243 @@ public enum Components {
             public enum CodingKeys: String, CodingKey {
                 case officialWarnings
                 case sources
+            }
+        }
+        /// How an event changed over the window.
+        ///
+        /// - Remark: Generated from `#/components/schemas/ChangeKind`.
+        @frozen public enum ChangeKind: String, Codable, Hashable, Sendable, CaseIterable {
+            case new = "new"
+            case escalated = "escalated"
+            case downgraded = "downgraded"
+            case ended = "ended"
+        }
+        /// - Remark: Generated from `#/components/schemas/ChangeCounts`.
+        public struct ChangeCounts: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/ChangeCounts/new`.
+            public var new: Swift.Int
+            /// - Remark: Generated from `#/components/schemas/ChangeCounts/escalated`.
+            public var escalated: Swift.Int
+            /// - Remark: Generated from `#/components/schemas/ChangeCounts/downgraded`.
+            public var downgraded: Swift.Int
+            /// - Remark: Generated from `#/components/schemas/ChangeCounts/ended`.
+            public var ended: Swift.Int
+            /// Creates a new `ChangeCounts`.
+            ///
+            /// - Parameters:
+            ///   - new:
+            ///   - escalated:
+            ///   - downgraded:
+            ///   - ended:
+            public init(
+                new: Swift.Int,
+                escalated: Swift.Int,
+                downgraded: Swift.Int,
+                ended: Swift.Int
+            ) {
+                self.new = new
+                self.escalated = escalated
+                self.downgraded = downgraded
+                self.ended = ended
+            }
+            public enum CodingKeys: String, CodingKey {
+                case new
+                case escalated
+                case downgraded
+                case ended
+            }
+        }
+        /// One event's net change; enough to list and pin it. GET /v1/events/{id} has the rest.
+        ///
+        /// - Remark: Generated from `#/components/schemas/Change`.
+        public struct Change: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Change/eventId`.
+            public var eventId: Swift.String
+            /// - Remark: Generated from `#/components/schemas/Change/change`.
+            public var change: Components.Schemas.ChangeKind
+            /// When it arrived, ended, or last changed severity.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Change/at`.
+            public var at: Foundation.Date
+            /// - Remark: Generated from `#/components/schemas/Change/type`.
+            public var _type: Components.Schemas.OpenEventType
+            /// - Remark: Generated from `#/components/schemas/Change/kind`.
+            public var kind: Components.Schemas.EventKind
+            /// - Remark: Generated from `#/components/schemas/Change/severity`.
+            public var severity: Components.Schemas.Severity
+            /// - Remark: Generated from `#/components/schemas/Change/fromSeverity`.
+            public var fromSeverity: Components.Schemas.Severity?
+            /// - Remark: Generated from `#/components/schemas/Change/sourceSeverity`.
+            public var sourceSeverity: Swift.String?
+            /// - Remark: Generated from `#/components/schemas/Change/title`.
+            public var title: Swift.String
+            /// Source id, as in /v1/sources.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Change/source`.
+            public var source: Swift.String
+            /// - Remark: Generated from `#/components/schemas/Change/centroid`.
+            public var centroid: Components.Schemas.Coordinate
+            /// ISO 3166-1 alpha-2 codes, within or nearby.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Change/countries`.
+            public var countries: [Swift.String]
+            /// - Remark: Generated from `#/components/schemas/Change/startedAt`.
+            public var startedAt: Foundation.Date?
+            /// Creates a new `Change`.
+            ///
+            /// - Parameters:
+            ///   - eventId:
+            ///   - change:
+            ///   - at: When it arrived, ended, or last changed severity.
+            ///   - _type:
+            ///   - kind:
+            ///   - severity:
+            ///   - fromSeverity:
+            ///   - sourceSeverity:
+            ///   - title:
+            ///   - source: Source id, as in /v1/sources.
+            ///   - centroid:
+            ///   - countries: ISO 3166-1 alpha-2 codes, within or nearby.
+            ///   - startedAt:
+            public init(
+                eventId: Swift.String,
+                change: Components.Schemas.ChangeKind,
+                at: Foundation.Date,
+                _type: Components.Schemas.OpenEventType,
+                kind: Components.Schemas.EventKind,
+                severity: Components.Schemas.Severity,
+                fromSeverity: Components.Schemas.Severity? = nil,
+                sourceSeverity: Swift.String? = nil,
+                title: Swift.String,
+                source: Swift.String,
+                centroid: Components.Schemas.Coordinate,
+                countries: [Swift.String],
+                startedAt: Foundation.Date? = nil
+            ) {
+                self.eventId = eventId
+                self.change = change
+                self.at = at
+                self._type = _type
+                self.kind = kind
+                self.severity = severity
+                self.fromSeverity = fromSeverity
+                self.sourceSeverity = sourceSeverity
+                self.title = title
+                self.source = source
+                self.centroid = centroid
+                self.countries = countries
+                self.startedAt = startedAt
+            }
+            public enum CodingKeys: String, CodingKey {
+                case eventId
+                case change
+                case at
+                case _type = "type"
+                case kind
+                case severity
+                case fromSeverity
+                case sourceSeverity
+                case title
+                case source
+                case centroid
+                case countries
+                case startedAt
+            }
+        }
+        /// - Remark: Generated from `#/components/schemas/Changes`.
+        public struct Changes: Codable, Hashable, Sendable {
+            /// - Remark: Generated from `#/components/schemas/Changes/since`.
+            public var since: Foundation.Date
+            /// - Remark: Generated from `#/components/schemas/Changes/generatedAt`.
+            public var generatedAt: Foundation.Date
+            /// - Remark: Generated from `#/components/schemas/Changes/counts`.
+            public var counts: Components.Schemas.ChangeCounts
+            /// - Remark: Generated from `#/components/schemas/Changes/ByTypePayload`.
+            public struct ByTypePayloadPayload: Codable, Hashable, Sendable {
+                /// - Remark: Generated from `#/components/schemas/Changes/ByTypePayload/type`.
+                public var _type: Components.Schemas.OpenEventType
+                /// - Remark: Generated from `#/components/schemas/Changes/ByTypePayload/counts`.
+                public struct CountsPayload: Codable, Hashable, Sendable {
+                    /// A container of undocumented properties.
+                    public var additionalProperties: [String: Swift.Int]
+                    /// Creates a new `CountsPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - additionalProperties: A container of undocumented properties.
+                    public init(additionalProperties: [String: Swift.Int] = .init()) {
+                        self.additionalProperties = additionalProperties
+                    }
+                    public init(from decoder: any Swift.Decoder) throws {
+                        additionalProperties = try decoder.decodeAdditionalProperties(knownKeys: [])
+                    }
+                    public func encode(to encoder: any Swift.Encoder) throws {
+                        try encoder.encodeAdditionalProperties(additionalProperties)
+                    }
+                }
+                /// - Remark: Generated from `#/components/schemas/Changes/ByTypePayload/counts`.
+                public var counts: Components.Schemas.Changes.ByTypePayloadPayload.CountsPayload
+                /// Creates a new `ByTypePayloadPayload`.
+                ///
+                /// - Parameters:
+                ///   - _type:
+                ///   - counts:
+                public init(
+                    _type: Components.Schemas.OpenEventType,
+                    counts: Components.Schemas.Changes.ByTypePayloadPayload.CountsPayload
+                ) {
+                    self._type = _type
+                    self.counts = counts
+                }
+                public enum CodingKeys: String, CodingKey {
+                    case _type = "type"
+                    case counts
+                }
+            }
+            /// Changes per type, sorted by type; kinds with none are omitted.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Changes/byType`.
+            public typealias ByTypePayload = [Components.Schemas.Changes.ByTypePayloadPayload]
+            /// Changes per type, sorted by type; kinds with none are omitted.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Changes/byType`.
+            public var byType: Components.Schemas.Changes.ByTypePayload
+            /// - Remark: Generated from `#/components/schemas/Changes/changes`.
+            public var changes: [Components.Schemas.Change]
+            /// True when more changes matched than `limit`.
+            ///
+            /// - Remark: Generated from `#/components/schemas/Changes/truncated`.
+            public var truncated: Swift.Bool
+            /// Creates a new `Changes`.
+            ///
+            /// - Parameters:
+            ///   - since:
+            ///   - generatedAt:
+            ///   - counts:
+            ///   - byType: Changes per type, sorted by type; kinds with none are omitted.
+            ///   - changes:
+            ///   - truncated: True when more changes matched than `limit`.
+            public init(
+                since: Foundation.Date,
+                generatedAt: Foundation.Date,
+                counts: Components.Schemas.ChangeCounts,
+                byType: Components.Schemas.Changes.ByTypePayload,
+                changes: [Components.Schemas.Change],
+                truncated: Swift.Bool
+            ) {
+                self.since = since
+                self.generatedAt = generatedAt
+                self.counts = counts
+                self.byType = byType
+                self.changes = changes
+                self.truncated = truncated
+            }
+            public enum CodingKeys: String, CodingKey {
+                case since
+                case generatedAt
+                case counts
+                case byType
+                case changes
+                case truncated
             }
         }
         /// - Remark: Generated from `#/components/schemas/CountrySummary`.
@@ -4578,6 +4839,326 @@ public enum Operations {
             /// Error envelope.
             ///
             /// - Remark: Generated from `#/paths//v1/countries/{iso2}/summary/get(getCountrySummary)/responses/default`.
+            ///
+            /// HTTP response code: `default`.
+            case `default`(statusCode: Swift.Int, Components.Responses._Error)
+            /// The associated value of the enum case if `self` is `.`default``.
+            ///
+            /// - Throws: An error if `self` is not `.`default``.
+            /// - SeeAlso: `.`default``.
+            public var `default`: Components.Responses._Error {
+                get throws {
+                    switch self {
+                    case let .`default`(_, response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "default",
+                            response: self
+                        )
+                    }
+                }
+            }
+        }
+        @frozen public enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            public init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            public var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            public static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// What changed over a window, 24 hours by default.
+    ///
+    /// One net change per event: new (first seen active, or listed again), ended, escalated or downgraded (severity now against the window's start; a round trip is no change). An event that arrived and ended inside the window is ended. Geometry-only updates are not changes. Counts cover every change; the list is cut at `limit`, most severe first, newest first within a severity. Events stored before Shield recorded first-seen times are never new; a source's first poll, or the first after an outage, reports what it lists as new (compare `startedAt`). Conflicts only when named, as in /v1/events.
+    ///
+    ///
+    /// - Remark: HTTP `GET /v1/changes`.
+    /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)`.
+    public enum ListChanges {
+        public static let id: Swift.String = "listChanges"
+        public struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/v1/changes/GET/query`.
+            public struct Query: Sendable, Hashable {
+                /// Window start, RFC 3339, within the last 7 days. Default: 24 hours ago.
+                ///
+                /// - Remark: Generated from `#/paths/v1/changes/GET/query/since`.
+                public var since: Foundation.Date?
+                /// Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for.
+                ///
+                ///
+                /// - Remark: Generated from `#/paths/v1/changes/GET/query/category`.
+                public var category: Components.Parameters.Category?
+                /// Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both.
+                ///
+                /// - Remark: Generated from `#/paths/v1/changes/GET/query/type`.
+                public var _type: Swift.String?
+                /// Comma-separated severities, matched against the severity now.
+                ///
+                /// - Remark: Generated from `#/paths/v1/changes/GET/query/severity`.
+                public var severity: Swift.String?
+                /// ISO 3166-1 alpha-2; events within the country or nearby offshore.
+                ///
+                /// - Remark: Generated from `#/paths/v1/changes/GET/query/country`.
+                public var country: Swift.String?
+                /// Most changes listed (counts are never cut).
+                ///
+                /// - Remark: Generated from `#/paths/v1/changes/GET/query/limit`.
+                public var limit: Swift.Int?
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - since: Window start, RFC 3339, within the last 7 days. Default: 24 hours ago.
+                ///   - category: Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for.
+                ///   - _type: Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both.
+                ///   - severity: Comma-separated severities, matched against the severity now.
+                ///   - country: ISO 3166-1 alpha-2; events within the country or nearby offshore.
+                ///   - limit: Most changes listed (counts are never cut).
+                public init(
+                    since: Foundation.Date? = nil,
+                    category: Components.Parameters.Category? = nil,
+                    _type: Swift.String? = nil,
+                    severity: Swift.String? = nil,
+                    country: Swift.String? = nil,
+                    limit: Swift.Int? = nil
+                ) {
+                    self.since = since
+                    self.category = category
+                    self._type = _type
+                    self.severity = severity
+                    self.country = country
+                    self.limit = limit
+                }
+            }
+            public var query: Operations.ListChanges.Input.Query
+            /// - Remark: Generated from `#/paths/v1/changes/GET/header`.
+            public struct Headers: Sendable, Hashable {
+                public var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.ListChanges.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                public init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.ListChanges.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            public var headers: Operations.ListChanges.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            public init(
+                query: Operations.ListChanges.Input.Query = .init(),
+                headers: Operations.ListChanges.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        @frozen public enum Output: Sendable, Hashable {
+            public struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/v1/changes/GET/responses/200/headers`.
+                public struct Headers: Sendable, Hashable {
+                    /// Strong validator; send it back as If-None-Match.
+                    ///
+                    /// - Remark: Generated from `#/paths/v1/changes/GET/responses/200/headers/ETag`.
+                    public var eTag: Components.Headers.ETag?
+                    /// public, max-age=15 (ADR 16: below the shortest poll interval).
+                    ///
+                    /// - Remark: Generated from `#/paths/v1/changes/GET/responses/200/headers/Cache-Control`.
+                    public var cacheControl: Components.Headers.CacheControl?
+                    /// Creates a new `Headers`.
+                    ///
+                    /// - Parameters:
+                    ///   - eTag: Strong validator; send it back as If-None-Match.
+                    ///   - cacheControl: public, max-age=15 (ADR 16: below the shortest poll interval).
+                    public init(
+                        eTag: Components.Headers.ETag? = nil,
+                        cacheControl: Components.Headers.CacheControl? = nil
+                    ) {
+                        self.eTag = eTag
+                        self.cacheControl = cacheControl
+                    }
+                }
+                /// Received HTTP response headers
+                public var headers: Operations.ListChanges.Output.Ok.Headers
+                /// - Remark: Generated from `#/paths/v1/changes/GET/responses/200/content`.
+                @frozen public enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/v1/changes/GET/responses/200/content/application\/json`.
+                    case json(Components.Schemas.Changes)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    public var json: Components.Schemas.Changes {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                public var body: Operations.ListChanges.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - headers: Received HTTP response headers
+                ///   - body: Received HTTP response body
+                public init(
+                    headers: Operations.ListChanges.Output.Ok.Headers = .init(),
+                    body: Operations.ListChanges.Output.Ok.Body
+                ) {
+                    self.headers = headers
+                    self.body = body
+                }
+            }
+            /// The changes.
+            ///
+            /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.ListChanges.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            public var ok: Operations.ListChanges.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Unchanged since the ETag sent in If-None-Match.
+            ///
+            /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)/responses/304`.
+            ///
+            /// HTTP response code: `304 notModified`.
+            case notModified(Components.Responses.NotModified)
+            /// Unchanged since the ETag sent in If-None-Match.
+            ///
+            /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)/responses/304`.
+            ///
+            /// HTTP response code: `304 notModified`.
+            public static var notModified: Self {
+                .notModified(.init())
+            }
+            /// The associated value of the enum case if `self` is `.notModified`.
+            ///
+            /// - Throws: An error if `self` is not `.notModified`.
+            /// - SeeAlso: `.notModified`.
+            public var notModified: Components.Responses.NotModified {
+                get throws {
+                    switch self {
+                    case let .notModified(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "notModified",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// A parameter is malformed.
+            ///
+            /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)/responses/400`.
+            ///
+            /// HTTP response code: `400 badRequest`.
+            case badRequest(Components.Responses.BadRequest)
+            /// The associated value of the enum case if `self` is `.badRequest`.
+            ///
+            /// - Throws: An error if `self` is not `.badRequest`.
+            /// - SeeAlso: `.badRequest`.
+            public var badRequest: Components.Responses.BadRequest {
+                get throws {
+                    switch self {
+                    case let .badRequest(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "badRequest",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Rate limit exceeded (code `rate_limited`); retry after `Retry-After` seconds.
+            ///
+            /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)/responses/429`.
+            ///
+            /// HTTP response code: `429 tooManyRequests`.
+            case tooManyRequests(Components.Responses.TooManyRequests)
+            /// The associated value of the enum case if `self` is `.tooManyRequests`.
+            ///
+            /// - Throws: An error if `self` is not `.tooManyRequests`.
+            /// - SeeAlso: `.tooManyRequests`.
+            public var tooManyRequests: Components.Responses.TooManyRequests {
+                get throws {
+                    switch self {
+                    case let .tooManyRequests(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "tooManyRequests",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// The request took longer than 10 s, or the database is unreachable (code `unavailable`).
+            ///
+            /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)/responses/503`.
+            ///
+            /// HTTP response code: `503 serviceUnavailable`.
+            case serviceUnavailable(Components.Responses.Unavailable)
+            /// The associated value of the enum case if `self` is `.serviceUnavailable`.
+            ///
+            /// - Throws: An error if `self` is not `.serviceUnavailable`.
+            /// - SeeAlso: `.serviceUnavailable`.
+            public var serviceUnavailable: Components.Responses.Unavailable {
+                get throws {
+                    switch self {
+                    case let .serviceUnavailable(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "serviceUnavailable",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Error envelope.
+            ///
+            /// - Remark: Generated from `#/paths//v1/changes/get(listChanges)/responses/default`.
             ///
             /// HTTP response code: `default`.
             case `default`(statusCode: Swift.Int, Components.Responses._Error)
