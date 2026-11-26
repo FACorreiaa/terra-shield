@@ -7,17 +7,20 @@ import { FilterChips } from "@/features/filters/FilterChips.tsx";
 import { ErrorBanner } from "@/features/monitor/ErrorBanner.tsx";
 import { StatStrip } from "@/features/monitor/StatStrip.tsx";
 
+import { ArrivalToast } from "./ArrivalToast.tsx";
 import { useLiveMap } from "./liveMapContext.ts";
 import { useCells } from "./useCells.ts";
 import { useRetry } from "./useRetry.ts";
 
-/** Under the capsule: the filter chips, and the error banner when a load fails (DESIGN.md §10.1). */
+/** Under the capsule: the filter chips, a severe live arrival's toast, and the error banner when a load fails (DESIGN.md §10.1). */
 function PhoneTopStack(): ReactElement {
   const { query, setQuery, failure } = useLiveMap();
   const retry = useRetry();
   return (
     <div className="pointer-events-none absolute inset-x-3 top-[4.25rem] z-20 flex flex-col gap-2 *:pointer-events-auto">
       <FilterChips query={query} onChange={setQuery} />
+      {/* Clear of the map controls' column on the right. */}
+      <ArrivalToast className="mr-14" />
       {failure === undefined ? undefined : (
         // Clear of the map controls' column on the right.
         <div className="mr-14">

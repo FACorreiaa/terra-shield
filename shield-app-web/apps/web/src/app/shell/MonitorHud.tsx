@@ -9,12 +9,14 @@ import { ErrorBanner } from "@/features/monitor/ErrorBanner.tsx";
 import { StatStrip } from "@/features/monitor/StatStrip.tsx";
 import { ProgressLine, StatusLine } from "@/features/monitor/StatusLine.tsx";
 
+import { ArrivalToast } from "./ArrivalToast.tsx";
 import { useLiveMap } from "./liveMapContext.ts";
 import { useRetry } from "./useRetry.ts";
 
 /**
  * What floats over the desktop map's top-left (DESIGN.md §10 shells, macOS): the stat strip with
- * the live dot and freshness, the filter chips under it, and the error banner when a load fails.
+ * the live dot and freshness, the filter chips under it, a severe live arrival's toast, and the
+ * error banner when a load fails.
  * The wrapper lets presses through to the map; only its parts take them.
  */
 function MonitorHud(): ReactElement {
@@ -39,6 +41,7 @@ function MonitorHud(): ReactElement {
       <div className="max-w-full">
         <FilterChips query={query} onChange={setQuery} />
       </div>
+      <ArrivalToast />
       {failure === undefined ? undefined : <ErrorBanner message={failure} onRetry={retry} />}
     </div>
   );

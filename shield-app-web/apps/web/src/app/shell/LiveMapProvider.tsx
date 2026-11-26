@@ -7,6 +7,7 @@ import { setQuery, useSavedFilters } from "@/features/filters/filterPrefs.ts";
 
 import type { LiveMap } from "./liveMapContext.ts";
 import { LiveMapContext } from "./liveMapContext.ts";
+import { useArrivals } from "./useArrivals.ts";
 import { useMapEvents } from "./useMapEvents.ts";
 import { useSelectedEvent } from "./useSelectedEvent.ts";
 import { SourceLookupContext, useSourceHealth } from "./useSourceHealth.ts";
@@ -38,7 +39,14 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   const [map, setMap] = useState<MapLibreMap>();
   const now = useNow();
   const { query } = useSavedFilters();
-  const { events, shown, list, clusters, status, failure } = useMapEvents({ view, query, selectedId, now });
+  const arriving = useArrivals();
+  const { events, shown, list, clusters, status, failure } = useMapEvents({
+    view,
+    query,
+    selectedId,
+    now,
+    onArrival: arriving.note,
+  });
   const { selected, detail, selectedShape } = useSelectedEvent(selectedId, list, chosen);
   const { sources, staleSources, lookup } = useSourceHealth(now);
   const value = useMemo<LiveMap>(
@@ -64,6 +72,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       status,
       failure,
       now,
+      ...arriving,
     }),
     [
       view,
@@ -84,6 +93,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       status,
       failure,
       now,
+      arriving,
     ],
   );
   return (

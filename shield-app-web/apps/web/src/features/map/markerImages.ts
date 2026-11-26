@@ -20,11 +20,16 @@ interface MarkerRequest {
 /** In-flight draws per map, so two views asking for one marker draw it once. */
 const inFlight = new WeakMap<MapLibreMap, Map<string, Promise<void>>>();
 
-async function draw(map: MapLibreMap, name: string, request: MarkerRequest): Promise<void> {
+/** The marker as an image URL, drawn at `pixelRatio`: the map's symbols and DOM copies (an arrival, a toast) alike. */
+function markerUrl(request: MarkerRequest, pixelRatio: number = PIXEL_RATIO): string {
   const glyph = glyphMarkup(hazardTypeTokens[request.type].icon);
-  const svg = markerSvg({ ...request, glyph }, alphaTokens.stale, PIXEL_RATIO);
+  const svg = markerSvg({ ...request, glyph }, alphaTokens.stale, pixelRatio);
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+async function draw(map: MapLibreMap, name: string, request: MarkerRequest): Promise<void> {
   const image = new Image();
-  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  image.src = markerUrl(request);
   await image.decode();
   if (!map.hasImage(name)) {
     map.addImage(name, image, { pixelRatio: PIXEL_RATIO });
@@ -61,4 +66,4 @@ async function ensureMarkerImages(map: MapLibreMap, requests: readonly MarkerReq
 }
 
 export type { MarkerRequest };
-export { ensureMarkerImages };
+export { ensureMarkerImages, markerUrl };

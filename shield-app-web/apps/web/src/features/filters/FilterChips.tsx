@@ -58,6 +58,7 @@ function FilterChips({ query, onChange }: FilterChipsProps): ReactElement {
           type="button"
           onClick={open}
           aria-haspopup="dialog"
+          data-filters-button
           className={cn(CHIP, active.length === 0 ? "border-hairline-strong" : "border-accent/60")}
         >
           <ListFilter aria-hidden className="size-4" />

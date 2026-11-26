@@ -14,7 +14,18 @@ type LiveMapProps = Omit<HazardMapProps, "projection">;
  * sit inside the shell's insets (`--map-inset-top`, `--map-inset-right`), clear of its chrome.
  */
 function LiveMap(props: LiveMapProps): ReactElement {
-  const { events, clusters, staleSources, selectedId, selectedShape, onViewChange, onSelect, onMap } = props;
+  const {
+    events,
+    clusters,
+    staleSources,
+    selectedId,
+    selectedShape,
+    onViewChange,
+    onSelect,
+    onMap,
+    arrivals,
+    arrival,
+  } = props;
   const [map, setMap] = useState<MapLibreMap>();
   const mapChanged = useCallback(
     (next: MapLibreMap | undefined) => {
@@ -36,6 +47,8 @@ function LiveMap(props: LiveMapProps): ReactElement {
         onViewChange={onViewChange}
         onSelect={onSelect}
         onMap={mapChanged}
+        arrivals={arrivals}
+        arrival={arrival}
       />
       <div className="absolute top-[calc(var(--map-inset-top,0px)+0.75rem)] right-[calc(var(--map-inset-right,0px)+0.75rem)] z-10">
         <MapControls map={map} projection={projection} onProjectionChange={setProjection} />

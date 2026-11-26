@@ -14,6 +14,7 @@ interface MapEventsInput {
   query: EventQuery;
   selectedId: string | undefined;
   now: Date;
+  onArrival: (event: HazardEvent, animate: boolean) => void;
 }
 
 interface MapEvents {
@@ -26,9 +27,10 @@ interface MapEvents {
 }
 
 /** The map's events: loaded for the view and filters, kept current by the live stream, shown through failures. */
-function useMapEvents({ view, query, selectedId, now }: MapEventsInput): MapEvents {
+function useMapEvents(input: MapEventsInput): MapEvents {
+  const { view, query, now } = input;
   const events = useEvents(view, query);
-  const liveAt = useLiveChanges({ view, query, events, selectedId, now });
+  const liveAt = useLiveChanges({ ...input, events });
   const { shown, status, failure } = useShownEvents(events, now, liveAt);
   const { list, clusters } = useDisplayed(shown);
   return { events, shown, list, clusters, status, failure };

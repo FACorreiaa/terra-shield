@@ -249,10 +249,10 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
   - More than 50 changes/s → one reload.
   - Reload every 60 s regardless.
   - "Live" ends after 45 s of silence.
-- [ ] **Arrival.** Fade + scale from 0.6 over 400 ms; fade only under reduced motion; live arrivals only, not the reconnect backlog.
-- [ ] **`NewEventToast`.** Severe+ events, in view and matching filters, get one line from `arrivalLine`. Lasts 6 s; tap opens the event; `aria-live="polite"`.
-- [ ] **Stale.** Driven by `/v1/sources` (refetched every 60 s).
-- [ ] **Tests:** unit tests on liveStore (upsert, burst fold, reset, out-of-view ignored); e2e with a stubbed SSE route (arrival + toast; multi-tab single stream).
+- [x] **Arrival.** Fade + scale from 0.6 over 400 ms; fade only under reduced motion; live arrivals only, not the reconnect backlog. (A DOM copy of the marker animates while the symbol waits, then hands over.)
+- [x] **`NewEventToast`.** Severe+ events, in view and matching filters, get one line from `arrivalLine`. Lasts 6 s; tap opens the event; `aria-live="polite"`.
+- [x] **Stale.** Driven by `/v1/sources` (refetched every 60 s).
+- [x] **Tests:** unit tests on liveStore (upsert, burst fold, reset, out-of-view ignored); e2e with a stubbed SSE route (arrival + toast; multi-tab single stream).
 
 ### W7 — Layers: heat detections, flights, conflicts
 

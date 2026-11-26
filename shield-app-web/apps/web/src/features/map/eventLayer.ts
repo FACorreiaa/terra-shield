@@ -13,6 +13,8 @@ import type { MarkerRequest } from "./markerImages.ts";
 const EVENTS_SOURCE = "events";
 const EVENTS_LAYER = "events";
 const SELECTION_LAYER = "events-selection";
+/** The feature-state flag of a marker whose arrival is animating. */
+const ARRIVING = "arriving";
 
 /** Active markers draw over resolved ones; within each, the more severe on top. */
 const ACTIVE_PRIORITY = 10;
@@ -95,6 +97,10 @@ function eventLayer(): SymbolLayerSpecification {
       "icon-ignore-placement": true,
       "symbol-sort-key": ["get", "priority"],
     },
+    paint: {
+      // A live arrival's symbol waits, unseen, while a DOM copy animates in over it (`ArrivalPin`).
+      "icon-opacity": ["case", ["boolean", ["feature-state", ARRIVING], false], 0, 1],
+    },
   };
 }
 
@@ -117,10 +123,13 @@ function selectionLayer(selectedId: string | undefined): CircleLayerSpecificatio
 
 export type { EventProperties };
 export {
+  ARRIVING,
   EVENTS_LAYER,
   EVENTS_SOURCE,
   eventFeatures,
   eventLayer,
+  isMarker,
+  markerState,
   markerRequests,
   SELECTION_GAP,
   SELECTION_LAYER,
