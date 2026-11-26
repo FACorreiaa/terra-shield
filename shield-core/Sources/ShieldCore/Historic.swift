@@ -312,12 +312,22 @@ public struct HistoricRequest: Sendable, Hashable {
         if viewport.zoom >= HistoricLayer.pointsZoom {
             guard isPoints, let box else { return false }
             if narrower && truncated { return false }
-            // Asking again for the same view would bring the same answer.
-            if box == Self.pointsBox(viewport.box) { return true }
+            // Asking again for the same view would bring the same answer (the `bbox` is sent at 4
+            // decimals, so a view differing past them is the same request).
+            if box.parameter == Self.pointsBox(viewport.box).parameter { return true }
             return !truncated && box.contains(viewport.box)
         }
         guard zoom == viewport.zoom else { return false }
         return box?.contains(viewport.box) ?? true
+    }
+
+    /// Whether this request's answer, filtered on the device, shows `kinds` and World Heritage only
+    /// as they are: it was asked for those groups or more, and for the same sites or (from zoom 8,
+    /// where each site carries the flag) for every site when only World Heritage Sites are shown.
+    public func canShow(kinds shown: Set<HistoricKind>, worldHeritageOnly: Bool) -> Bool {
+        let wanted = Self.sent(shown)
+        let kindsShown = kinds.map { asked in wanted.map { $0.isSubset(of: asked) } ?? false } ?? true
+        return kindsShown && (worldHeritage == worldHeritageOnly || (worldHeritageOnly && isPoints))
     }
 
     /// The most a points request spans: the server's cap (30° by 20°, a 400 beyond) less a hair,

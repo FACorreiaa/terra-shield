@@ -86,6 +86,13 @@ enum HistoricFixture {
         #expect(!grid.serves(MapViewport(box: alps, zoom: 4), kinds: all, worldHeritageOnly: true, truncated: false))
     }
 
+    /// A cut-short answer is still the answer for a view that differs only past the 4 decimals sent.
+    @Test func aViewDifferingOnlyPastTheDecimalsSentIsTheSameRequest() {
+        let r = HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: all)
+        let jitter = GeoBox(minLongitude: 10 + 1e-9, minLatitude: 47, maxLongitude: 11 - 1e-9, maxLatitude: 48)
+        #expect(r.serves(MapViewport(box: jitter, zoom: 9), kinds: all, truncated: true))
+    }
+
     @Test func landmarksAreAKindOfTheirOwn() {
         #expect(HistoricKind(rawValue: "general") == .general)
         #expect(HistoricKind.general.label == "Landmarks")
@@ -427,6 +434,31 @@ enum HistoricFixture {
     private struct SlowDown: UserFacingError {
         var userMessage: String { "Too many requests." }
         var isRateLimit: Bool { true }
+        var retryAfter: TimeInterval? = nil
+    }
+
+    /// A filter change doesn't get past a rate limit, and the server's Retry-After is the wait.
+    @Test func aRateLimitHoldsThroughFilterChangesForTheServersWait() async {
+        let p = ScriptedProvider()
+        let clock = Clock()
+        p.historicFailure = SlowDown(retryAfter: 120)
+        let m = model(p, clock: clock)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        p.historicFailure = nil
+        m.historicKinds = [.castle, .military]
+        m.historicWorldHeritageOnly = true
+        await m.settle()
+        #expect(p.historicRequests.count == 1)
+        clock.now += 90
+        m.reload()
+        await m.settle()
+        #expect(p.historicRequests.count == 1)
+        clock.now += 31
+        m.reload()
+        await m.settle()
+        #expect(p.historicRequests.count == 2)
     }
 
     /// A rate limit is the server asking for quiet: every request waits the minute, not only the
@@ -515,6 +547,65 @@ enum HistoricFixture {
         await m.settle()
         #expect(m.historicChips.map(\.id) == ["Q99"])
         #expect(p.historicRequests.count == 1)
+    }
+
+    /// An answer that can't show the new filters leaves the screen at once (the legend says
+    /// loading), instead of showing the old sites under the new title.
+    @Test func filtersTheAnswerCantShowClearTheLayerUntilTheirAnswer() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alpsWide)
+        await m.settle()
+        #expect(m.historic != nil)
+        p.historicDelay = .milliseconds(60)
+        m.historicWorldHeritageOnly = true // the grid has no World Heritage counts
+        #expect(m.historic == nil)
+        await m.settle()
+        #expect(m.historic != nil)
+
+        p.historicDelay = nil
+        m.historicKinds = [.castle] // narrower: filtered at once, kept
+        #expect(m.historic != nil)
+        await m.settle()
+        p.historicDelay = .milliseconds(60)
+        m.historicWorldHeritageOnly = false
+        #expect(m.historic == nil)
+        await m.settle()
+    }
+
+    @Test func backInsideTheAnswerAfterAFailureClearsTheWarning() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        p.historicFailure = URLError(.badServerResponse)
+        m.viewportDidChange(MapViewport(box: GeoBox(minLongitude: 20, minLatitude: 47, maxLongitude: 21, maxLatitude: 48), zoom: 9))
+        await m.settle()
+        #expect(m.historicFailed)
+        m.viewportDidChange(alps)
+        await m.settle()
+        #expect(!m.historicFailed)
+    }
+
+    /// A view that waited on a request in flight is asked for when that request fails.
+    @Test func aViewWaitingOnAFailedRequestIsAskedForAtOnce() async {
+        let p = ScriptedProvider()
+        p.historicDelay = .milliseconds(60)
+        p.historicFailure = URLError(.badServerResponse)
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        for _ in 0..<200 where p.historicRequests.isEmpty { try? await Task.sleep(for: .milliseconds(2)) }
+        let inside = MapViewport(box: GeoBox(minLongitude: 10.2, minLatitude: 47.2, maxLongitude: 10.6, maxLatitude: 47.6), zoom: 11)
+        m.viewportDidChange(inside)
+        await m.settleMap()
+        #expect(p.historicRequests.count == 1)
+        for _ in 0..<200 where p.historicRequests.count < 2 { try? await Task.sleep(for: .milliseconds(5)) }
+        #expect(p.historicRequests.map(\.box) == [alps.box, inside.box])
+        try? await Task.sleep(for: .milliseconds(150)) // and the second failure asks nothing more
+        #expect(p.historicRequests.count == 2)
     }
 
     @Test func moreKindsThanTheAnswerHeldAreAskedFor() async {

@@ -159,8 +159,10 @@ public final class LiveMapModel {
     private var historicFailedAt: Date?
     /// The request that failed: only asking it again waits out the minute.
     private var historicFailedRequest: HistoricRequest?
-    /// The failure was a rate limit: every request waits out the minute.
+    /// The failure was a rate limit: every request waits out the hold-back.
     private var historicRateLimited = false
+    /// How long a failure holds back: a minute, or the server's Retry-After when longer.
+    private var historicHoldBack: TimeInterval = 60
 
     /// The historic layer; off by default. Saved with the filters (no quota behind it).
     public var showsHistoric = false {
@@ -189,9 +191,10 @@ public final class LiveMapModel {
             save()
             guard showsHistoric else { return }
             // Fewer groups are filtered from the answer at once; more are asked for.
-            historic = historicAnswer?.filtered(to: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
-            // A deliberate change: asked at once, even within a minute of a failure.
-            historicFailedAt = nil
+            showHistoricAnswer()
+            // A deliberate change: asked at once, even within a minute of a failure (not past a
+            // rate limit: the server asked for quiet).
+            if !historicRateLimited { historicFailedAt = nil }
             startHistoric()
         }
     }
@@ -204,8 +207,8 @@ public final class LiveMapModel {
             if historicWorldHeritageOnly, let site = selectedHistoricSite, !site.worldHeritage { selectedHistoricID = nil }
             save()
             guard showsHistoric else { return }
-            historic = historicAnswer?.filtered(to: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
-            historicFailedAt = nil
+            showHistoricAnswer()
+            if !historicRateLimited { historicFailedAt = nil }
             startHistoric()
         }
     }
@@ -748,6 +751,18 @@ public final class LiveMapModel {
         historicAsking = nil
     }
 
+    /// The answer with the filters shown, or nothing (the legend says loading) when it can't show
+    /// them: never the old sites under the new filters' title.
+    private func showHistoricAnswer() {
+        guard let historicAnswer, let historicAnswered,
+              historicAnswered.canShow(kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
+        else {
+            historic = nil
+            return
+        }
+        historic = historicAnswer.filtered(to: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
+    }
+
     private func updateHistoricChips() {
         let chips = historic?.chipSites(in: viewport.box) ?? []
         if chips != historicChips { historicChips = chips }
@@ -773,13 +788,19 @@ public final class LiveMapModel {
            historicAnswered.serves(viewport, kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly,
                                    truncated: historicAnswer.isTruncated) {
             dropHistoricRequest()
+            // Back inside the answer: whatever failed elsewhere no longer concerns this view.
+            historicFailed = false
+            if !historicRateLimited {
+                historicFailedAt = nil
+                historicFailedRequest = nil
+            }
             return
         }
         if historicTask != nil, let historicAsking,
            historicAsking.serves(viewport, kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly,
                                  truncated: false) { return }
         let wanted = HistoricRequest(viewport, kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
-        if let historicFailedAt, now().timeIntervalSince(historicFailedAt) < 60,
+        if let historicFailedAt, now().timeIntervalSince(historicFailedAt) < historicHoldBack,
            historicRateLimited || wanted == historicFailedRequest { return }
         historicTask?.cancel()
         historicGeneration += 1
@@ -806,7 +827,11 @@ public final class LiveMapModel {
                 self.historicFailed = true
                 self.historicFailedAt = askedAt
                 self.historicFailedRequest = wanted
-                self.historicRateLimited = (error as? any UserFacingError)?.isRateLimit ?? false
+                let limit = error as? any UserFacingError
+                self.historicRateLimited = limit?.isRateLimit ?? false
+                self.historicHoldBack = self.historicRateLimited ? max(60, limit?.retryAfter ?? 60) : 60
+                // A view that waited on this request is asked for now (the same view waits).
+                self.startHistoric()
             }
         }
     }
@@ -935,10 +960,13 @@ public protocol UserFacingError: Error {
     var userMessage: String { get }
     /// The server asked for fewer requests (429): every request waits, not only the one refused.
     var isRateLimit: Bool { get }
+    /// The server's Retry-After, in seconds, when it sent one.
+    var retryAfter: TimeInterval? { get }
 }
 
 extension UserFacingError {
     public var isRateLimit: Bool { false }
+    public var retryAfter: TimeInterval? { nil }
 }
 
 /// Why a load failed, in words for the user.

@@ -123,6 +123,8 @@ import ShieldCore
         } catch let error as APIError {
             guard case .rateLimited = error else { Issue.record("expected rateLimited, got \(error)"); return }
             #expect(error.isRateLimit) // the map holds back every request for a minute
+            #expect(APIError.rateLimited(retryAfter: 120).retryAfter == 120) // the server's wait
+            #expect(APIError.unavailable.retryAfter == nil)
         } catch {
             Issue.record("expected rateLimited, got \(error)")
         }

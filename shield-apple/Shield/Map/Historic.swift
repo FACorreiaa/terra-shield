@@ -134,7 +134,7 @@ struct HistoricMarker: View {
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(Color.ink)
                     .background(Circle().fill(Color.canvas).frame(width: 9, height: 9))
-                    .offset(x: 10, y: -6)
+                    .offset(x: 9, y: -6) // the 9 pt backing stays inside the 28 pt image
             }
         }
         .frame(width: HistoricMarkerView.width, height: HistoricMarkerView.height)

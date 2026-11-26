@@ -295,6 +295,11 @@ extension APIError: UserFacingError {
         return false
     }
 
+    public var retryAfter: TimeInterval? {
+        if case .rateLimited(let seconds?) = self { return TimeInterval(seconds) }
+        return nil
+    }
+
     public var userMessage: String {
         switch self {
         case .server(let status, _) where status >= 500:
