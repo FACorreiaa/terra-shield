@@ -529,9 +529,11 @@ INSERT INTO events (
     fetched_at, url, attrs, change_op
 ) SELECT
     $1, $2, $3, $4, $5, $6, $7,
-    $8, $9, r.g::geography, ST_PointOnSurface(r.g)::geography,
-    $10, $11, $12, $13,
-    now(), $14, $15,
+    $8, $9, r.g::geography,
+    COALESCE(ST_SetSRID(ST_MakePoint($10::float8, $11::float8), 4326),
+             ST_PointOnSurface(r.g))::geography,
+    $12, $13, $14, $15,
+    now(), $16, $17,
     CASE WHEN $5::text = 'resolved' THEN 'resolved' ELSE 'created' END
 FROM (
     -- Feeds send the odd self-intersecting polygon; repair it here so
@@ -543,7 +545,7 @@ FROM (
     SELECT CASE WHEN ST_IsEmpty(v.s) THEN ST_MakeValid(v.raw) ELSE v.s END AS g
     FROM (
         SELECT x.raw, ST_MakeValid(x.raw, 'method=structure keepcollapsed=false') AS s
-        FROM (SELECT ST_Force2D(ST_GeomFromGeoJSON($16::text)) AS raw) x
+        FROM (SELECT ST_Force2D(ST_GeomFromGeoJSON($18::text)) AS raw) x
     ) v
 ) r
 ON CONFLICT (source_id, source_event_id) DO UPDATE SET
@@ -575,6 +577,9 @@ WHERE (events.type, events.kind, events.status, events.severity, events.source_s
        EXCLUDED.title, EXCLUDED.summary, EXCLUDED.started_at, EXCLUDED.observed_at,
        EXCLUDED.updated_at, EXCLUDED.ended_at, EXCLUDED.url, EXCLUDED.attrs)
    OR NOT ST_Equals(events.geom::geometry, EXCLUDED.geom::geometry)
+   -- A source that pins its events (ADR 32): a move alone is a change.
+   OR ($10::float8 IS NOT NULL
+       AND NOT ST_Equals(events.centroid::geometry, EXCLUDED.centroid::geometry))
 RETURNING id
 `
 
@@ -588,6 +593,8 @@ type UpsertEventParams struct {
 	SourceSeverity *string
 	Title          string
 	Summary        *string
+	PositionLon    *float64
+	PositionLat    *float64
 	StartedAt      *time.Time
 	ObservedAt     time.Time
 	UpdatedAt      time.Time
@@ -611,6 +618,8 @@ func (q *Queries) UpsertEvent(ctx context.Context, arg UpsertEventParams) (uuid.
 		arg.SourceSeverity,
 		arg.Title,
 		arg.Summary,
+		arg.PositionLon,
+		arg.PositionLat,
 		arg.StartedAt,
 		arg.ObservedAt,
 		arg.UpdatedAt,

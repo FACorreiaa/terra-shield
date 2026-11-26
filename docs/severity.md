@@ -117,6 +117,21 @@ the highest of its segments.
 `source_severity` is the CAP severity and the significance in words ("Severe (warning)"). Watches are `kind=warning`
 like the rest: an official alert, not a forecast product.
 
+## NHC cyclone forecasts (ADR 32)
+
+Rated by the strongest wind in NHC's forecast, the current one included, on the Saffir-Simpson scale in knots
+(`severity.CycloneWindKt`, the same bands as GDACS's floor):
+
+| Peak wind | Shield |
+|---|---|
+| below 64 kt | minor |
+| Category 1–2 (64–95 kt) | moderate |
+| Category 3–4 (96–136 kt) | severe |
+| Category 5 (≥ 137 kt) | extreme |
+
+`source_severity` is the current intensity and, when stronger, the forecast peak: "Cat 3 now, Cat 4 forecast",
+"45 kt now, 60 kt forecast". Rating by the peak is the owner's to change.
+
 ## Tsunami (NOAA warning centers; owner, 2026-11-19)
 
 US products (Hawaii, Alaska, the US West Coast, Guam, American Samoa, the Marianas, Puerto Rico, the Virgin

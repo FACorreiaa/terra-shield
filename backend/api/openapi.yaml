@@ -620,7 +620,12 @@ components:
             event: burned area, or no scale at all). Omitted means false.
         title: { type: string }
         summary: { type: string }
-        centroid: { $ref: "#/components/schemas/Coordinate" }
+        centroid:
+          $ref: "#/components/schemas/Coordinate"
+          description: >
+            Where to pin the event: a point on its geometry, or where the
+            hazard is when the source says (a cyclone forecast's storm
+            center, not a point on its cone).
         countries:
           type: array
           items: { $ref: "#/components/schemas/EventCountry" }

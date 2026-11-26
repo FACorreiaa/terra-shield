@@ -127,3 +127,12 @@ func TestNWSAlert(t *testing.T) {
 		}
 	}
 }
+
+func TestCycloneWindKt(t *testing.T) {
+	cases := map[float64]Level{0: Minor, 63: Minor, 64: Moderate, 95: Moderate, 96: Severe, 136: Severe, 137: Extreme}
+	for kt, want := range cases {
+		if got := CycloneWindKt(kt); got != want {
+			t.Errorf("CycloneWindKt(%v) = %v, want %v", kt, got, want)
+		}
+	}
+}

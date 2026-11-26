@@ -20,3 +20,24 @@ func CycloneWindKmh(kmh float64) Level {
 	}
 	return Minor
 }
+
+// CycloneWindKt is CycloneWindKmh for a wind in knots, the unit NHC and
+// the Saffir-Simpson scale are defined in. Rating from knots directly
+// keeps the band edges exact: 136 kt (Category 4) converts to 251.9 km/h,
+// which rounds onto Category 5's 252.
+//
+//   - below 64 kt: minor
+//   - Category 1–2 (64–95 kt): moderate
+//   - Category 3–4 (96–136 kt): severe
+//   - Category 5 (≥ 137 kt): extreme
+func CycloneWindKt(kt float64) Level {
+	switch {
+	case kt >= 137:
+		return Extreme
+	case kt >= 96:
+		return Severe
+	case kt >= 64:
+		return Moderate
+	}
+	return Minor
+}

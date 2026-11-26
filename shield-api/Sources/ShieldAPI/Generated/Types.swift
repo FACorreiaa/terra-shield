@@ -773,6 +773,9 @@ public enum Components {
             public var title: Swift.String
             /// - Remark: Generated from `#/components/schemas/Event/summary`.
             public var summary: Swift.String?
+            /// Where to pin the event: a point on its geometry, or where the hazard is when the source says (a cyclone forecast's storm center, not a point on its cone).
+            ///
+            ///
             /// - Remark: Generated from `#/components/schemas/Event/centroid`.
             public var centroid: Components.Schemas.Coordinate
             /// - Remark: Generated from `#/components/schemas/Event/countries`.
@@ -840,7 +843,7 @@ public enum Components {
             ///   - severityProvisional: True when severity is derived from a weak signal (every EONET event: burned area, or no scale at all). Omitted means false.
             ///   - title:
             ///   - summary:
-            ///   - centroid:
+            ///   - centroid: Where to pin the event: a point on its geometry, or where the hazard is when the source says (a cyclone forecast's storm center, not a point on its cone).
             ///   - countries:
             ///   - startedAt:
             ///   - observedAt: When the source last observed or issued it.
