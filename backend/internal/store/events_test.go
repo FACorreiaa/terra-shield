@@ -255,3 +255,45 @@ func TestEventPosition(t *testing.T) {
 		t.Fatalf("unpinned event's pin is not on its surface: %v %v", onSurface, err)
 	}
 }
+
+// A pinned event that moves with nothing else changed is written; an
+// unpinned event re-sent unchanged is not.
+func TestEventPositionMove(t *testing.T) {
+	pool := testutil.DB(t)
+	seedWorld(t, pool)
+	ctx := context.Background()
+	repo := store.NewEventRepository(pool)
+	square, _ := json.Marshal(map[string]any{"type": "Polygon", "coordinates": [][][2]float64{
+		{{-20, 30}, {-20, 35}, {-15, 35}, {-15, 30}, {-20, 30}},
+	}})
+	at := time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC)
+	ev := func(id string, pos *[2]float64) domain.Event {
+		return domain.Event{
+			SourceEventID: id, Type: domain.TypeTropicalCyclone, Kind: domain.KindForecast, Status: domain.StatusActive,
+			Severity: "minor", Title: id, Geometry: square, Position: pos, ObservedAt: at, UpdatedAt: at,
+		}
+	}
+	upsert := func(e domain.Event) int {
+		t.Helper()
+		n, err := repo.Upsert(ctx, "test", []domain.Event{e})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	upsert(ev("pinned", &[2]float64{-19.5, 30.5}))
+	upsert(ev("plain", nil))
+	if n := upsert(ev("pinned", &[2]float64{-19.5, 30.5})); n != 0 {
+		t.Fatalf("unchanged pinned event written (%d)", n)
+	}
+	if n := upsert(ev("plain", nil)); n != 0 {
+		t.Fatalf("unchanged plain event written (%d)", n)
+	}
+	if n := upsert(ev("pinned", &[2]float64{-18, 31})); n != 1 {
+		t.Fatalf("a move alone was not written (%d)", n)
+	}
+	var lon float64
+	if err := pool.QueryRow(ctx, `SELECT ST_X(centroid::geometry) FROM events WHERE source_event_id = 'pinned'`).Scan(&lon); err != nil || lon != -18 {
+		t.Fatalf("pin at %v, %v", lon, err)
+	}
+}

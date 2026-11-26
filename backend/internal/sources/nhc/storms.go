@@ -39,30 +39,38 @@ type storm struct {
 type product struct {
 	AdvNum   string `json:"advNum"`
 	Issuance string `json:"issuance"`
-	URL      string `json:"url"`
-	ZipFile  string `json:"zipFile"`
+	// FileUpdateTime changes when NHC republishes the product under the
+	// same name (a correction).
+	FileUpdateTime string `json:"fileUpdateTime"`
+	URL            string `json:"url"`
+	ZipFile        string `json:"zipFile"`
 }
 
 var stormID = regexp.MustCompile(`^(al|ep|cp)\d{6}$`)
 
-// parseCurrent reads the list. A storm without a well-formed id is an
-// error: it may be one Shield stores, and must not end for a typo.
-func parseCurrent(body []byte) ([]storm, error) {
+// parseCurrent reads the list and returns the storms with a well-formed
+// id, and the ids it could not read. An unreadable entry may be a storm
+// Shield stores, so the caller ends nothing while there is one.
+func parseCurrent(body []byte) ([]storm, []string, error) {
 	var c current
 	if err := json.Unmarshal(body, &c); err != nil {
-		return nil, fmt.Errorf("nhc: %w", err)
+		return nil, nil, fmt.Errorf("nhc: %w", err)
 	}
 	if c.ActiveStorms == nil {
-		return nil, errors.New("nhc: no activeStorms in the list")
+		return nil, nil, errors.New("nhc: no activeStorms in the list")
 	}
+	storms := make([]storm, 0, len(*c.ActiveStorms))
+	var bad []string
 	for i := range *c.ActiveStorms {
 		s := &(*c.ActiveStorms)[i]
 		s.ID = strings.ToLower(strings.TrimSpace(s.ID))
 		if !stormID.MatchString(s.ID) {
-			return nil, fmt.Errorf("nhc: storm %d: id %q", i+1, s.ID)
+			bad = append(bad, s.ID)
+			continue
 		}
+		storms = append(storms, *s)
 	}
-	return *c.ActiveStorms, nil
+	return storms, bad, nil
 }
 
 // basin is the storm's basin code: AL Atlantic, EP eastern North Pacific

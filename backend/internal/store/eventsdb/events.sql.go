@@ -577,6 +577,9 @@ WHERE (events.type, events.kind, events.status, events.severity, events.source_s
        EXCLUDED.title, EXCLUDED.summary, EXCLUDED.started_at, EXCLUDED.observed_at,
        EXCLUDED.updated_at, EXCLUDED.ended_at, EXCLUDED.url, EXCLUDED.attrs)
    OR NOT ST_Equals(events.geom::geometry, EXCLUDED.geom::geometry)
+   -- A source that pins its events (ADR 32): a move alone is a change.
+   OR ($10::float8 IS NOT NULL
+       AND NOT ST_Equals(events.centroid::geometry, EXCLUDED.centroid::geometry))
 RETURNING id
 `
 

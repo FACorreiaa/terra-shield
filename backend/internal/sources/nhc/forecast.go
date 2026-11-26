@@ -167,15 +167,23 @@ func wrapLon(x float64) float64 {
 	return x
 }
 
-// coneGeoJSON makes the polygon records one MultiPolygon. Rings are
-// grouped as a shapefile orders them, outer (clockwise) then its holes;
-// a cone that crosses the antimeridian is cut there and its far side
-// shifted by 360°, so every part lies within [-180, 180].
+// coneGeoJSON makes the polygon records one MultiPolygon. The shapefile
+// spec winds outer rings clockwise, but NHC's cones are counter-clockwise,
+// so orientation is read relative to each record's first ring, which is
+// always an outer: a later ring wound the same way is another outer, one
+// wound the other way a hole in the outer before it. A cone that crosses
+// the antimeridian is cut there and its far side shifted by 360°, so
+// every part lies within [-180, 180].
 func coneGeoJSON(records [][][][2]float64) (json.RawMessage, error) {
 	var polys [][][][2]float64
 	for _, rings := range records {
-		for _, ring := range rings {
-			if signedArea(ring) < 0 || len(polys) == 0 { // clockwise: a new outer ring
+		var first float64 // signed area of the record's first ring
+		for i, ring := range rings {
+			a := signedArea(ring)
+			if i == 0 {
+				first = a
+			}
+			if i == 0 || (a < 0) == (first < 0) {
 				polys = append(polys, [][][2]float64{ring})
 				continue
 			}

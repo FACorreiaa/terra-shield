@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -151,20 +150,23 @@ func TestSplitAntimeridian(t *testing.T) {
 }
 
 func TestParseCurrent(t *testing.T) {
-	if s, err := parseCurrent([]byte(`{"activeStorms": []}`)); err != nil || len(s) != 0 {
-		t.Fatalf("empty list: %v %v", s, err)
+	if s, bad, err := parseCurrent([]byte(`{"activeStorms": []}`)); err != nil || len(s) != 0 || len(bad) != 0 {
+		t.Fatalf("empty list: %v %v %v", s, bad, err)
 	}
 	for name, body := range map[string]string{
 		"no list":  `{}`,
 		"null":     `{"activeStorms": null}`,
-		"bad id":   `{"activeStorms": [{"id": "xx012023"}]}`,
 		"not json": `<html>`,
 	} {
-		if _, err := parseCurrent([]byte(body)); err == nil {
+		if _, _, err := parseCurrent([]byte(body)); err == nil {
 			t.Errorf("%s: no error", name)
 		}
 	}
-	storms, err := parseCurrent(readFixture(t, "current.json"))
+	s, bad, err := parseCurrent([]byte(`{"activeStorms": [{"id": "xx012023"}, {"id": "AL012023"}]}`))
+	if err != nil || len(s) != 1 || s[0].ID != "al012023" || !slices.Equal(bad, []string{"xx012023"}) {
+		t.Fatalf("bad id: %v %v %v", s, bad, err)
+	}
+	storms, _, err := parseCurrent(readFixture(t, "current.json"))
 	if err != nil || len(storms) != 4 {
 		t.Fatalf("sample: %d storms, %v", len(storms), err)
 	}
@@ -262,7 +264,7 @@ func TestBuildIntermediateAdvisory(t *testing.T) {
 // fakeStore records writes; stored is what it holds active.
 type fakeStore struct {
 	mu       sync.Mutex
-	stored   map[string]time.Time
+	stored   []string
 	upserted [][]domain.Event
 	resolved [][]string
 }
@@ -276,8 +278,8 @@ func (f *fakeStore) Upsert(_ context.Context, _ string, events []domain.Event) (
 
 func (f *fakeStore) Delete(context.Context, string, []string) (int, error) { return 0, nil }
 
-func (f *fakeStore) ActiveStarts(context.Context, string) (map[string]time.Time, error) {
-	return maps.Clone(f.stored), nil
+func (f *fakeStore) ActiveIDs(context.Context, string) ([]string, error) {
+	return slices.Clone(f.stored), nil
 }
 
 func (f *fakeStore) Resolve(_ context.Context, _ string, ids []string, _ time.Time) (int, error) {
@@ -292,7 +294,16 @@ func (f *fakeStore) Resolve(_ context.Context, _ string, ids []string, _ time.Ti
 // (404), Hilary has no cone.
 func stub(t *testing.T) (*httptest.Server, *sync.Map, func(string)) {
 	t.Helper()
+	srv, hits, set, _ := stubWith(t)
+	return srv, hits, set
+}
+
+// stubWith also returns alias: serve a fixture under another archive
+// name (an archive published later, or a status code as "429").
+func stubWith(t *testing.T) (*httptest.Server, *sync.Map, func(string), func(name, as string)) {
+	t.Helper()
 	var mu sync.Mutex
+	aliases := map[string]string{}
 	hits := &sync.Map{}
 	var body string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -306,6 +317,17 @@ func stub(t *testing.T) (*httptest.Server, *sync.Map, func(string)) {
 			return
 		}
 		name := path.Base(r.URL.Path)
+		mu.Lock()
+		as, ok := aliases[name]
+		mu.Unlock()
+		if ok {
+			if as == "429" {
+				w.Header().Set("Retry-After", "60")
+				w.WriteHeader(http.StatusTooManyRequests)
+				return
+			}
+			name = as
+		}
 		zip, err := os.ReadFile("testdata/" + name)
 		if err != nil || !strings.HasSuffix(name, ".zip") {
 			http.NotFound(w, r)
@@ -320,7 +342,12 @@ func stub(t *testing.T) (*httptest.Server, *sync.Map, func(string)) {
 		body = strings.ReplaceAll(s, "https://www.nhc.noaa.gov/gis/forecast/archive/", srv.URL+"/archive/")
 	}
 	set(string(readFixture(t, "current.json")))
-	return srv, hits, set
+	alias := func(name, as string) {
+		mu.Lock()
+		defer mu.Unlock()
+		aliases[name] = as
+	}
+	return srv, hits, set, alias
 }
 
 func newSource(t *testing.T, srv *httptest.Server, st Store) *Source {
@@ -334,10 +361,10 @@ func newSource(t *testing.T, srv *httptest.Server, st Store) *Source {
 
 func TestPoll(t *testing.T) {
 	srv, hits, set := stub(t)
-	st := &fakeStore{stored: map[string]time.Time{
-		"al092023": {}, // Nine: listed, archive missing: kept
-		"ep092023": {}, // Hilary: listed, no cone: kept
-		"al012023": {}, // no longer listed: ended
+	st := &fakeStore{stored: []string{
+		"al092023", // Nine: listed, archive missing: kept
+		"ep092023", // Hilary: listed, no cone: kept
+		"al012023", // no longer listed: ended
 	}}
 	s := newSource(t, srv, st)
 	ctx := context.Background()
@@ -395,7 +422,7 @@ func TestPoll(t *testing.T) {
 // Archive links off NHC's host are not followed; the storm is kept.
 func TestPollForeignArchive(t *testing.T) {
 	srv, hits, _ := stub(t)
-	st := &fakeStore{stored: map[string]time.Time{"al062023": {}}}
+	st := &fakeStore{stored: []string{"al062023"}}
 	s := newSource(t, srv, st)
 	s.allowed = New(nil, nil, nil).allowed // the production rule: https://www.nhc.noaa.gov only
 	if _, err := s.Poll(context.Background(), domain.Validators{}); err != nil {
@@ -406,5 +433,134 @@ func TestPollForeignArchive(t *testing.T) {
 	}
 	if _, ok := hits.Load("/archive/al062023_5day_011.zip"); ok {
 		t.Fatal("followed a link off NHC's host")
+	}
+}
+
+// NHC's cones are wound counter-clockwise, against the shapefile spec: a
+// second ring wound the same way is a second part, one wound the other
+// way a hole.
+func TestConeRings(t *testing.T) {
+	ccw := func(x, y, w float64) [][2]float64 {
+		return [][2]float64{{x, y}, {x + w, y}, {x + w, y + w}, {x, y + w}, {x, y}}
+	}
+	cw := func(x, y, w float64) [][2]float64 { r := ccw(x, y, w); slices.Reverse(r); return r }
+	for name, c := range map[string]struct {
+		records [][][][2]float64
+		parts   []int // rings per part
+	}{
+		"two parts, one record":     {[][][][2]float64{{ccw(0, 0, 10), ccw(20, 0, 10)}}, []int{1, 1}},
+		"two records":               {[][][][2]float64{{ccw(0, 0, 10)}, {ccw(20, 0, 10)}}, []int{1, 1}},
+		"hole":                      {[][][][2]float64{{ccw(0, 0, 10), cw(2, 2, 2)}}, []int{2}},
+		"clockwise, as the spec":    {[][][][2]float64{{cw(0, 0, 10), ccw(2, 2, 2), cw(20, 0, 10)}}, []int{2, 1}},
+		"crossing the antimeridian": {[][][][2]float64{{ccw(175, 0, 10)}}, []int{1, 1}},
+	} {
+		raw, err := coneGeoJSON(c.records)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		m := cone(t, raw)
+		var got []int
+		for _, p := range m.Coordinates {
+			got = append(got, len(p))
+		}
+		if !slices.Equal(got, c.parts) {
+			t.Errorf("%s: rings per part %v, want %v", name, got, c.parts)
+		}
+	}
+}
+
+// An archive missing on one poll is read when published; a new advisory's
+// archive replaces the old one in memory; a republished archive (new file
+// time) is read again.
+func TestPollArchiveLifecycle(t *testing.T) {
+	srv, hits, set, alias := stubWith(t)
+	st := &fakeStore{}
+	s := newSource(t, srv, st)
+	ctx := context.Background()
+	count := func(p string) int {
+		n, ok := hits.Load(p)
+		if !ok {
+			return 0
+		}
+		return *n.(*int)
+	}
+	stored := func() []string {
+		var ids []string
+		for _, e := range st.upserted[len(st.upserted)-1] {
+			ids = append(ids, e.SourceEventID)
+		}
+		return ids
+	}
+	if _, err := s.Poll(ctx, domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if ids := stored(); slices.Contains(ids, "al092023") {
+		t.Fatalf("Nine stored before its archive: %v", ids)
+	}
+	alias("al092023_5day_003.zip", "al062023_5day_011.zip") // published now
+	if _, err := s.Poll(ctx, domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if ids := stored(); !slices.Contains(ids, "al092023") {
+		t.Fatalf("Nine not stored once published: %v", ids)
+	}
+	if len(s.archives) != 3 {
+		t.Fatalf("%d archives in memory, want 3", len(s.archives))
+	}
+
+	body := string(readFixture(t, "current.json"))
+	next := strings.ReplaceAll(body, "al062023_5day_011.zip", "al062023_5day_012.zip")
+	alias("al062023_5day_012.zip", "al062023_5day_011.zip")
+	set(next)
+	if _, err := s.Poll(ctx, domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if count("/archive/al062023_5day_012.zip") != 1 || len(s.archives) != 3 {
+		t.Fatalf("new advisory: fetched %d, %d in memory", count("/archive/al062023_5day_012.zip"), len(s.archives))
+	}
+	for key := range s.archives {
+		if strings.Contains(key, "al062023_5day_011.zip") {
+			t.Fatal("the replaced advisory's archive is still in memory")
+		}
+	}
+	// Every product republished with a new file time.
+	set(strings.ReplaceAll(next, `"fileUpdateTime": "2023-08-22T02:55:52.439Z"`, `"fileUpdateTime": "2023-08-22T03:10:00.000Z"`))
+	if _, err := s.Poll(ctx, domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := count("/archive/al062023_5day_012.zip"); n != 2 {
+		t.Fatalf("republished archive fetched %d times, want 2", n)
+	}
+}
+
+// A 429 on an archive fails the poll, so it backs off rather than asking
+// again in two minutes; nothing is ended.
+func TestPollArchiveRateLimited(t *testing.T) {
+	srv, _, _, alias := stubWith(t)
+	alias("al062023_5day_011.zip", "429")
+	st := &fakeStore{stored: []string{"al012023"}}
+	s := newSource(t, srv, st)
+	if _, err := s.Poll(context.Background(), domain.Validators{}); err == nil {
+		t.Fatal("no error on 429")
+	}
+	if len(st.resolved) != 0 || len(st.upserted) != 0 {
+		t.Fatalf("wrote on 429: %v %v", st.upserted, st.resolved)
+	}
+}
+
+// One unreadable id: the rest still update, and nothing ends.
+func TestPollUnreadableID(t *testing.T) {
+	srv, _, set := stub(t)
+	set(strings.Replace(string(readFixture(t, "current.json")), `"id": "al082023"`, `"id": "al08-2023"`, 1))
+	st := &fakeStore{stored: []string{"al082023", "al012023"}}
+	s := newSource(t, srv, st)
+	if _, err := s.Poll(context.Background(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(st.upserted) != 1 || len(st.upserted[0]) != 1 || st.upserted[0][0].SourceEventID != "al062023" {
+		t.Fatalf("upserted %v", st.upserted)
+	}
+	if len(st.resolved) != 0 {
+		t.Fatalf("ended %v while an id was unreadable", st.resolved)
 	}
 }

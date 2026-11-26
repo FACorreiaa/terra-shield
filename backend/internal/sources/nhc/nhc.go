@@ -12,9 +12,11 @@ package nhc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -45,7 +47,7 @@ const (
 // Store is where the adapter writes.
 type Store interface {
 	ingest.EventStore
-	ActiveStarts(ctx context.Context, sourceID string) (map[string]time.Time, error)
+	ActiveIDs(ctx context.Context, sourceID string) ([]string, error)
 	Resolve(ctx context.Context, sourceID string, sourceEventIDs []string, at time.Time) (int, error)
 }
 
@@ -59,7 +61,7 @@ type Source struct {
 	allowed func(*url.URL) bool // which archive links are followed
 
 	mu       sync.Mutex
-	archives map[string]*forecast // by archive URL: one per advisory, never changed
+	archives map[string]*forecast // by archive URL and its file time
 }
 
 // New builds the adapter.
@@ -96,11 +98,15 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 	if resp.NotModified {
 		return ingest.Result{Validators: resp.Validators, NotModified: true}, nil
 	}
-	storms, err := parseCurrent(resp.Body)
+	storms, unreadable, err := parseCurrent(resp.Body)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	stored, err := s.store.ActiveStarts(ctx, ID)
+	if len(unreadable) > 0 {
+		metrics.SourceSkipped.WithLabelValues(ID, "unreadable").Add(float64(len(unreadable)))
+		s.logger.Warn("nhc storms with unreadable ids; no storm ended this poll", "ids", unreadable)
+	}
+	stored, err := s.store.ActiveIDs(ctx, ID)
 	if err != nil {
 		return ingest.Result{}, err
 	}
@@ -114,8 +120,11 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 	for i := range storms {
 		st := &storms[i]
 		listed[st.ID] = true
-		f, link, err := s.forecast(ctx, st)
+		f, key, err := s.forecast(ctx, st)
+		var status *fetch.StatusError
 		switch {
+		case errors.As(err, &status) && status.Status == http.StatusTooManyRequests:
+			return ingest.Result{}, err // NHC asks us to slow down: the poll backs off
 		case err != nil:
 			// Usually the list updated before the archive was published.
 			// The stored event stays as it was, and the next poll asks again.
@@ -127,7 +136,7 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 			metrics.SourceSkipped.WithLabelValues(ID, "no_forecast").Inc()
 			continue // no cone (a final advisory, a remnant low): nothing to draw
 		}
-		keep[link] = f
+		keep[key] = f
 		e, err := build(st, f)
 		if err != nil {
 			metrics.SourceSkipped.WithLabelValues(ID, "unreadable").Inc()
@@ -142,16 +151,18 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	var gone []string
-	for id := range stored {
-		if !listed[id] {
-			gone = append(gone, id)
+	ended := 0
+	if len(unreadable) == 0 {
+		var gone []string
+		for _, id := range stored {
+			if !listed[id] {
+				gone = append(gone, id)
+			}
 		}
-	}
-	sort.Strings(gone)
-	ended, err := s.store.Resolve(ctx, ID, gone, s.now().UTC())
-	if err != nil {
-		return ingest.Result{}, err
+		sort.Strings(gone)
+		if ended, err = s.store.Resolve(ctx, ID, gone, s.now().UTC()); err != nil {
+			return ingest.Result{}, err
+		}
 	}
 	validators := resp.Validators
 	if pending {
@@ -160,8 +171,9 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 	return ingest.Result{Validators: validators, Upserted: n + ended}, nil
 }
 
-// forecast returns the storm's latest forecast and its archive link; nil
-// without error when NHC publishes no cone for it.
+// forecast returns the storm's latest forecast and its cache key (the
+// archive link and its file time); nil without error when NHC publishes
+// no cone for it.
 func (s *Source) forecast(ctx context.Context, st *storm) (*forecast, string, error) {
 	if st.TrackCone == nil || st.TrackCone.ZipFile == "" {
 		return nil, "", nil
@@ -171,8 +183,9 @@ func (s *Source) forecast(ctx context.Context, st *storm) (*forecast, string, er
 	if err != nil || !s.allowed(u) {
 		return nil, "", fmt.Errorf("archive link %q is not NHC's", link)
 	}
-	if f, ok := s.archives[link]; ok {
-		return f, link, nil
+	key := link + " " + st.TrackCone.FileUpdateTime
+	if f, ok := s.archives[key]; ok {
+		return f, key, nil
 	}
 	when, err := issued(st.TrackCone.Issuance)
 	if err != nil {
@@ -186,7 +199,7 @@ func (s *Source) forecast(ctx context.Context, st *storm) (*forecast, string, er
 	if err != nil {
 		return nil, "", err
 	}
-	return f, link, nil
+	return f, key, nil
 }
 
 // build makes the storm's event. The figures and the pin come from the
