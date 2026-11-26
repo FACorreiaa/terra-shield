@@ -1,11 +1,13 @@
-import type { EventCluster, EventList, HazardEvent } from "@shield/api-client";
+import type { EventCluster, EventList, HazardEvent, Source } from "@shield/api-client";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { createContext, use } from "react";
 
 import type { EventQuery } from "@/domain/filters.ts";
+import type { EventShape } from "@/domain/geo.ts";
 import type { LiveStatus } from "@/domain/liveStatus.ts";
 import type { View } from "@/domain/viewport.ts";
+import type { DetailState } from "@/features/detail/detailState.ts";
 
 /** What every shell and section shares: the map's view, what is selected and the events in view. */
 interface LiveMap {
@@ -17,7 +19,16 @@ interface LiveMap {
   selectedId: string | undefined;
   /** Selects an event, or clears the selection with `undefined`. */
   select: (id: string | undefined) => void;
+  /** The selected event: the map's copy, else the detail's, else as last seen once gone. */
   selected: HazardEvent | undefined;
+  /** The selection's detail as it loads (DESIGN.md §10.3); undefined with nothing selected. */
+  detail: DetailState | undefined;
+  /** The selection's area, once its detail has loaded; drawn under the markers. */
+  selectedShape: EventShape | undefined;
+  /** From `/v1/sources`; undefined until it loads. */
+  sources: readonly Source[] | undefined;
+  /** Sources that have missed three polls: their events fade. */
+  staleSources: ReadonlySet<string>;
   /** The request for the current view and filters: its state, and `refetch`. */
   events: UseQueryResult<EventList>;
   /** What the map and list show: the current response, else the last one that arrived. Never cleared. */

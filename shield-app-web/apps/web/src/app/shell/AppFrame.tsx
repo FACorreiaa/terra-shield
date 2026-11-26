@@ -10,9 +10,7 @@ import { useLiveMap } from "./liveMapContext.ts";
 import { MobileChrome } from "./MobileChrome.tsx";
 import { Shortcuts } from "./Shortcuts.tsx";
 import { useIsWide } from "./useBreakpoint.ts";
-
-/** Source health arrives with the sources view (W5); until then nothing is marked stale. */
-const NO_STALE_SOURCES: ReadonlySet<string> = new Set();
+import { useSelectionUpkeep } from "./useDetailFocus.ts";
 
 /**
  * The app's frame: one map, always mounted in the same place, with the desktop or the phone chrome
@@ -20,15 +18,16 @@ const NO_STALE_SOURCES: ReadonlySet<string> = new Set();
  */
 function AppFrame({ children }: { children: ReactNode }): ReactElement {
   const wide = useIsWide();
-  const { list, clusters, selectedId, selected, setView, select, setMap } = useLiveMap();
+  const { list, clusters, selectedId, selectedShape, staleSources, setView, select, setMap } = useLiveMap();
   const frame = useRef<HTMLDivElement>(null);
   const applyInsets = useInsets(frame);
+  useSelectionUpkeep(selectedId);
   const [inspectorWanted, setInspectorWanted] = useState(true);
   const toggleInspector = useCallback(() => {
     setInspectorWanted((was) => !was);
   }, []);
   // The inspector shows the selection; `i` hides it for those who want the map wide.
-  const inspectorOpen = wide && inspectorWanted && selected !== undefined;
+  const inspectorOpen = wide && inspectorWanted && selectedId !== undefined;
 
   return (
     <div className="flex h-full flex-col bg-canvas">
@@ -37,9 +36,9 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
           <LiveMap
             events={list}
             clusters={clusters}
-            staleSources={NO_STALE_SOURCES}
+            staleSources={staleSources}
             selectedId={selectedId}
-            selectedShape={undefined}
+            selectedShape={selectedShape}
             onViewChange={setView}
             onSelect={select}
             onMap={setMap}

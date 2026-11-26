@@ -10,17 +10,11 @@ import { SearchResults } from "@/features/search/SearchResults.tsx";
 import { useLiveMap } from "./liveMapContext.ts";
 import { useMapSearch } from "./mapSearchContext.ts";
 import { useIsWide } from "./useBreakpoint.ts";
+import { focusRow } from "./useDetailFocus.ts";
 import { useSearchMatches } from "./useSearchMatches.ts";
 
 /** A country is framed with this room around it, and never closer than a region's zoom. */
 const COUNTRY_FIT = { breathingRoom: 32, maxZoom: 8 } as const;
-
-/** Puts keyboard focus on the list's row for `id`, once the list is back in place of the results. */
-function focusRow(id: string): void {
-  requestAnimationFrame(() => {
-    document.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(id)}"] button`)?.focus();
-  });
-}
 
 /**
  * Search's results, in place of the list while searching. Choosing an event selects it; choosing a

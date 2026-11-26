@@ -1,10 +1,11 @@
-import type { EventList } from "@shield/api-client";
+import type { EventCluster, EventList, HazardEvent } from "@shield/api-client";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { onlineManager } from "@tanstack/react-query";
 import { useMemo, useState, useSyncExternalStore } from "react";
 
 import type { LiveStatus } from "@/domain/liveStatus.ts";
 import { liveStatus } from "@/domain/liveStatus.ts";
+import { sortedForDisplay } from "@/domain/sort.ts";
 import { LoadFailureError } from "@/features/events/useEvents.ts";
 
 interface Shown {
@@ -60,4 +61,16 @@ function useShownEvents(events: UseQueryResult<EventList>, now: Date): Shown {
   return { shown: list, status, failure: failed ? failureWords(events.error) : undefined };
 }
 
-export { useShownEvents };
+const NO_EVENTS: readonly HazardEvent[] = [];
+const NO_CLUSTERS: readonly EventCluster[] = [];
+
+/** One order for the map's list and for ↑/↓: most severe, then newest, resolved last. */
+function useDisplayed(shown: EventList | undefined): {
+  list: readonly HazardEvent[];
+  clusters: readonly EventCluster[];
+} {
+  const list = useMemo(() => (shown === undefined ? NO_EVENTS : sortedForDisplay(shown.events)), [shown]);
+  return { list, clusters: shown?.clusters ?? NO_CLUSTERS };
+}
+
+export { useDisplayed, useShownEvents };

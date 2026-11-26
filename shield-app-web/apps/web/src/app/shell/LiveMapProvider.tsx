@@ -1,19 +1,18 @@
-import type { EventCluster, HazardEvent } from "@shield/api-client";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { sortedForDisplay } from "@/domain/sort.ts";
 import type { View } from "@/domain/viewport.ts";
 import { useEvents } from "@/features/events/useEvents.ts";
 import { setQuery, useSavedFilters } from "@/features/filters/filterPrefs.ts";
 
 import type { LiveMap } from "./liveMapContext.ts";
 import { LiveMapContext } from "./liveMapContext.ts";
-import { useShownEvents } from "./useShownEvents.ts";
+import { useSelectedEvent } from "./useSelectedEvent.ts";
+import { useDisplayed, useShownEvents } from "./useShownEvents.ts";
+import { useSourceHealth } from "./useSourceHealth.ts";
+import { useUrlSelection } from "./useUrlSelection.ts";
 
-const NO_EVENTS: readonly HazardEvent[] = [];
-const NO_CLUSTERS: readonly EventCluster[] = [];
 const WHOLE_WORLD: View = { zoom: 1, bbox: "-180,-85,180,85" };
 const CLOCK_TICK_MS = 30_000;
 
@@ -32,21 +31,19 @@ function useNow(): Date {
 
 /**
  * Holds the live map's state above the routes and both shells, so neither a route change nor
- * crossing the 1024 px breakpoint resets the view, the filters or the selection. W5 moves the
- * selection into the URL (`/e/$id`) behind the same `select`.
+ * crossing the 1024 px breakpoint resets the view or the filters. The selection is in the address.
  */
 function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   const [view, setView] = useState<View>(WHOLE_WORLD);
-  const [selectedId, setSelectedId] = useState<string>();
+  const { selectedId, select } = useUrlSelection();
   const [map, setMap] = useState<MapLibreMap>();
   const now = useNow();
   const { query } = useSavedFilters();
   const events = useEvents(view, query);
   const { shown, status, failure } = useShownEvents(events, now);
-  // One order for the map's list and for ↑/↓: most severe, then newest, resolved last.
-  const list = useMemo(() => (shown === undefined ? NO_EVENTS : sortedForDisplay(shown.events)), [shown]);
-  const clusters = shown?.clusters ?? NO_CLUSTERS;
-  const selected = useMemo(() => list.find((event) => event.id === selectedId), [list, selectedId]);
+  const { list, clusters } = useDisplayed(shown);
+  const { selected, detail, selectedShape } = useSelectedEvent(selectedId, list);
+  const { sources, staleSources } = useSourceHealth(now);
   const value = useMemo<LiveMap>(
     () => ({
       view,
@@ -54,8 +51,12 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       map,
       setMap,
       selectedId,
-      select: setSelectedId,
+      select,
       selected,
+      detail,
+      selectedShape,
+      sources,
+      staleSources,
       events,
       shown,
       list,
@@ -66,7 +67,25 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       failure,
       now,
     }),
-    [view, map, selectedId, selected, events, shown, list, clusters, query, status, failure, now],
+    [
+      view,
+      map,
+      selectedId,
+      select,
+      selected,
+      detail,
+      selectedShape,
+      sources,
+      staleSources,
+      events,
+      shown,
+      list,
+      clusters,
+      query,
+      status,
+      failure,
+      now,
+    ],
   );
   return <LiveMapContext value={value}>{children}</LiveMapContext>;
 }
