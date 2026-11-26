@@ -6,19 +6,25 @@ INSERT INTO events (
     source_id, source_event_id, type, kind, status, severity, source_severity,
     title, summary, geom, centroid, started_at, observed_at, updated_at, ended_at,
     fetched_at, url, attrs, change_op
-) VALUES (
+) SELECT
     @source_id, @source_event_id, @type, @kind, @status, @severity, @source_severity,
-    @title, @summary,
-    -- Feeds send the odd self-intersecting polygon; repair it here so
-    -- country assignment and the map never trip over it. Repairing an area
-    -- can leave stray lines or points beside it (a GeometryCollection);
-    -- an area stays an area.
-    ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON(@geom::text)), 'method=structure keepcollapsed=false')::geography,
-    ST_PointOnSurface(ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON(@geom::text)), 'method=structure keepcollapsed=false'))::geography,
+    @title, @summary, r.g::geography, ST_PointOnSurface(r.g)::geography,
     @started_at, @observed_at, @updated_at, @ended_at,
     now(), @url, @attrs,
     CASE WHEN @status::text = 'resolved' THEN 'resolved' ELSE 'created' END
-)
+FROM (
+    -- Feeds send the odd self-intersecting polygon; repair it here so
+    -- country assignment and the map never trip over it. The structure
+    -- method keeps an area an area (the default turned a dense coastline
+    -- into an area plus stray lines, a GeometryCollection). It empties a
+    -- shape that has collapsed entirely (a ring with no area, a line of
+    -- one point); the default repair keeps that as a point or line.
+    SELECT CASE WHEN ST_IsEmpty(v.s) THEN ST_MakeValid(v.raw) ELSE v.s END AS g
+    FROM (
+        SELECT x.raw, ST_MakeValid(x.raw, 'method=structure keepcollapsed=false') AS s
+        FROM (SELECT ST_Force2D(ST_GeomFromGeoJSON(@geom::text)) AS raw) x
+    ) v
+) r
 ON CONFLICT (source_id, source_event_id) DO UPDATE SET
     type            = EXCLUDED.type,
     kind            = EXCLUDED.kind,

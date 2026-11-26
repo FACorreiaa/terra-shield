@@ -527,19 +527,25 @@ INSERT INTO events (
     source_id, source_event_id, type, kind, status, severity, source_severity,
     title, summary, geom, centroid, started_at, observed_at, updated_at, ended_at,
     fetched_at, url, attrs, change_op
-) VALUES (
+) SELECT
     $1, $2, $3, $4, $5, $6, $7,
-    $8, $9,
-    -- Feeds send the odd self-intersecting polygon; repair it here so
-    -- country assignment and the map never trip over it. Repairing an area
-    -- can leave stray lines or points beside it (a GeometryCollection);
-    -- an area stays an area.
-    ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON($10::text)), 'method=structure keepcollapsed=false')::geography,
-    ST_PointOnSurface(ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON($10::text)), 'method=structure keepcollapsed=false'))::geography,
-    $11, $12, $13, $14,
-    now(), $15, $16,
+    $8, $9, r.g::geography, ST_PointOnSurface(r.g)::geography,
+    $10, $11, $12, $13,
+    now(), $14, $15,
     CASE WHEN $5::text = 'resolved' THEN 'resolved' ELSE 'created' END
-)
+FROM (
+    -- Feeds send the odd self-intersecting polygon; repair it here so
+    -- country assignment and the map never trip over it. The structure
+    -- method keeps an area an area (the default turned a dense coastline
+    -- into an area plus stray lines, a GeometryCollection). It empties a
+    -- shape that has collapsed entirely (a ring with no area, a line of
+    -- one point); the default repair keeps that as a point or line.
+    SELECT CASE WHEN ST_IsEmpty(v.s) THEN ST_MakeValid(v.raw) ELSE v.s END AS g
+    FROM (
+        SELECT x.raw, ST_MakeValid(x.raw, 'method=structure keepcollapsed=false') AS s
+        FROM (SELECT ST_Force2D(ST_GeomFromGeoJSON($16::text)) AS raw) x
+    ) v
+) r
 ON CONFLICT (source_id, source_event_id) DO UPDATE SET
     type            = EXCLUDED.type,
     kind            = EXCLUDED.kind,
@@ -582,13 +588,13 @@ type UpsertEventParams struct {
 	SourceSeverity *string
 	Title          string
 	Summary        *string
-	Geom           string
 	StartedAt      *time.Time
 	ObservedAt     time.Time
 	UpdatedAt      time.Time
 	EndedAt        *time.Time
 	Url            *string
 	Attrs          []byte
+	Geom           string
 }
 
 // Inserts or updates one event and returns its id only when something
@@ -605,13 +611,13 @@ func (q *Queries) UpsertEvent(ctx context.Context, arg UpsertEventParams) (uuid.
 		arg.SourceSeverity,
 		arg.Title,
 		arg.Summary,
-		arg.Geom,
 		arg.StartedAt,
 		arg.ObservedAt,
 		arg.UpdatedAt,
 		arg.EndedAt,
 		arg.Url,
 		arg.Attrs,
+		arg.Geom,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)

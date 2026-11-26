@@ -276,6 +276,14 @@ func TestEventListMapGeometry(t *testing.T) {
 	if err := pool.QueryRow(ctx, `SELECT GeometryType(geom::geometry) FROM events WHERE source_event_id = 'hairline'`).Scan(&stored); err != nil || stored != "POLYGON" {
 		t.Fatalf("hairline stored as %s %v", stored, err)
 	}
+	// A ring with no area is kept as what is left of it, never emptied.
+	if _, err := repo.Upsert(ctx, "test", []domain.Event{event("flat", shape("Polygon", [][][2]float64{{{3, 39}, {3, 39}, {3, 39}, {3, 39}}}))}); err != nil {
+		t.Fatal(err)
+	}
+	var empty bool
+	if err := pool.QueryRow(ctx, `SELECT ST_IsEmpty(geom::geometry) OR ST_IsEmpty(centroid::geometry) FROM events WHERE source_event_id = 'flat'`).Scan(&empty); err != nil || empty {
+		t.Fatalf("flat ring stored empty (%v) %v", empty, err)
+	}
 	// Rows stored before that rule can still be collections: an area,
 	// islets and a stray line.
 	if _, err := pool.Exec(ctx, `UPDATE events SET geom = ST_GeomFromText(
