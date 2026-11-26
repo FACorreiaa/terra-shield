@@ -135,7 +135,8 @@ public struct HistoricLayer: Sendable, Hashable {
     /// The most sites drawn as chips the map can pick. More cost MapKit too much on every pan
     /// (measured 2026-11-25 on a Mac, densest view: about 1,100 chips held the main thread's 95th
     /// percentile frame gap at 41 ms against 25 ms without the layer, 2,700 at 63-66 ms with
-    /// hitches past 600 ms), so beyond it they are drawn as dots until the view holds fewer.
+    /// hitches past 600 ms), so beyond it every site is a dot and the best known in the view
+    /// (`chipSites(in:)`) are chips over them (owner, 2026-11-26).
     public static let chipLimit = 1000
 
     public var content: Content
@@ -160,7 +161,8 @@ public struct HistoricLayer: Sendable, Hashable {
         return []
     }
 
-    /// Whether the sites are drawn as chips that can be picked, or as dots (too many, or cut short).
+    /// Whether every site is a chip; otherwise (too many, or cut short) every site is a dot, with
+    /// the best known in the view as chips over them.
     public var drawsChips: Bool {
         guard case .points(let sites, let truncated) = content else { return false }
         return !truncated && sites.count <= Self.chipLimit
@@ -196,8 +198,23 @@ public struct HistoricLayer: Sendable, Hashable {
         switch content {
         case .grid: "Zoom in to see each site."
         case .points(_, true): "The best-known sites are shown. Zoom in for more."
-        case .points: drawsChips ? nil : "Zoom in to pick a site."
+        case .points: drawsChips ? nil : "The best-known sites have symbols. Zoom in for the rest."
         }
+    }
+
+    /// The sites drawn as chips in `box`: every site when the answer holds `chipLimit` or fewer
+    /// and wasn't cut short; otherwise the best known in the box, at most `chipLimit` of them, by
+    /// sitelinks, then World Heritage, then ID, so a pan never reshuffles sites that tie.
+    public func chipSites(in box: GeoBox) -> [HistoricSite] {
+        guard case .points(let sites, let truncated) = content else { return [] }
+        if !truncated, sites.count <= Self.chipLimit { return sites }
+        let inView = sites.filter { box.contains($0.coordinate) }
+        guard inView.count > Self.chipLimit else { return inView }
+        return Array(inView.sorted { a, b in
+            if a.sitelinks != b.sitelinks { return a.sitelinks > b.sitelinks }
+            if a.worldHeritage != b.worldHeritage { return a.worldHeritage }
+            return a.id < b.id
+        }.prefix(Self.chipLimit))
     }
 
     /// The answer with only the groups shown: sites of other groups, and of groups this version
@@ -269,14 +286,14 @@ public struct HistoricRequest: Sendable, Hashable {
         self.init(box: box, zoom: viewport.zoom, kinds: Self.sent(kinds), worldHeritage: worldHeritageOnly)
     }
 
-    /// Whether this request's answer, `truncated` or not and holding `sites` sites, also serves
-    /// `viewport` with `kinds` shown. Grid cells change size with the zoom; points don't, so any
-    /// zoom from 8 inside the box is served, unless the answer was cut short or held too many
-    /// sites to draw as chips: a smaller view may then hold few enough. An answer for more groups
+    /// Whether this request's answer, `truncated` or not, also serves `viewport` with `kinds`
+    /// shown. Grid cells change size with the zoom; points don't, so any zoom from 8 inside the
+    /// box is served (the chips are chosen for the view on the device), unless the answer was cut
+    /// short: a smaller view may then hold sites the answer left out. An answer for more groups
     /// than shown serves fewer, filtered on the device (`HistoricLayer.filtered(to:)`), unless its
     /// sites were cut short: the server would send more of the groups left.
     public func serves(_ viewport: MapViewport, kinds shown: Set<HistoricKind>, worldHeritageOnly: Bool = false,
-                       truncated: Bool, sites: Int = 0) -> Bool {
+                       truncated: Bool) -> Bool {
         let wanted = Self.sent(shown)
         var narrower: Bool
         if kinds == wanted {
@@ -297,7 +314,7 @@ public struct HistoricRequest: Sendable, Hashable {
             if narrower && truncated { return false }
             // Asking again for the same view would bring the same answer.
             if box == Self.pointsBox(viewport.box) { return true }
-            return !truncated && sites <= HistoricLayer.chipLimit && box.contains(viewport.box)
+            return !truncated && box.contains(viewport.box)
         }
         guard zoom == viewport.zoom else { return false }
         return box?.contains(viewport.box) ?? true

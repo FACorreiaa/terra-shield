@@ -40,7 +40,7 @@ final class AircraftMarkerView: SwiftUIAnnotationView {
         collisionMode = .circle
         clusteringIdentifier = nil
         render(AircraftMarker(aircraft: aircraft, isSelected: isSelected), size: CGSize(width: 28, height: 28))
-        speak(Self.spoken(aircraft))
+        speak(Self.spoken(aircraft), isSelected: isSelected)
     }
 
     /// Whether two positions draw and read the same, so a refresh that only moves an aircraft

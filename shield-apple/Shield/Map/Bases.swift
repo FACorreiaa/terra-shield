@@ -20,7 +20,7 @@ final class BaseAnnotation: NSObject, MKAnnotation {
 /// A base's chip. About 3,000 of them can be in view, so each draws one image rendered once per
 /// kind, not a SwiftUI view of its own. Context, like flights: under every event, and hidden by
 /// MapKit where they crowd each other.
-final class BaseMarkerView: MKAnnotationView {
+final class BaseMarkerView: MarkerView {
     static let reuseID = "base"
     static let side: CGFloat = 24
 
@@ -32,14 +32,7 @@ final class BaseMarkerView: MKAnnotationView {
         collisionMode = .circle
         clusteringIdentifier = nil
         image = BaseGlyphs.image(base.kind, isSelected: isSelected)
-        let label = Self.spoken(base)
-        #if os(iOS)
-        isAccessibilityElement = true
-        accessibilityLabel = label
-        #else
-        setAccessibilityElement(true)
-        setAccessibilityLabel(label)
-        #endif
+        speak(Self.spoken(base), isSelected: isSelected)
     }
 
     /// "Military base, Ramstein Air Base, air base, operated by United States Air Force".

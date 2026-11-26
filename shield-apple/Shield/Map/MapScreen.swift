@@ -910,7 +910,7 @@ private struct MapControls: View {
                 .accessibilityValue(showsHistoric.wrappedValue ? "Shown" : "Hidden")
                 .accessibilityAddTraits(.isToggle)
                 .help(showsHistoric.wrappedValue ? "Hide historic sites" : "Show historic sites")
-                .keyboardShortcut("s", modifiers: [.command, .option])
+                .keyboardShortcut("l", modifiers: [.command, .option])
                 Divider().overlay(Color.ink.opacity(ShieldAlpha.hairline))
             }
             // Armed conflicts (ADR 27): a layer beside hazards, off by default.

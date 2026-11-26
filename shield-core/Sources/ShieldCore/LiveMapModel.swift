@@ -140,7 +140,12 @@ public final class LiveMapModel {
 
     /// Historic sites in view (ADR 30): cells below zoom 8, points from zoom 8. Nil while off or
     /// before the first answer; a failed request keeps the last answer on screen.
-    public private(set) var historic: HistoricLayer?
+    public private(set) var historic: HistoricLayer? {
+        didSet { updateHistoricChips() }
+    }
+    /// The sites drawn as chips in the view: every site, or past `HistoricLayer.chipLimit` the
+    /// best known in the view (the rest are dots). Follows the view under one answer.
+    public private(set) var historicChips: [HistoricSite] = []
     /// The last historic request failed; retried by a map load a minute or more after it was asked.
     public private(set) var historicFailed = false
     private var historicTask: Task<Void, Never>?
@@ -422,6 +427,7 @@ public final class LiveMapModel {
         guard viewport != self.viewport || snapshot == nil else { return }
         self.viewport = viewport
         hasViewport = true
+        if historic != nil { updateHistoricChips() }
         schedule(after: debounce)
     }
 
@@ -742,6 +748,11 @@ public final class LiveMapModel {
         historicAsking = nil
     }
 
+    private func updateHistoricChips() {
+        let chips = historic?.chipSites(in: viewport.box) ?? []
+        if chips != historicChips { historicChips = chips }
+    }
+
     /// Drops the request in flight, if any: its answer would replace one that serves the view.
     private func dropHistoricRequest() {
         guard historicTask != nil else { return }
@@ -758,10 +769,9 @@ public final class LiveMapModel {
         guard showsHistoric, provider.supportsHistoric else { return }
         // Not before the map has reported a view: the default is the whole world at zoom 1.
         guard hasViewport else { return }
-        if let historicAnswered, let historicAnswer, let historic,
+        if let historicAnswered, let historicAnswer,
            historicAnswered.serves(viewport, kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly,
-                                   truncated: historicAnswer.isTruncated,
-                                   sites: historic.sites.count) {
+                                   truncated: historicAnswer.isTruncated) {
             dropHistoricRequest()
             return
         }

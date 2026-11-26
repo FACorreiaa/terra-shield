@@ -30,25 +30,56 @@ final class ServerClusterAnnotation: NSObject, MKAnnotation {
     var title: String? { "\(cluster.count) events" }
 }
 
+/// Every map marker, for VoiceOver and the Mac's accessibility (DESIGN.md §14): one spoken
+/// element with the button role and its selected state, pressed like a tap (it selects the
+/// annotation through the map, so the sheet or inspector opens). On iOS VoiceOver's frame is at
+/// least 44 pt; touch keeps the drawn size, so crowded chips never take each other's taps.
+class MarkerView: MKAnnotationView {
+    /// One spoken label for the whole marker, and whether it is the one selected.
+    func speak(_ label: String, isSelected: Bool = false) {
+        #if os(iOS)
+        isAccessibilityElement = true
+        accessibilityLabel = label
+        accessibilityTraits = isSelected ? [.button, .selected] : .button
+        #else
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(label)
+        setAccessibilitySelected(isSelected)
+        #endif
+    }
+
+    #if os(iOS)
+    override var accessibilityFrame: CGRect {
+        get {
+            let grow = CGSize(width: max(0, 44 - bounds.width) / 2, height: max(0, 44 - bounds.height) / 2)
+            return UIAccessibility.convertToScreenCoordinates(bounds.insetBy(dx: -grow.width, dy: -grow.height), in: self)
+        }
+        set { super.accessibilityFrame = newValue }
+    }
+
+    override func accessibilityActivate() -> Bool { selectOnMap() }
+    #else
+    override func accessibilityPerformPress() -> Bool { selectOnMap() }
+    #endif
+
+    private func selectOnMap() -> Bool {
+        guard let annotation,
+              let map = sequence(first: superview, next: { $0?.superview }).lazy.compactMap({ $0 as? MKMapView }).first
+        else { return false }
+        map.selectAnnotation(annotation, animated: true)
+        return true
+    }
+}
+
 /// An annotation view that draws a SwiftUI view, so the map uses the same `HazardMarker` and
 /// `ClusterMarker` as the rest of the app (pulse, selection and stale styling included).
-class SwiftUIAnnotationView: MKAnnotationView {
+class SwiftUIAnnotationView: MarkerView {
     #if os(iOS)
     private var host: UIHostingController<AnyView>?
     #else
     private var host: PassthroughHostingView?
     #endif
-
-    /// One spoken label for the whole marker (VoiceOver, DESIGN.md §14).
-    func speak(_ label: String) {
-        #if os(iOS)
-        isAccessibilityElement = true
-        accessibilityLabel = label
-        #else
-        setAccessibilityElement(true)
-        setAccessibilityLabel(label)
-        #endif
-    }
 
     func render(_ content: some View, size: CGSize) {
         let root = AnyView(content.frame(width: size.width, height: size.height))
@@ -120,7 +151,7 @@ final class EventMarkerView: SwiftUIAnnotationView {
             : event.severity.displayPriority
         zPriority = isSelected ? .max
             : MKAnnotationViewZPriority(rawValue: Float(event.severity.rank) * 10 + (event.isResolved || isConflict ? 0 : 100))
-        speak(Self.spoken(event, isStale: isStale))
+        speak(Self.spoken(event, isStale: isStale), isSelected: isSelected)
     }
 
     /// "Severe earthquake, observed, M 6.1 - 38 km W of Coquimbo, updated 12 min ago" (DESIGN.md §14).
@@ -151,7 +182,7 @@ final class ServerClusterView: SwiftUIAnnotationView {
         displayPriority = .required
         zPriority = isConflict ? .min : .defaultUnselected
         let what = isConflict ? "armed-conflict events" : "events"
-        speak("\(cluster.count) \(what), highest severity \(cluster.maxSeverity.label.lowercased())")
+        speak("Cluster, \(cluster.count) \(what), highest severity \(cluster.maxSeverity.label.lowercased())")
     }
 }
 
@@ -177,7 +208,7 @@ final class LocalClusterView: SwiftUIAnnotationView {
         displayPriority = .required
         zPriority = isConflict ? .min : .defaultUnselected
         let what = isConflict ? "armed-conflict events" : "events"
-        speak("\(summary.count) \(what), highest severity \(summary.maxSeverity.label.lowercased())")
+        speak("Cluster, \(summary.count) \(what), highest severity \(summary.maxSeverity.label.lowercased())")
     }
 }
 

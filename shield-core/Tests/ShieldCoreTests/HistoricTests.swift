@@ -54,7 +54,7 @@ enum HistoricFixture {
         #expect(r.box.map(close(to: GeoBox(minLongitude: 0.005, minLatitude: 35.005, maxLongitude: 29.995, maxLatitude: 54.995))) == true)
         #expect((r.box?.longitudeSpan ?? 99) < 30 && (r.box.map { $0.maxLatitude - $0.minLatitude } ?? 99) < 20)
         // The same view is served by its own answer: asking again would bring the same.
-        #expect(r.serves(MapViewport(box: wide, zoom: 8), kinds: all, truncated: false, sites: 5_000))
+        #expect(r.serves(MapViewport(box: wide, zoom: 8), kinds: all, truncated: false))
         // Across the antimeridian.
         let pacific = GeoBox(minLongitude: 160, minLatitude: -10, maxLongitude: -150, maxLatitude: 5)
         let p = HistoricRequest(MapViewport(box: pacific, zoom: 9), kinds: all)
@@ -151,15 +151,44 @@ enum HistoricFixture {
         #expect(!r.serves(MapViewport(box: inside, zoom: 7), kinds: all, truncated: false))
     }
 
-    /// Above `chipLimit` the sites are drawn as dots, which can't be picked: zooming in asks again
-    /// for the smaller view, so the chips come back once few enough are in it.
-    @Test func anAnswerTooDenseForChipsIsAskedAgainOnZoomingIn() {
+    /// A complete answer holds every site in its box, so any view inside it is served however
+    /// dense: the chips are the best known in the view, chosen on the device.
+    @Test func aCompleteAnswerServesAnyViewInsideItHoweverDense() {
         let r = HistoricRequest(MapViewport(box: alps, zoom: 8), kinds: all)
         let inside = GeoBox(minLongitude: 10.2, minLatitude: 47.2, maxLongitude: 10.6, maxLatitude: 47.6)
-        #expect(r.serves(MapViewport(box: inside, zoom: 10), kinds: all, truncated: false, sites: HistoricLayer.chipLimit))
-        #expect(!r.serves(MapViewport(box: inside, zoom: 10), kinds: all, truncated: false, sites: HistoricLayer.chipLimit + 1))
+        #expect(r.serves(MapViewport(box: inside, zoom: 10), kinds: all, truncated: false))
+        #expect(!r.serves(MapViewport(box: inside, zoom: 10), kinds: all, truncated: true))
         // The same view is still served: asking again would bring the same answer.
-        #expect(r.serves(MapViewport(box: alps, zoom: 8), kinds: all, truncated: false, sites: HistoricLayer.chipLimit + 1))
+        #expect(r.serves(MapViewport(box: alps, zoom: 8), kinds: all, truncated: true))
+    }
+
+    /// Past `chipLimit` the best known in the view are chips: by sitelinks, then World Heritage,
+    /// then ID, so a pan never reshuffles sites that tie.
+    @Test func theBestKnownSitesInTheViewAreTheChips() {
+        func site(_ id: String, links: Int, lon: Double = 10.5, wh: Bool = false) -> HistoricSite {
+            var s = HistoricFixture.fortress
+            s.id = id
+            s.sitelinks = links
+            s.worldHeritage = wh
+            s.coordinate = Coordinate(latitude: 47.5, longitude: lon)
+            return s
+        }
+        let few = HistoricFixture.points([site("Q1", links: 0), site("Q2", links: 5, lon: 20)])
+        // Few enough: every site, in the view or not.
+        #expect(Set(few.chipSites(in: alps).map(\.id)) == ["Q1", "Q2"])
+
+        var many = (0..<HistoricLayer.chipLimit).map { site("Q\(1000 + $0)", links: 1) }
+        many += [site("Q9", links: 1, wh: true), site("Q8", links: 40), site("Q7", links: 99, lon: 20)]
+        let chips = HistoricFixture.points(many).chipSites(in: alps)
+        #expect(chips.count == HistoricLayer.chipLimit)
+        #expect(chips.prefix(2).map(\.id) == ["Q8", "Q9"]) // Q7 is outside the view
+        #expect(!chips.contains { $0.id == "Q7" })
+        #expect(chips.last?.id == "Q1997") // ties by ID: Q1998 and Q1999 are left out
+        #expect(HistoricFixture.points(many.shuffled()).chipSites(in: alps).map(\.id) == chips.map(\.id))
+        // Cut short: the best known in the view, too.
+        #expect(HistoricFixture.points([site("Q1", links: 0), site("Q2", links: 5, lon: 20)], truncated: true)
+                    .chipSites(in: alps).map(\.id) == ["Q1"])
+        #expect(HistoricFixture.grid(HistoricFixture.cells).chipSites(in: alps).isEmpty)
     }
 
     @Test func anAnswerForMoreGroupsServesFewerUnlessCutShort() {
@@ -312,11 +341,10 @@ enum HistoricFixture {
 
     /// A zoom-in while the wider view's request is in flight waits for it; when that answer turns
     /// out too dense for chips, the zoomed-in view is asked for at once, not at the next move.
-    @Test func aZoomInWaitingOnATooDenseAnswerIsAskedForWhenItArrives() async {
+    @Test func aZoomInWaitingOnACutShortAnswerIsAskedForWhenItArrives() async {
         let p = ScriptedProvider()
         p.historicDelay = .milliseconds(80)
-        p.historicAnswer = HistoricFixture.points(Array(repeating: HistoricFixture.fortress,
-                                                        count: HistoricLayer.chipLimit + 1))
+        p.historicAnswer = HistoricFixture.points([HistoricFixture.fortress], truncated: true)
         let m = model(p)
         m.showsHistoric = true
         m.viewportDidChange(alps)
@@ -461,6 +489,32 @@ enum HistoricFixture {
         await m.settle()
         #expect(p.historicRequests.last?.worldHeritage == false)
         #expect(p.historicRequests.count == 3)
+    }
+
+    /// The chips follow the view under one answer: a pan picks the best known in the new view
+    /// without asking.
+    @Test func theChipsFollowTheViewWithoutAsking() async {
+        let p = ScriptedProvider()
+        var far = HistoricFixture.fortress
+        far.id = "Q99"
+        far.coordinate = Coordinate(latitude: 47.5, longitude: 10.95)
+        p.historicAnswer = HistoricFixture.points([HistoricFixture.neuschwanstein, far]
+                                                  + (0..<HistoricLayer.chipLimit).map { i in
+                                                      var s = HistoricFixture.fortress
+                                                      s.id = "Q\(5000 + i)"
+                                                      return s
+                                                  })
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        #expect(m.historicChips.count == HistoricLayer.chipLimit)
+        #expect(!m.historicChips.contains { $0.id == "Q99" })
+        let east = MapViewport(box: GeoBox(minLongitude: 10.9, minLatitude: 47.4, maxLongitude: 11, maxLatitude: 47.6), zoom: 12)
+        m.viewportDidChange(east)
+        await m.settle()
+        #expect(m.historicChips.map(\.id) == ["Q99"])
+        #expect(p.historicRequests.count == 1)
     }
 
     @Test func moreKindsThanTheAnswerHeldAreAskedFor() async {
@@ -667,7 +721,7 @@ enum HistoricFixture {
 
         let dense = HistoricFixture.points(Array(repeating: HistoricFixture.fortress, count: 1_200))
         #expect(dense.headline(in: belgium, kinds: all) == "Historic sites · 1,200 in this view")
-        #expect(dense.hint == "Zoom in to pick a site.")
+        #expect(dense.hint == "The best-known sites have symbols. Zoom in for the rest.")
 
         let cut = HistoricFixture.points([HistoricFixture.fortress], truncated: true)
         #expect(cut.headline(in: belgium, kinds: all) == "Historic sites · over 1 in this view")

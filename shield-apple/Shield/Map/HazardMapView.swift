@@ -63,7 +63,7 @@ struct HazardMapView {
         coordinator.apply(conflicts: model.conflicts)
         coordinator.apply(flights: model.flights, selectedHex: model.selectedAircraftHex)
         coordinator.apply(bases: model.bases, selectedID: model.selectedBaseID)
-        coordinator.apply(historic: model.historic, selected: model.selectedHistoricSite)
+        coordinator.apply(historic: model.historic, chips: model.historicChips, selected: model.selectedHistoricSite)
         coordinator.apply(detections: model.detections)
         coordinator.apply(area: model.selectedGeometry, of: model.selectedEvent)
         if fitWorldRequest != coordinator.fitWorldRequest {
@@ -128,6 +128,7 @@ struct HazardMapView {
         /// Historic sites by Wikidata ID (ADR 30), kept across answers: a pan adds and removes
         /// only the sites that came into or left the answer.
         private var historicSites: [String: HistoricAnnotation] = [:]
+        private var appliedChips: [HistoricSite] = []
         private var selectedSiteID: String?
         private var appliedHistoric: HistoricLayer?
         private var appliedSelectedSite: HistoricSite?
@@ -235,11 +236,14 @@ struct HazardMapView {
             }
         }
 
-        /// From zoom 8, adds and removes the sites that entered or left the answer, keeping the
-        /// rest; below it, swaps the grid overlay. The selected site keeps its marker while the
-        /// answer leaves it out (a grid, or a pan away), so the sheet's site stays on the map.
-        func apply(historic layer: HistoricLayer?, selected: HistoricSite?) {
-            guard let map, layer != appliedHistoric || selected != appliedSelectedSite else { return }
+        /// From zoom 8, adds and removes the chips that entered or left (every site, or past the
+        /// chip limit the best known in the view, over the dots), keeping the rest; the dots and
+        /// the grid are an overlay swapped with the answer. The selected site keeps its marker while
+        /// the answer leaves it out (a grid, or a pan away), so the sheet's site stays on the map.
+        func apply(historic layer: HistoricLayer?, chips: [HistoricSite], selected: HistoricSite?) {
+            guard let map, layer != appliedHistoric || chips != appliedChips || selected != appliedSelectedSite
+            else { return }
+            appliedChips = chips
             let oldSelected = selectedSiteID
             // Before adding: `viewFor` reads it for the new annotations.
             selectedSiteID = selected?.id
@@ -249,7 +253,7 @@ struct HazardMapView {
                 apply(historicDots: layer)
             }
 
-            var wanted = layer?.drawsChips == true ? layer?.sites ?? [] : []
+            var wanted = chips
             if let selected, !wanted.contains(where: { $0.id == selected.id }) { wanted.append(selected) }
             let ids = Set(wanted.map(\.id))
             // Out of the dictionary before MapKit hears of it: removing the selected annotation
