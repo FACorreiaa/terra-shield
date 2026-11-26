@@ -47,4 +47,11 @@ describe(basemapStyle, () => {
     expect(basemapStyle("mercator").projection).toStrictEqual({ type: "mercator" });
     expect(style.projection).toStrictEqual({ type: "globe" });
   });
+
+  it("credits OpenFreeMap, OpenMapTiles and OpenStreetMap itself", () => {
+    const attribution = JSON.stringify(style.sources);
+    expect(attribution).toContain("OpenFreeMap");
+    expect(attribution).toContain("© OpenMapTiles");
+    expect(attribution).toContain("OpenStreetMap");
+  });
 });

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { aircraftAllowed, aircraftCells, apiZoom, globeZoom, severityShares, viewOf } from "./viewport.ts";
+import {
+  aircraftAllowed,
+  aircraftCells,
+  apiZoom,
+  flatWorldZoom,
+  globeZoom,
+  severityShares,
+  viewOf,
+} from "./viewport.ts";
 
 const WORLD = "-180,-85,180,85";
 
@@ -122,5 +130,17 @@ describe(globeZoom, () => {
   it("stays in range for an empty or huge map", () => {
     expect(globeZoom({ width: 0, height: 0 }, 25)).toBe(0.5);
     expect(globeZoom({ width: 20_000, height: 20_000 }, 0)).toBe(3);
+  });
+});
+
+describe(flatWorldZoom, () => {
+  it("fits the world's width", () => {
+    expect(flatWorldZoom(1024)).toBe(1);
+    expect(flatWorldZoom(2048)).toBe(2);
+  });
+
+  it("never zooms out past the whole world", () => {
+    expect(flatWorldZoom(390)).toBe(0);
+    expect(flatWorldZoom(0)).toBe(0);
   });
 });

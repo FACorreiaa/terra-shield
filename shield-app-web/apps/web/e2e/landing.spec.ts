@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures.ts";
 
 test("the landing page leads to the live map and carries the disclaimer", async ({ page }) => {
   await page.route("**/v1/**", (route) =>

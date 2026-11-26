@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button.tsx";
 import type { View } from "@/domain/viewport.ts";
 import { EventList } from "@/features/events/EventList.tsx";
 import { useEvents } from "@/features/events/useEvents.ts";
-import { HazardMap } from "@/features/map/HazardMap.tsx";
+import { LiveMap } from "@/features/map/LiveMap.tsx";
 
 const NO_EVENTS: readonly HazardEvent[] = [];
 const NO_CLUSTERS: readonly EventCluster[] = [];
@@ -75,13 +75,12 @@ function MonitorPage(): ReactElement {
         </div>
       </aside>
       <div className="relative min-w-0 flex-1">
-        <HazardMap
+        <LiveMap
           events={list}
           clusters={clusters}
           staleSources={NO_STALE_SOURCES}
           selectedId={selectedId}
           selectedShape={undefined}
-          projection="globe"
           onViewChange={setView}
           onSelect={setSelectedId}
         />

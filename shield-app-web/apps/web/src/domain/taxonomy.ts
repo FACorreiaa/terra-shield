@@ -12,8 +12,6 @@ type Category = components["schemas"]["Category"];
 
 /** An armed-conflict event (UCDP, ADR 27): its own layer, never a hazard. */
 const CONFLICT = "conflict" satisfies EventType;
-/** The one type label with no design token yet. */
-const CONFLICT_LABEL = "Armed conflict";
 
 /** Every type but `conflict`, in the apps' order: what the hazard filters offer and "all types" means. */
 const HAZARD_TYPES: readonly HazardType[] = [
@@ -62,7 +60,7 @@ function eventType(wire: string): EventType {
 /** "Earthquake", "Tropical cyclone", "Armed conflict"; an unknown type is "Other hazard". */
 function typeLabel(wire: string): string {
   const type = eventType(wire);
-  return type === CONFLICT ? CONFLICT_LABEL : hazardTypeTokens[type].label;
+  return hazardTypeTokens[type].label;
 }
 
 /** The menu a wire `type` belongs to; an unknown type is `other`. */
