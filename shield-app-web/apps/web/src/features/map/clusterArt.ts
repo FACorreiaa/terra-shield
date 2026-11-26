@@ -66,8 +66,10 @@ function clusterCount(count: number): string {
 }
 
 /** Screen-reader name: "Cluster, 14 events, highest severity extreme". */
-function clusterLabel(count: number, maxSeverity: Severity): string {
-  return `Cluster, ${count} events, highest severity ${severityLabel(maxSeverity).toLowerCase()}`;
+/** "Cluster, 14 events, highest severity extreme"; conflicts say "armed-conflict events" (MapAnnotations.swift). */
+function clusterLabel(count: number, maxSeverity: Severity, conflict = false): string {
+  const what = conflict ? "armed-conflict events" : "events";
+  return `Cluster, ${count} ${what}, highest severity ${severityLabel(maxSeverity).toLowerCase()}`;
 }
 
 export type { Arc };

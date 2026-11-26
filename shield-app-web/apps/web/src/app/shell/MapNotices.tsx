@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 
+import { ConflictLegend } from "@/features/conflicts/ConflictLegend.tsx";
 import { DetectionLegend } from "@/features/detections/DetectionLegend.tsx";
 import { ErrorBanner } from "@/features/monitor/ErrorBanner.tsx";
 
@@ -12,7 +13,7 @@ import { useRetry } from "./useRetry.ts";
  * phone's control column.
  */
 function MapNotices({ className }: { className?: string }): ReactElement {
-  const { failure, detections, now } = useLiveMap();
+  const { failure, detections, conflicts, now } = useLiveMap();
   const retry = useRetry();
   return (
     <>
@@ -24,6 +25,11 @@ function MapNotices({ className }: { className?: string }): ReactElement {
       {detections.shown ? (
         <div className={className}>
           <DetectionLegend detections={detections} now={now} />
+        </div>
+      ) : undefined}
+      {conflicts.shown ? (
+        <div className={className}>
+          <ConflictLegend conflicts={conflicts} />
         </div>
       ) : undefined}
     </>

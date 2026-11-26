@@ -1,10 +1,10 @@
 import type { HazardEvent } from "@shield/api-client";
-import { hazardType } from "@shield/api-client";
 import type { FeatureCollection, Point } from "geojson";
 import type { CircleLayerSpecification, SymbolLayerSpecification } from "maplibre-gl";
 
 import { colorTokens } from "@/design/tokens.gen.ts";
-import { severityRank } from "@/domain/taxonomy.ts";
+import { isApproximateLocation } from "@/domain/conflictFacts.ts";
+import { CONFLICT, eventType, severityRank } from "@/domain/taxonomy.ts";
 
 import type { MarkerKind, MarkerState } from "./markerArt.ts";
 import { markerImageName, markerSize } from "./markerArt.ts";
@@ -16,8 +16,12 @@ const SELECTION_LAYER = "events-selection";
 /** The feature-state flag of a marker whose arrival is animating. */
 const ARRIVING = "arriving";
 
-/** Active markers draw over resolved ones; within each, the more severe on top. */
+/**
+ * Active markers draw over resolved ones, and both over armed conflicts (ADR 27: hazards first);
+ * within each, the more severe on top.
+ */
 const ACTIVE_PRIORITY = 10;
+const CONFLICT_PRIORITY = -10;
 /** The selection ring sits this far outside the shape, in px (HazardMarker.swift: padding -3). */
 const SELECTION_GAP = 3;
 const SELECTION_WIDTH = 2;
@@ -30,12 +34,16 @@ interface EventProperties {
   ring: number;
 }
 
-/** Points the map draws as hazard markers: no heat detections (their own layer) and no conflicts. */
+/** Points the map draws as markers: hazards and armed conflicts, but no heat detections (their own layer). */
 function isMarker(event: HazardEvent): event is HazardEvent & { kind: MarkerKind } {
-  return event.kind !== "detection" && event.type !== "conflict";
+  return event.kind !== "detection";
 }
 
 function markerState(event: HazardEvent, staleSources: ReadonlySet<string>): MarkerState {
+  // A conflict is a monthly estimate: never stale, whatever UCDP's last check (EventRow.swift).
+  if (event.type === CONFLICT) {
+    return "live";
+  }
   if (event.status === "resolved") {
     return "resolved";
   }
@@ -44,10 +52,11 @@ function markerState(event: HazardEvent, staleSources: ReadonlySet<string>): Mar
 
 function request(event: HazardEvent & { kind: MarkerKind }, staleSources: ReadonlySet<string>): MarkerRequest {
   return {
-    type: hazardType(event.type),
+    type: eventType(event.type),
     severity: event.severity,
     kind: event.kind,
     state: markerState(event, staleSources),
+    ...(isApproximateLocation(event) ? { approximate: true } : {}),
   };
 }
 
@@ -59,6 +68,13 @@ function markerRequests(events: readonly HazardEvent[], staleSources: ReadonlySe
     unique.set(markerImageName(needed.type, needed), needed);
   }
   return [...unique.values()];
+}
+
+function tier(event: HazardEvent): number {
+  if (event.type === CONFLICT) {
+    return CONFLICT_PRIORITY;
+  }
+  return event.status === "resolved" ? 0 : ACTIVE_PRIORITY;
 }
 
 function eventFeatures(
@@ -78,7 +94,7 @@ function eventFeatures(
           properties: {
             id: event.id,
             image: markerImageName(needed.type, needed),
-            priority: severityRank(event.severity) + (event.status === "resolved" ? 0 : ACTIVE_PRIORITY),
+            priority: severityRank(event.severity) + tier(event),
             ring: markerSize(event.severity) / 2 + SELECTION_GAP,
           },
         };

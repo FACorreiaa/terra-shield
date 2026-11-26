@@ -8,7 +8,8 @@ import type { EventShape } from "@/domain/geo.ts";
 import type { LiveStatus } from "@/domain/liveStatus.ts";
 import type { View } from "@/domain/viewport.ts";
 import type { DetailState } from "@/features/detail/detailState.ts";
-import type { Detections } from "@/features/detections/useDetections.ts";
+
+import type { MapFilters } from "./useMapFilters.ts";
 
 /** What every shell and section shares: the map's view, what is selected and the events in view. */
 interface LiveMap {
@@ -38,6 +39,10 @@ interface LiveMap {
   shown: EventList | undefined;
   /** The shown events in display order: most severe, then newest, resolved last. */
   list: readonly HazardEvent[];
+  /** The hazards, then the conflicts layer's: what selects, and what ↑ ↓ step through. */
+  known: readonly HazardEvent[];
+  /** What the map draws: `known`, and the selection when it is in neither. */
+  drawn: readonly HazardEvent[];
   clusters: readonly EventCluster[];
   /** The filters, kept across visits; setting them reloads the map behind the sheet. */
   query: EventQuery;
@@ -49,7 +54,9 @@ interface LiveMap {
   /** Ticks every 30 s so relative times ("12 min ago") stay true. */
   now: Date;
   /** Satellite heat detections for the view, while the layer is on (W7). */
-  detections: Detections;
+  detections: MapFilters["detections"];
+  /** Armed conflicts for the view, while that layer is on (W7, ADR 27): never in `list` or `clusters`. */
+  conflicts: MapFilters["conflicts"];
   /** Live arrivals in view the map hasn't animated in yet (W6). */
   arrivals: ReadonlySet<string>;
   /** The map has begun animating an arrival. */

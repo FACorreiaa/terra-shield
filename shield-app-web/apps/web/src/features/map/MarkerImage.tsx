@@ -1,7 +1,8 @@
 import type { HazardEvent } from "@shield/api-client";
-import { hazardType } from "@shield/api-client";
 import type { ReactElement } from "react";
 import { useMemo } from "react";
+
+import { eventType } from "@/domain/taxonomy.ts";
 
 import type { MarkerKind, MarkerState } from "./markerArt.ts";
 import { markerFrame } from "./markerArt.ts";
@@ -18,7 +19,7 @@ interface MarkerImageProps {
 /** An event's map marker as a DOM image, the same art the map's symbol layer draws. */
 function MarkerImage({ event, state = "live", className, onAnimationEnd }: MarkerImageProps): ReactElement {
   const source = useMemo(
-    () => markerUrl({ type: hazardType(event.type), severity: event.severity, kind: event.kind, state }),
+    () => markerUrl({ type: eventType(event.type), severity: event.severity, kind: event.kind, state }),
     [event.type, event.severity, event.kind, state],
   );
   const frame = markerFrame(event.severity);

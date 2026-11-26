@@ -42,5 +42,6 @@ describe(clusterCount, () => {
 describe(clusterLabel, () => {
   it("names the count and the highest severity", () => {
     expect(clusterLabel(14, "extreme")).toBe("Cluster, 14 events, highest severity extreme");
+    expect(clusterLabel(3, "severe", true)).toBe("Cluster, 3 armed-conflict events, highest severity severe");
   });
 });

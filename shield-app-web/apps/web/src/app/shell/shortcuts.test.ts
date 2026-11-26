@@ -16,9 +16,11 @@ function press(key: string, extra: Partial<KeyPress> = {}): KeyPress {
 }
 
 describe(shortcutFor, () => {
-  it("toggles satellite heat detections with h", () => {
+  it("toggles satellite heat detections with h and armed conflicts with c, never on a held key", () => {
     expect(shortcutFor(press("h"))).toStrictEqual({ action: "detections" });
     expect(shortcutFor({ ...press("h"), repeat: true })).toBeUndefined();
+    expect(shortcutFor(press("c"))).toStrictEqual({ action: "conflicts" });
+    expect(shortcutFor({ ...press("c"), repeat: true })).toBeUndefined();
   });
 
   it("maps the single keys", () => {

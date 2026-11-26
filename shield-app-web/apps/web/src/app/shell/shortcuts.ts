@@ -12,6 +12,7 @@ type Shortcut =
         | "refresh"
         | "world"
         | "detections"
+        | "conflicts"
         | "next"
         | "previous"
         | "clear"
@@ -42,6 +43,7 @@ const SHORTCUT_HELP: readonly { keys: string; does: string }[] = [
   { keys: "i", does: "Show or hide the inspector" },
   { keys: "0", does: "Show the whole world" },
   { keys: "h", does: "Show or hide satellite heat detections" },
+  { keys: "c", does: "Show or hide armed conflicts" },
   { keys: "r", does: "Refresh now" },
   { keys: "?", does: "These shortcuts" },
 ];
@@ -52,6 +54,7 @@ const SINGLE = new Map<string, Shortcut>([
   ["r", { action: "refresh" }],
   ["0", { action: "world" }],
   ["h", { action: "detections" }],
+  ["c", { action: "conflicts" }],
   ["ArrowDown", { action: "next" }],
   ["ArrowUp", { action: "previous" }],
   ["Escape", { action: "clear" }],
@@ -59,6 +62,7 @@ const SINGLE = new Map<string, Shortcut>([
   ["/", { action: "search" }],
 ]);
 const SECTION_KEYS = new Set(["1", "2", "3", "4", "5"]);
+const LAYER_ACTIONS: ReadonlySet<string> = new Set(["detections", "conflicts"]);
 /**
  * Typing here, or keys these already use: the map pans with arrows, radios move with them, and a
  * dialog closes on Escape without also clearing the selection behind it.
@@ -78,7 +82,8 @@ function shortcutFor(press: KeyPress): Shortcut | undefined {
     return { action: "section", key: press.key };
   }
   const shortcut = SINGLE.get(press.key);
-  return press.repeat === true && shortcut?.action === "detections" ? undefined : shortcut;
+  // A held layer key would flip the layer on and off with each repeat.
+  return press.repeat === true && LAYER_ACTIONS.has(shortcut?.action ?? "") ? undefined : shortcut;
 }
 
 /** The event after (or before) the selected one in display order; the first when nothing is selected. */

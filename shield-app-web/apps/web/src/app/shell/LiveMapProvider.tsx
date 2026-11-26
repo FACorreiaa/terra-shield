@@ -1,15 +1,14 @@
-import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { View } from "@/domain/viewport.ts";
 
+import { useLayerSelection } from "./layerEvents.ts";
 import type { LiveMap } from "./liveMapContext.ts";
 import { LiveMapContext } from "./liveMapContext.ts";
 import { useArrivals } from "./useArrivals.ts";
 import { useMapEvents } from "./useMapEvents.ts";
 import { useMapFilters } from "./useMapFilters.ts";
-import { useSelectedEvent } from "./useSelectedEvent.ts";
 import { SourceLookupContext, useSourceHealth } from "./useSourceHealth.ts";
 import { useUrlSelection } from "./useUrlSelection.ts";
 
@@ -40,9 +39,9 @@ function useNow(): Date {
 function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   const [view, setView] = useState<View>(WHOLE_WORLD);
   const { selectedId, select, chosen, choose } = useUrlSelection();
-  const [map, setMap] = useState<MapLibreMap>();
+  const [map, setMap] = useState<LiveMap["map"]>();
   const now = useNow();
-  const { query, setQuery, detections } = useMapFilters(view);
+  const { query, setQuery, detections, conflicts } = useMapFilters(view);
   const arriving = useArrivals();
   const { events, shown, list, clusters, status, failure } = useMapEvents({
     view,
@@ -51,7 +50,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
     now,
     onArrival: arriving.note,
   });
-  const { selected, detail, selectedShape } = useSelectedEvent(selectedId, list, chosen);
+  const { selected, detail, selectedShape, known, drawn } = useLayerSelection({ selectedId, chosen }, list, conflicts);
   const { sources, staleSources, lookup } = useSourceHealth(now);
   const value = useMemo<LiveMap>(
     () => ({
@@ -70,6 +69,8 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       events,
       shown,
       list,
+      known,
+      drawn,
       clusters,
       query,
       setQuery,
@@ -77,6 +78,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       failure,
       now,
       detections,
+      conflicts,
       ...arriving,
     }),
     [
@@ -93,6 +95,8 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       events,
       shown,
       list,
+      known,
+      drawn,
       clusters,
       query,
       setQuery,
@@ -100,6 +104,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       failure,
       now,
       detections,
+      conflicts,
       arriving,
     ],
   );

@@ -15,6 +15,8 @@ interface MarkerRequest {
   severity: SeverityKey;
   kind: MarkerKind;
   state: MarkerState;
+  /** A conflict placed only roughly: drawn with a dashed ring. */
+  approximate?: boolean;
 }
 
 /** In-flight draws per map, so two views asking for one marker draw it once. */

@@ -14,8 +14,11 @@ import { useHazardLayers } from "./useHazardLayers.ts";
 import { useHazardMap } from "./useHazardMap.ts";
 
 interface HazardMapProps {
+  /** Hazards and, while that layer is on, armed conflicts: one marker layer, conflicts under hazards. */
   events: readonly HazardEvent[];
   clusters: readonly EventCluster[];
+  /** Armed-conflict clusters (W7, ADR 27); none while the layer is off. */
+  conflictClusters?: readonly EventCluster[] | undefined;
   /** Sources whose data is stale: their markers fade and get a clock. */
   staleSources: ReadonlySet<string>;
   selectedId: string | undefined;
@@ -34,6 +37,7 @@ interface HazardMapProps {
 }
 
 const NO_ARRIVALS: ReadonlySet<string> = new Set();
+const NO_CLUSTERS: readonly EventCluster[] = [];
 
 /**
  * The map canvas (DESIGN.md §9): OpenFreeMap basemap, the selected event's area, satellite heat
@@ -41,6 +45,7 @@ const NO_ARRIVALS: ReadonlySet<string> = new Set();
  */
 function HazardMap(props: HazardMapProps): ReactElement {
   const { events, clusters, staleSources, projection, onViewChange, onMap, arrivals = NO_ARRIVALS, arrival } = props;
+  const { conflictClusters = NO_CLUSTERS } = props;
   const container = useRef<HTMLDivElement>(null);
   const { map, styleEpoch } = useHazardMap(container, { projection, onViewChange });
   const mapChanged = useEffectEvent((next: MapLibreMap | undefined) => onMap?.(next));
@@ -58,6 +63,7 @@ function HazardMap(props: HazardMapProps): ReactElement {
         <MapOverlays
           map={map}
           clusters={clusters}
+          conflictClusters={conflictClusters}
           events={events}
           staleSources={staleSources}
           arriving={arrivals}

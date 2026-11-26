@@ -20,6 +20,7 @@ describe(encodeFilters, () => {
         includeResolved: true,
       }),
       showsDetections: true,
+      showsConflicts: true,
     } as const;
     expect(decodeFilters(encodeFilters(saved))).toStrictEqual(saved);
   });
@@ -34,6 +35,7 @@ describe(encodeFilters, () => {
       window: 86_400,
       showsDetections: false,
       includeResolved: false,
+      showsConflicts: false,
     });
     expect(decodeFilters(encodeFilters(DEFAULT_SAVED)).query.types.has("conflict")).toBe(false);
   });
@@ -81,5 +83,7 @@ describe(decodeFilters, () => {
     const types = new Set(HAZARD_TYPES.filter((type) => type !== "flood"));
     expect(decoded.query).toStrictEqual(query({ types, minimumSeverity: "severe", windowSeconds: 3600 }));
     expect(decoded.showsDetections).toBe(true);
+    // Saved before the conflicts layer: off.
+    expect(decoded.showsConflicts).toBe(false);
   });
 });

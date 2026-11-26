@@ -14,6 +14,8 @@ import { HAZARD_TYPES } from "./taxonomy.ts";
 interface SavedFilters {
   readonly query: EventQuery;
   readonly showsDetections: boolean;
+  /** The armed-conflicts layer (ADR 27); off by default. */
+  readonly showsConflicts: boolean;
 }
 
 /**
@@ -29,9 +31,11 @@ const blobSchema = z.object({
   showsDetections: z.boolean(),
   // Added after version 1 shipped, so optional: a blob without it still reads.
   includeResolved: z.boolean().optional(),
+  // Added with the conflicts layer (ADR 27); optional for the same reason.
+  showsConflicts: z.boolean().optional(),
 });
 
-const DEFAULT_SAVED: SavedFilters = { query: DEFAULT_QUERY, showsDetections: false };
+const DEFAULT_SAVED: SavedFilters = { query: DEFAULT_QUERY, showsDetections: false, showsConflicts: false };
 
 /** The blob for `saved`, as a string for storage. */
 function encodeFilters(saved: SavedFilters): string {
@@ -44,6 +48,7 @@ function encodeFilters(saved: SavedFilters): string {
     ...(query.windowSeconds === undefined ? {} : { window: query.windowSeconds }),
     showsDetections: saved.showsDetections,
     includeResolved: query.includeResolved,
+    showsConflicts: saved.showsConflicts,
   };
   return JSON.stringify(blob);
 }
@@ -80,7 +85,7 @@ function decodeFilters(raw: string | null | undefined): SavedFilters {
     windowSeconds: windowSeconds ?? DEFAULT_QUERY.windowSeconds,
     includeResolved: blob.includeResolved ?? DEFAULT_QUERY.includeResolved,
   };
-  return { query, showsDetections: blob.showsDetections };
+  return { query, showsDetections: blob.showsDetections, showsConflicts: blob.showsConflicts ?? false };
 }
 
 export type { SavedFilters };

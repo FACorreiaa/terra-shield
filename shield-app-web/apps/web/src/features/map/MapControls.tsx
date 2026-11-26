@@ -1,4 +1,4 @@
-import { Earth, Minus, Plus, Thermometer } from "lucide-react";
+import { Crosshair, Earth, Minus, Plus, Thermometer } from "lucide-react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement } from "react";
 import { useCallback } from "react";
@@ -17,6 +17,9 @@ interface MapControlsProps {
   /** The heat layer's switch, shared with the filter sheet and `h`. */
   showsDetections: boolean;
   onDetectionsToggle: () => void;
+  /** The armed-conflicts layer's switch, shared with `c` (ADR 27). */
+  showsConflicts: boolean;
+  onConflictsToggle: () => void;
 }
 
 const ICON = "size-4";
@@ -33,6 +36,7 @@ function Divider(): ReactElement {
  */
 function MapControls(props: MapControlsProps): ReactElement {
   const { map, projection, onProjectionChange, showsDetections, onDetectionsToggle } = props;
+  const { showsConflicts, onConflictsToggle } = props;
   const world = useCallback(() => {
     if (map !== undefined) {
       fitWorld(map, projection);
@@ -49,6 +53,15 @@ function MapControls(props: MapControlsProps): ReactElement {
   return (
     <div className="flex w-11 flex-col rounded-md border border-hairline-strong shadow-floating material-floating contrast-more:bg-panel contrast-more:backdrop-filter-none">
       <LayersMenu projection={projection} onProjectionChange={onProjectionChange} />
+      <Divider />
+      {/* Armed conflicts (ADR 27): a layer beside hazards, off by default, above heat as in the apps. */}
+      <LayerToggle
+        label="Armed conflicts"
+        icon={Crosshair}
+        pressed={showsConflicts}
+        pressedClass="bg-accent/14 text-accent hover:bg-accent/20"
+        onToggle={onConflictsToggle}
+      />
       <Divider />
       {/* Off by default (DESIGN.md §5). The word is "heat detections", never "fires". */}
       <LayerToggle

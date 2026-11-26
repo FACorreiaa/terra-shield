@@ -1,42 +1,25 @@
 import type { EventCluster, HazardEvent } from "@shield/api-client";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement } from "react";
-import { useCallback } from "react";
 
-import { geoBox } from "@/domain/geo.ts";
+import { CONFLICT } from "@/domain/taxonomy.ts";
 
 import type { ArrivalCallbacks } from "./ArrivalPin.tsx";
 import { ArrivalPins } from "./ArrivalPin.tsx";
-import { ClusterMarker } from "./ClusterMarker.tsx";
+import { ClusterPin } from "./ClusterPin.tsx";
 import { ExtremeHalo } from "./ExtremeHalo.tsx";
-import { fitBox } from "./fitBox.ts";
 import { MapMarker } from "./MapMarker.tsx";
 import { markerSize } from "./markerArt.ts";
 
-const CLUSTER_FIT = { breathingRoom: 48, maxZoom: 7 } as const;
-
-/** Zooms to a cluster's extent. */
-function fitCluster(map: MapLibreMap, cluster: EventCluster): void {
-  const box = geoBox(cluster.bbox);
-  if (box !== undefined) {
-    fitBox(map, box, CLUSTER_FIT);
-  }
-}
-
-function ClusterPin({ map, cluster }: { map: MapLibreMap; cluster: EventCluster }): ReactElement {
-  const activate = useCallback(() => {
-    fitCluster(map, cluster);
-  }, [map, cluster]);
-  return (
-    <MapMarker map={map} longitude={cluster.centroid.longitude} latitude={cluster.centroid.latitude}>
-      <ClusterMarker cluster={cluster} onActivate={activate} />
-    </MapMarker>
-  );
+function clusterKey(cluster: EventCluster): string {
+  return `${cluster.centroid.longitude},${cluster.centroid.latitude},${cluster.count}`;
 }
 
 interface MapOverlaysProps {
   map: MapLibreMap;
   clusters: readonly EventCluster[];
+  /** Armed-conflict clusters (ADR 27): their own, never merged with hazards'. */
+  conflictClusters: readonly EventCluster[];
   events: readonly HazardEvent[];
   staleSources: ReadonlySet<string>;
   /** Live arrivals not yet animated in. */
@@ -46,13 +29,14 @@ interface MapOverlaysProps {
 
 /** The DOM layer over the canvas: the extreme pulse and live arrivals under server clusters (real buttons). */
 function MapOverlays(props: MapOverlaysProps): ReactElement {
-  const { map, clusters, events, staleSources, arriving, arrival } = props;
+  const { map, clusters, conflictClusters, events, staleSources, arriving, arrival } = props;
   const pulsing = events.filter(
     (event) =>
       event.severity === "extreme" &&
       event.status !== "resolved" &&
       event.kind !== "detection" &&
-      !staleSources.has(event.source),
+      // A conflict is never stale (a monthly estimate); an extreme one pulses as in the apps.
+      (event.type === CONFLICT || !staleSources.has(event.source)),
   );
   return (
     <>
@@ -67,12 +51,12 @@ function MapOverlays(props: MapOverlaysProps): ReactElement {
       {arrival === undefined ? undefined : (
         <ArrivalPins map={map} events={events} staleSources={staleSources} arriving={arriving} arrival={arrival} />
       )}
+      {/* Before the hazards' clusters, so a hazard cluster draws over a conflict one (ADR 27: hazards first). */}
+      {conflictClusters.map((cluster) => (
+        <ClusterPin key={`conflict/${clusterKey(cluster)}`} map={map} cluster={cluster} conflict />
+      ))}
       {clusters.map((cluster) => (
-        <ClusterPin
-          key={`${cluster.centroid.longitude},${cluster.centroid.latitude},${cluster.count}`}
-          map={map}
-          cluster={cluster}
-        />
+        <ClusterPin key={clusterKey(cluster)} map={map} cluster={cluster} />
       ))}
     </>
   );
