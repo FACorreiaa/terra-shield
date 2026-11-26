@@ -284,6 +284,7 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 	var all []domain.HistoricSite
 	hints := map[string]string{}
 	seen := map[string]bool{}
+	answered := map[string]int{} // sites per class label, before dedupe
 	for _, c := range HistoricClasses {
 		a, err := h.q.run(ctx, c.QID, c.Label, HistoricQuery(c.QID), func(body []byte) (historicAnswer, error) {
 			s, hs, err := ParseHistoric(body, c)
@@ -292,6 +293,7 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 		if err != nil {
 			return ingest.Result{}, err
 		}
+		answered[c.Label] += len(a.sites)
 		for i := range a.sites {
 			q := a.sites[i].QID
 			if seen[q] {
@@ -313,6 +315,7 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 	if err != nil {
 		return ingest.Result{}, err
 	}
+	answered[worldHeritageClass] = len(wa.sites)
 	for i := range all {
 		all[i].WorldHeritage = wa.wh[all[i].QID]
 	}
@@ -327,7 +330,7 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 			hints[q] = iso
 		}
 	}
-	if err := h.checkShrink(ctx, all); err != nil {
+	if err := h.checkShrink(ctx, all, answered); err != nil {
 		h.q.finish() // a retry must ask again, not replay the short answer
 		return ingest.Result{}, err
 	}
@@ -345,22 +348,28 @@ var errNoBases = &ingest.NotReady{After: 5 * time.Minute, Reason: "bases layer n
 
 // minGuardedClass: a class holding fewer sites is not guarded on its own;
 // its kind still is. Every class held at least 3 on 2026-11-26.
-const minGuardedClass = 100
+var minGuardedClass = 100 // a var for the tests' tiny stub
+
+// worldHeritageClass labels the World Heritage Sites no class took.
+const worldHeritageClass = "World Heritage Site"
 
 // checkShrink refuses a poll that would drop more than maxShrink of any
 // kind, of any class of minGuardedClass sites or more, or of the World
 // Heritage flags: a class or the World Heritage query answering short (a
 // merged class item, a partial mirror) is a failure, not deletions. Per
 // kind alone would miss it: general holds 150k sites, its largest class 16k.
-func (h *Historic) checkShrink(ctx context.Context, sites []domain.HistoricSite) error {
+//
+// A class is judged by its own answer (answered, before dedupe), which
+// holds at least what is stored under its label however the classes are
+// ordered; a label no longer queried (a class dropped) is not guarded.
+func (h *Historic) checkShrink(ctx context.Context, sites []domain.HistoricSite, answered map[string]int) error {
 	held, err := h.store.Counts(ctx)
 	if err != nil {
 		return err
 	}
-	kinds, classes, wh := map[domain.HistoricKind]int{}, map[string]int{}, 0
+	kinds, wh := map[domain.HistoricKind]int{}, 0
 	for i := range sites {
 		kinds[sites[i].Kind]++
-		classes[sites[i].Class]++
 		if sites[i].WorldHeritage {
 			wh++
 		}
@@ -375,8 +384,9 @@ func (h *Historic) checkShrink(ctx context.Context, sites []domain.HistoricSite)
 		}
 	}
 	for c, had := range held.Classes {
-		if had >= minGuardedClass && shrinks(classes[c], had) {
-			return refuse(classes[c], c+" sites", had)
+		got, queried := answered[c]
+		if queried && had >= minGuardedClass && shrinks(got, had) {
+			return refuse(got, c+" sites", had)
 		}
 	}
 	if shrinks(wh, held.WorldHeritage) {
@@ -475,7 +485,7 @@ func ParseWorldHeritage(body []byte) ([]domain.HistoricSite, map[string]string, 
 				it.ok, it.english = true, b["label"].Lang == "en"
 				it.site = domain.HistoricSite{
 					QID: qid, Name: name, Description: strings.TrimSpace(b["desc"].Value),
-					Kind: domain.HistoricGeneral, Class: "World Heritage Site", Lon: lon, Lat: lat,
+					Kind: domain.HistoricGeneral, Class: worldHeritageClass, Lon: lon, Lat: lat,
 					WorldHeritage: true, Sitelinks: sitelinks(b["n"].Value),
 				}
 			}

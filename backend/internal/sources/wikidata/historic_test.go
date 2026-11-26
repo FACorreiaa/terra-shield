@@ -277,6 +277,9 @@ func TestParseHistoricNamesAndSitelinks(t *testing.T) {
 // A class or the World Heritage flags answering short is refused even
 // when every kind holds up: general is too big for its guard to notice.
 func TestHistoricPollGuardsClassesAndWorldHeritage(t *testing.T) {
+	// The stub's classes are tiny: guard every class of 2 sites or more.
+	defer func(n int) { minGuardedClass = n }(minGuardedClass)
+	minGuardedClass = 2
 	var mu sync.Mutex
 	srv := historicStub(t, map[string]int{}, &mu)
 	defer srv.Close()
@@ -284,8 +287,15 @@ func TestHistoricPollGuardsClassesAndWorldHeritage(t *testing.T) {
 		held   domain.HistoricCounts
 		refuse bool
 	}{
-		"a big class vanishes":    {domain.HistoricCounts{Classes: map[string]int{"palace": minGuardedClass}}, true},
-		"a small class vanishes":  {domain.HistoricCounts{Classes: map[string]int{"palace": minGuardedClass - 1}}, false},
+		"a big class vanishes":   {domain.HistoricCounts{Classes: map[string]int{"palace": minGuardedClass}}, true},
+		"a small class vanishes": {domain.HistoricCounts{Classes: map[string]int{"palace": minGuardedClass - 1}}, false},
+		// Stored under a dropped class: not queried any more, not guarded.
+		"a class was dropped": {domain.HistoricCounts{Classes: map[string]int{"gurdwara": 500}}, false},
+		// The cultural World Heritage Sites no class took answer short.
+		"World Heritage additions vanish": {domain.HistoricCounts{Classes: map[string]int{worldHeritageClass: 200}}, true},
+		// Q10 answers castle (first) and fort; stored when fort came
+		// first, fort held Q10 and Q11. Its own answer still holds both.
+		"classes reordered":       {domain.HistoricCounts{Classes: map[string]int{"fort": 2}}, false},
 		"World Heritage shrinks":  {domain.HistoricCounts{WorldHeritage: 50}, true},
 		"World Heritage holds up": {domain.HistoricCounts{WorldHeritage: 3}, false},
 	} {
