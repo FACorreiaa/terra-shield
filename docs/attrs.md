@@ -75,7 +75,9 @@ The API lifts `attrs.severityProvisional` to the top-level `severityProvisional`
 
 ## National Weather Service (US official warnings; ADR 31)
 
-One event is one NWS hazard event (its P-VTEC code); the latest message speaks for it.
+One event is one NWS hazard event (its P-VTEC code); the latest message speaks for it. `startedAt` is the VTEC begin
+when NWS gives one, else the first message Shield saw: once an event is under way NWS sends each message's own time
+as its onset, so a stored start is kept.
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -84,7 +86,7 @@ One event is one NWS hazard event (its P-VTEC code); the latest message speaks f
 | `significance` | string, **always** | VTEC significance: `W` warning, `A` watch, `Y` advisory, `S` statement |
 | `etn` | string, **always** | Event tracking number (per office, phenomenon and significance; restarts each year) |
 | `event` | string, **always** | NWS product name ("Winter Storm Warning") |
-| `capSeverity` | string, **always** | CAP `severity` of the segment that set the level (may be empty when NWS sent `Unknown`) |
+| `capSeverity` | string, **always** | CAP `severity` of the segment that set the level (`Unknown` when NWS gave none; the level then follows the significance) |
 | `certainty` | string, **always** | CAP certainty of the latest message |
 | `urgency` | string, **always** | CAP urgency of the latest message |
 | `sender` | string, **always** | Issuing office's name ("NWS Portland OR") |

@@ -94,7 +94,7 @@ func (r *NWSZoneRepository) Draw(ctx context.Context, zones []domain.ZoneRef, po
 	if err != nil {
 		return nil, nil, fmt.Errorf("draw nws area: %w", err)
 	}
-	if geom == "" {
+	if geom == "" { // nothing named is held, or what was sent has no area
 		return nil, found, nil
 	}
 	return json.RawMessage(geom), found, nil
@@ -109,9 +109,16 @@ WITH parts AS (
     SELECT 'p' || p, ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(p), 4326)), NULL
     FROM unnest($3::text[]) AS p
 )
-SELECT COALESCE(ST_AsGeoJSON(ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_Union(geom ORDER BY k)), 3)), 6), ''),
-       COALESCE(array_agg(found ORDER BY found) FILTER (WHERE found IS NOT NULL), '{}')
-FROM parts`
+-- Snapped to the 6-decimal grid it is sent at, so the shape stays valid
+-- once written out: rounding a dense coastline afterwards made it invalid,
+-- and repairing it on upsert left a GeometryCollection.
+, area AS (
+    SELECT ST_Multi(ST_CollectionExtract(ST_ReducePrecision(ST_MakeValid(ST_Union(geom ORDER BY k)), 0.000001), 3)) AS g,
+           COALESCE(array_agg(found ORDER BY found) FILTER (WHERE found IS NOT NULL), '{}') AS found
+    FROM parts
+)
+SELECT CASE WHEN g IS NULL OR ST_IsEmpty(g) THEN '' ELSE ST_AsGeoJSON(g, 6) END, found
+FROM area`
 
 // Union dissolves the named forecast zones into one MultiPolygon and reports which
 // of them we hold. It returns a nil geometry when none matched.

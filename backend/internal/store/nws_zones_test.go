@@ -114,3 +114,14 @@ func TestNWSZonesLoadAndUnion(t *testing.T) {
 		t.Fatalf("fire zones after a forecast reload: %d", n)
 	}
 }
+
+// A storm polygon with no area (every point the same) draws nothing: the
+// alert counts as undrawn rather than an event with an empty shape.
+func TestNWSDrawNoArea(t *testing.T) {
+	repo := store.NewNWSZoneRepository(testutil.DB(t))
+	flat := json.RawMessage(`{"type":"Polygon","coordinates":[[[-80,30],[-80,30],[-80,30],[-80,30]]]}`)
+	geom, found, err := repo.Draw(context.Background(), nil, []json.RawMessage{flat})
+	if err != nil || geom != nil || len(found) != 0 {
+		t.Fatalf("geom %s found %v err %v", geom, found, err)
+	}
+}

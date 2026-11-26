@@ -11,13 +11,13 @@ import (
 // is an operational message continuing Paducah's winter weather advisory
 // number 2.
 type vtec struct {
-	class        string // O operational; T test, E and X experimental
-	action       string // NEW, CON, EXT, EXA, EXB, UPG, CAN, EXP, COR, ROU
-	office       string // KPAH
-	phenomena    string // WW
-	significance string // W warning, A watch, Y advisory, S statement, ...
-	etn          string // event tracking number, per office, phenomenon and significance, reset each year
-	end          time.Time
+	class        string    // O operational; T test, E and X experimental
+	action       string    // NEW, CON, EXT, EXA, EXB, UPG, CAN, EXP, COR, ROU
+	office       string    // KPAH
+	phenomena    string    // WW
+	significance string    // W warning, A watch, Y advisory, S statement, ...
+	etn          string    // event tracking number, per office, phenomenon and significance, reset each year
+	begin, end   time.Time // zero when not given
 }
 
 var vtecRe = regexp.MustCompile(`^/([OTEX])\.([A-Z]{3})\.([A-Z]{4})\.([A-Z]{2})\.([A-Z])\.(\d{4})\.(\d{6}T\d{4}Z)-(\d{6}T\d{4}Z)/$`)
@@ -32,13 +32,10 @@ func parseVTEC(s string) (vtec, error) {
 		return vtec{}, fmt.Errorf("vtec %q", s)
 	}
 	v := vtec{class: m[1], action: m[2], office: m[3], phenomena: m[4], significance: m[5], etn: m[6]}
-	if m[8] != "000000T0000Z" {
-		end, err := time.Parse(vtecTime, m[8])
-		if err != nil {
-			return vtec{}, fmt.Errorf("vtec %q: end: %w", s, err)
-		}
-		v.end = end
-	}
+	// A time that does not parse (a month 13) is taken as not given: the
+	// key and action, which are what Poll needs, did parse.
+	v.begin, _ = time.Parse(vtecTime, m[7])
+	v.end, _ = time.Parse(vtecTime, m[8])
 	return v, nil
 }
 

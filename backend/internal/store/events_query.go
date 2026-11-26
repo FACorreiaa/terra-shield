@@ -37,8 +37,9 @@ type querier interface {
 // simplification keeps every part: one Chesapeake Bay warning was 1,084
 // parts. A part smaller than a pixel (the tolerance is half of one) is
 // dropped; if every part is, the largest stays, so no event loses its
-// shape. Only multipolygons are filtered: points, lines and single
-// polygons pass as they are.
+// shape. Only shapes with an area are filtered (multipolygons, and
+// collections that hold one, whose stray lines and points go with the
+// small parts): points, lines and single polygons pass as they are.
 //
 // ST_Simplify keeps collapsed rings (preserveCollapsed), so a small storm
 // stays visible at zoom 2. It is plain ST_Simplify, not the
@@ -49,7 +50,8 @@ type querier interface {
 // is drawn, never measured. Detail (GET /v1/events/{id}) and country
 // assignment use the stored shape.
 const mapGeometry = `ST_Simplify(
-  CASE WHEN GeometryType(e.geom::geometry) = 'MULTIPOLYGON' AND ST_NumGeometries(e.geom::geometry) > 1 THEN COALESCE(
+  CASE WHEN GeometryType(e.geom::geometry) IN ('MULTIPOLYGON', 'GEOMETRYCOLLECTION') AND ST_NumGeometries(e.geom::geometry) > 1
+        AND ST_Area(e.geom::geometry) > 0 THEN COALESCE(
     (SELECT ST_Collect(d.geom) FROM ST_Dump(e.geom::geometry) d WHERE ST_Area(d.geom) >= 4 * $tol * $tol),
     (SELECT d.geom FROM ST_Dump(e.geom::geometry) d ORDER BY ST_Area(d.geom) DESC LIMIT 1))
   ELSE e.geom::geometry END, $tol, true)`

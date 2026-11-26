@@ -68,8 +68,13 @@ var marinePrefixes = map[string]bool{
 func marine(ugc string) bool { return len(ugc) == 6 && ugc[2] == 'Z' && marinePrefixes[ugc[:2]] }
 
 // territories have country codes of their own; every other UGC prefix is
-// a US state or the District of Columbia.
-var territories = map[string]bool{"AS": true, "GU": true, "MP": true, "PR": true, "VI": true, "UM": true}
+// a US state or the District of Columbia. FM, MH and PW (the freely
+// associated states) are independent countries whose zones NWS Guam
+// warns for.
+var territories = map[string]bool{
+	"AS": true, "GU": true, "MP": true, "PR": true, "VI": true, "UM": true,
+	"FM": true, "MH": true, "PW": true,
+}
 
 // countries are the ISO codes of the places an alert's zones are in. NWS
 // zones and counties stop at the border, so country assignment follows
@@ -93,6 +98,6 @@ func countries(ugcs []string) []string {
 	return out
 }
 
-// Coverage is where NWS issues official warnings: the states and the
-// territories (ADR 7).
-var Coverage = []string{"US", "AS", "GU", "MP", "PR", "VI", "UM"}
+// Coverage is where NWS issues official warnings: the states, the
+// territories and the freely associated states (ADR 7).
+var Coverage = []string{"US", "AS", "GU", "MP", "PR", "VI", "UM", "FM", "MH", "PW"}

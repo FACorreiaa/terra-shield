@@ -10,9 +10,11 @@ INSERT INTO events (
     @source_id, @source_event_id, @type, @kind, @status, @severity, @source_severity,
     @title, @summary,
     -- Feeds send the odd self-intersecting polygon; repair it here so
-    -- country assignment and the map never trip over it.
-    ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON(@geom::text)))::geography,
-    ST_PointOnSurface(ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON(@geom::text))))::geography,
+    -- country assignment and the map never trip over it. Repairing an area
+    -- can leave stray lines or points beside it (a GeometryCollection);
+    -- an area stays an area.
+    ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON(@geom::text)), 'method=structure keepcollapsed=false')::geography,
+    ST_PointOnSurface(ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON(@geom::text)), 'method=structure keepcollapsed=false'))::geography,
     @started_at, @observed_at, @updated_at, @ended_at,
     now(), @url, @attrs,
     CASE WHEN @status::text = 'resolved' THEN 'resolved' ELSE 'created' END
@@ -116,6 +118,13 @@ WHERE source_id = @source_id AND status = 'active' AND attrs ->> @attr_key::text
 -- (USGS's past day): what the window no longer lists has ended.
 SELECT source_event_id FROM events
 WHERE source_id = @source_id AND status = 'active';
+
+-- name: ActiveEventStarts :many
+-- A source's active events and when each started, for a source whose
+-- messages do not carry the start once the event is under way (NWS).
+SELECT source_event_id, started_at FROM events
+WHERE source_id = @source_id AND status = 'active'
+ORDER BY source_event_id;
 
 -- name: ExpiredActiveEventIDs :many
 -- A source's active events whose attrs.expiresAt (RFC 3339) has passed.

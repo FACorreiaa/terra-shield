@@ -15,6 +15,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -38,7 +40,7 @@ const (
 // Store is where the adapter writes.
 type Store interface {
 	ingest.EventStore
-	ActiveIDs(ctx context.Context, sourceID string) ([]string, error)
+	ActiveStarts(ctx context.Context, sourceID string) (map[string]time.Time, error)
 	Resolve(ctx context.Context, sourceID string, sourceEventIDs []string, at time.Time) (int, error)
 }
 
@@ -100,12 +102,19 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 		s.logger.Warn("nws phenomena not in the type table; stored as other", "codes", p.Unknown)
 	}
 
-	active, err := s.store.ActiveIDs(ctx, ID)
+	starts, err := s.store.ActiveStarts(ctx, ID)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	stored := make(map[string]string, len(active)) // key to stored id
-	for _, id := range active {
+	// One stored id per key: the latest year. Poll never stores two, but
+	// should it happen the others are ended rather than left frozen.
+	ids := slices.Sorted(maps.Keys(starts))
+	stored := make(map[string]string, len(ids)) // key to stored id
+	var gone []string
+	for _, id := range ids {
+		if old, ok := stored[keyOf(id)]; ok {
+			gone = append(gone, old)
+		}
 		stored[keyOf(id)] = id
 	}
 	now := s.now().UTC()
@@ -127,6 +136,12 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 		e := w.Event
 		e.Geometry = geom
 		e.SourceEventID = stored[w.Key]
+		// Once an event is under way its messages carry only their own
+		// time as the onset: the start stored first holds.
+		if began := starts[e.SourceEventID]; e.SourceEventID != "" && !began.IsZero() && !began.After(now) &&
+			(e.StartedAt == nil || began.Before(*e.StartedAt)) {
+			e.StartedAt = &began
+		}
 		if e.SourceEventID == "" {
 			// Event numbers restart every year: the year Shield first saw
 			// it keeps next year's number 1 apart from this year's.
@@ -152,7 +167,6 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 		metrics.SourceSkipped.WithLabelValues(ID, "unreadable").Add(float64(p.Unreadable))
 		s.logger.Warn("nws alerts unreadable; no event ended this poll", "count", p.Unreadable)
 	} else {
-		var gone []string
 		for key, id := range stored {
 			if !p.Live[key] {
 				gone = append(gone, id)

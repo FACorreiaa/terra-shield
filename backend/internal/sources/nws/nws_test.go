@@ -62,9 +62,9 @@ func TestParse(t *testing.T) {
 			t.Errorf("%s is over but live", k)
 		}
 	}
-	// The marine advisory is live (a skip never ends an event) but not stored.
-	if !p.Live["KMOB.SC.Y.0038"] {
-		t.Error("a skipped alert's event must still count as listed")
+	// A marine-only alert is neither stored nor live.
+	if p.Live["KMOB.SC.Y.0038"] {
+		t.Error("a skipped alert's event counts as listed")
 	}
 
 	cf := ws["KPQR.CF.Y.0005"]
@@ -135,6 +135,7 @@ func TestParseRejects(t *testing.T) {
 type fakeStore struct {
 	mu       sync.Mutex
 	active   []string
+	starts   map[string]time.Time // optional: a stored start per id
 	upserted []domain.Event
 	resolved []string
 }
@@ -148,7 +149,13 @@ func (f *fakeStore) Upsert(_ context.Context, _ string, es []domain.Event) (int,
 
 func (f *fakeStore) Delete(context.Context, string, []string) (int, error) { return 0, nil }
 
-func (f *fakeStore) ActiveIDs(context.Context, string) ([]string, error) { return f.active, nil }
+func (f *fakeStore) ActiveStarts(context.Context, string) (map[string]time.Time, error) {
+	out := map[string]time.Time{}
+	for _, id := range f.active {
+		out[id] = f.starts[id]
+	}
+	return out, nil
+}
 
 func (f *fakeStore) Resolve(_ context.Context, _ string, ids []string, _ time.Time) (int, error) {
 	f.resolved = append(f.resolved, ids...)
@@ -263,6 +270,64 @@ func TestTitleAndOffice(t *testing.T) {
 	} {
 		if got := officeURL(office); got != want {
 			t.Errorf("%s: %s", office, got)
+		}
+	}
+}
+
+// A stored event keeps the start it was first given: once under way, NWS
+// sends each message's own time as the onset. A start still to come may move.
+func TestPollKeepsStart(t *testing.T) {
+	began := time.Date(2026, 11, 24, 6, 0, 0, 0, time.UTC)
+	store := &fakeStore{
+		active: []string{"KPQR.CF.Y.0005.2026", "KJAX.CF.W.0004.2026"},
+		starts: map[string]time.Time{"KPQR.CF.Y.0005.2026": began, "KJAX.CF.W.0004.2026": time.Date(2027, 2, 1, 0, 0, 0, 0, time.UTC)},
+	}
+	if _, err := newTestSource(t, string(fixture(t)), store).Poll(context.Background(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range store.upserted {
+		switch e.SourceEventID {
+		case "KPQR.CF.Y.0005.2026":
+			if e.StartedAt == nil || !e.StartedAt.Equal(began) {
+				t.Errorf("under way: start %v, want the stored %v", e.StartedAt, began)
+			}
+		case "KJAX.CF.W.0004.2026":
+			if e.StartedAt == nil || e.StartedAt.Year() != 2026 {
+				t.Errorf("a stored start still to come is not kept: %v", e.StartedAt)
+			}
+		}
+	}
+}
+
+// The VTEC begin, when given, is the start.
+func TestParseVTECBegin(t *testing.T) {
+	v, err := parseVTEC("/O.NEW.KPAH.WW.Y.0002.261127T0600Z-261127T1800Z/")
+	if err != nil || !v.begin.Equal(time.Date(2026, 11, 27, 6, 0, 0, 0, time.UTC)) || !v.end.Equal(time.Date(2026, 11, 27, 18, 0, 0, 0, time.UTC)) {
+		t.Fatalf("%+v %v", v, err)
+	}
+	// A time that cannot be read is "not given"; the key still is read.
+	v, err = parseVTEC("/O.CON.KPAH.WW.Y.0002.000000T0000Z-261327T1800Z/")
+	if err != nil || !v.end.IsZero() || v.key() != "KPAH.WW.Y.0002" {
+		t.Fatalf("%+v %v", v, err)
+	}
+}
+
+// A land event whose only listed segments left are marine has ended for
+// the map; so has one whose stored id is a duplicate of its key.
+func TestPollEndsSkippedAndDuplicates(t *testing.T) {
+	// The Small Craft Advisory's key, as if a land segment had been stored.
+	store := &fakeStore{active: []string{"KMOB.SC.Y.0038.2026", "KPQR.CF.Y.0005.2025", "KPQR.CF.Y.0005.2026"}}
+	s := newTestSource(t, string(fixture(t)), store)
+	if _, err := s.Poll(context.Background(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(store.resolved)
+	if !slices.Equal(store.resolved, []string{"KMOB.SC.Y.0038.2026", "KPQR.CF.Y.0005.2025"}) {
+		t.Fatalf("resolved %v", store.resolved)
+	}
+	for _, e := range store.upserted {
+		if e.SourceEventID == "KPQR.CF.Y.0005.2025" {
+			t.Fatal("the older duplicate was updated")
 		}
 	}
 }

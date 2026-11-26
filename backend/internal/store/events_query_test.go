@@ -265,7 +265,22 @@ func TestEventListMapGeometry(t *testing.T) {
 		})),
 		event("storm", shape("Polygon", square(-3, 41, 0.05))),
 		event("track", shape("LineString", [][2]float64{{-2, 42}, {-1.5, 42.001}, {-1, 42}})),
+		// A ring with a hairline hole: repairing it must leave an area,
+		// not an area and a stray line.
+		event("hairline", json.RawMessage(`{"type":"Polygon","coordinates":[[[0,36],[2,36],[2,38],[0,38],[0,36]],[[1,37],[1,37.0000001],[1,37],[1,37]]]}`)),
+		event("collection", shape("Polygon", square(1, 40, 1))),
 	}); err != nil {
+		t.Fatal(err)
+	}
+	var stored string
+	if err := pool.QueryRow(ctx, `SELECT GeometryType(geom::geometry) FROM events WHERE source_event_id = 'hairline'`).Scan(&stored); err != nil || stored != "POLYGON" {
+		t.Fatalf("hairline stored as %s %v", stored, err)
+	}
+	// Rows stored before that rule can still be collections: an area,
+	// islets and a stray line.
+	if _, err := pool.Exec(ctx, `UPDATE events SET geom = ST_GeomFromText(
+		'GEOMETRYCOLLECTION(POLYGON((1 40,2 40,2 41,1 41,1 40)),POLYGON((2.5 40,2.501 40,2.501 40.001,2.5 40.001,2.5 40)),LINESTRING(2 41,3 42))', 4326)::geography
+		WHERE source_event_id = 'collection'`); err != nil {
 		t.Fatal(err)
 	}
 	recs, _, err := repo.List(ctx, domain.EventQuery{Limit: 10, Geometry: true, SimplifyDegrees: 0.1758}) // zoom 2
@@ -290,12 +305,20 @@ func TestEventListMapGeometry(t *testing.T) {
 	if g := got["islands"]; g.Type != "MultiPolygon" || json.Unmarshal(g.Coordinates, &parts) != nil || len(parts) != 1 {
 		t.Fatalf("islands %s %s", g.Type, g.Coordinates)
 	}
-	// Two decimals at zoom 2: -8.12345 is sent as -8.12.
-	if c := parts[0][0][0]; c[0] != -8.12 || c[1] != 38.12 {
-		t.Errorf("precision %v", c)
+	// Two decimals at zoom 2: the corner at -8.12345, 38.12345 is sent as
+	// -8.12, 38.12 (ring order is the repair's, so look for it).
+	if !slices.Contains(parts[0][0], [2]float64{-8.12, 38.12}) {
+		t.Errorf("precision %v", parts[0][0])
 	}
 	var ring [][][2]float64
-	if g := got["specks"]; g.Type != "Polygon" || json.Unmarshal(g.Coordinates, &ring) != nil || len(ring) != 1 || ring[0][1][0]-ring[0][0][0] < 0.02 {
+	width := func(r [][2]float64) float64 {
+		lo, hi := r[0][0], r[0][0]
+		for _, c := range r {
+			lo, hi = min(lo, c[0]), max(hi, c[0])
+		}
+		return hi - lo
+	}
+	if g := got["specks"]; g.Type != "Polygon" || json.Unmarshal(g.Coordinates, &ring) != nil || len(ring) != 1 || width(ring[0]) < 0.02 {
 		t.Fatalf("specks %s %s", g.Type, g.Coordinates)
 	}
 	if g := got["storm"]; g.Type != "Polygon" || len(g.Coordinates) < 10 {
@@ -303,5 +326,8 @@ func TestEventListMapGeometry(t *testing.T) {
 	}
 	if g := got["track"]; g.Type != "LineString" {
 		t.Fatalf("track %s %s", g.Type, g.Coordinates)
+	}
+	if g := got["collection"]; g.Type != "MultiPolygon" || json.Unmarshal(g.Coordinates, &parts) != nil || len(parts) != 1 {
+		t.Fatalf("collection %s %s", g.Type, g.Coordinates)
 	}
 }

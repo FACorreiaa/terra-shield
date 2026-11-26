@@ -72,6 +72,39 @@ func (q *Queries) ActiveEventIDsWithAttr(ctx context.Context, arg ActiveEventIDs
 	return items, nil
 }
 
+const activeEventStarts = `-- name: ActiveEventStarts :many
+SELECT source_event_id, started_at FROM events
+WHERE source_id = $1 AND status = 'active'
+ORDER BY source_event_id
+`
+
+type ActiveEventStartsRow struct {
+	SourceEventID string
+	StartedAt     *time.Time
+}
+
+// A source's active events and when each started, for a source whose
+// messages do not carry the start once the event is under way (NWS).
+func (q *Queries) ActiveEventStarts(ctx context.Context, sourceID string) ([]ActiveEventStartsRow, error) {
+	rows, err := q.db.Query(ctx, activeEventStarts, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ActiveEventStartsRow
+	for rows.Next() {
+		var i ActiveEventStartsRow
+		if err := rows.Scan(&i.SourceEventID, &i.StartedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const assignEventCountries = `-- name: AssignEventCountries :exec
 WITH e AS (
     SELECT geom AS geog, geom::geometry AS g, ST_Area(geom) AS m2,
@@ -498,9 +531,11 @@ INSERT INTO events (
     $1, $2, $3, $4, $5, $6, $7,
     $8, $9,
     -- Feeds send the odd self-intersecting polygon; repair it here so
-    -- country assignment and the map never trip over it.
-    ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON($10::text)))::geography,
-    ST_PointOnSurface(ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON($10::text))))::geography,
+    -- country assignment and the map never trip over it. Repairing an area
+    -- can leave stray lines or points beside it (a GeometryCollection);
+    -- an area stays an area.
+    ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON($10::text)), 'method=structure keepcollapsed=false')::geography,
+    ST_PointOnSurface(ST_MakeValid(ST_Force2D(ST_GeomFromGeoJSON($10::text)), 'method=structure keepcollapsed=false'))::geography,
     $11, $12, $13, $14,
     now(), $15, $16,
     CASE WHEN $5::text = 'resolved' THEN 'resolved' ELSE 'created' END

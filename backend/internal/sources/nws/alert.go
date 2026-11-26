@@ -87,10 +87,11 @@ type Warning struct {
 // Parsed is one read of the active alerts.
 type Parsed struct {
 	Warnings []Warning
-	// Live holds the key of every event the list still holds in force,
-	// read before any filter: a listed event is never ended by a skip.
+	// Live holds the key of every event the list still holds in force in
+	// an alert Shield takes: a land event whose only listed segments left
+	// are marine (or otherwise skipped) has ended as far as the map goes.
 	Live map[string]bool
-	// Unreadable counts alerts whose VTEC could not be read. Their events
+	// Unreadable counts VTEC strings that could not be read. Their events
 	// cannot be told apart, so Poll ends nothing while any is listed.
 	Unreadable int
 	Skipped    map[string]int
@@ -127,9 +128,6 @@ func Parse(body []byte) (Parsed, error) {
 				continue
 			}
 			vs = append(vs, v)
-			if v.class == "O" && !v.over() {
-				out.Live[v.key()] = true
-			}
 		}
 		switch {
 		case len(p.Parameters.VTEC) == 0:
@@ -142,19 +140,18 @@ func Parse(body []byte) (Parsed, error) {
 			out.Skipped[SkipMarine]++
 			continue
 		}
-		sent, err := time.Parse(time.RFC3339, p.Sent)
-		if err != nil {
-			out.Unreadable++
-			continue
-		}
-		for _, v := range vs {
+		// sent only orders segments; an unreadable one sorts first.
+		sent, _ := time.Parse(time.RFC3339, p.Sent)
+		for j := range vs {
+			v := &vs[j]
 			switch {
 			case v.class != "O":
 				out.Skipped[SkipTest]++
 			case v.phenomena == "TS":
 				out.Skipped[SkipTsunami]++
 			case !v.over():
-				byKey[v.key()] = append(byKey[v.key()], newSegment(v, p, f.Geometry, sent))
+				byKey[v.key()] = append(byKey[v.key()], newSegment(*v, p, f.Geometry, sent))
+				out.Live[v.key()] = true
 			}
 		}
 	}
@@ -186,11 +183,17 @@ func allMarine(ugcs []string) bool {
 
 func newSegment(v vtec, p *properties, geometry json.RawMessage, sent time.Time) segment {
 	s := segment{v: v, id: p.ID, p: p, sent: sent.UTC(), start: sent.UTC()}
+	// The VTEC begin is the event's own start. Once the event is in
+	// effect NWS zeroes it and sets onset to the message's own time, so
+	// Poll keeps the start it stored first.
 	for _, t := range []string{p.Onset, p.Effective} {
 		if at, err := time.Parse(time.RFC3339, t); err == nil {
 			s.start = at.UTC()
 			break
 		}
+	}
+	if !v.begin.IsZero() {
+		s.start = v.begin
 	}
 	if at, err := time.Parse(time.RFC3339, p.Ends); err == nil {
 		s.ends = at.UTC()
