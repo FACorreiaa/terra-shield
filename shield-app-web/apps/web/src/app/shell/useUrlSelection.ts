@@ -43,4 +43,5 @@ function useUrlSelection(): UrlSelection {
   return { selectedId, select, chosen: chosen?.id === selectedId ? chosen : undefined, choose };
 }
 
+export type { UrlSelection };
 export { useUrlSelection };

@@ -257,7 +257,7 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
 ### W7 — Layers: heat detections, flights, conflicts
 
 - [x] **Fires.** `/v1/fires`: grid → heatmap below z6 (`detection` tint, weight = count); points ≥ z6 as 3–6 px dots. Copy: "Detected 3 h ago · VIIRS". Inspector shows satellite, confidence, FRP. Off by default.
-- [ ] **Aircraft.** `/v1/aircraft?bbox=`:
+- [x] **Aircraft.** `/v1/aircraft?bbox=` (deviations in VIEWS.md, W7 part 3: no military shape, credit in the key, no detection inspector):
   - Only when `viewport.aircraftAllowed`; else a "Zoom in to see aircraft" notice; a 400 gets the same notice.
   - Poll every 60 s while visible.
   - Heading-rotated glyph in `muted`/`ink` (not a hazard colour); military marked by shape.

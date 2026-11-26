@@ -475,8 +475,8 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        the corrected zoom too (checked on live FIRMS data, desktop and phone).
      - **No "· VIIRS".** DESIGN §5's "Detected 3 h ago · VIIRS" can't come from the data (the
        API names satellites, e.g. NOAA-20, not instruments); the key follows the apps' words.
-     - **No inspector for a detection yet.** Detections aren't selectable in the apps either; the
-       satellite, confidence and FRP inspector arrives with the flights' selection (W7, part 3).
+     - **No inspector for a detection.** Detections aren't selectable in the apps, so the web
+       doesn't add the plan's satellite, confidence and FRP inspector (decided with W7, part 3).
    - **W7, part 2: armed conflicts.** Their own `GET /v1/events?type=conflict&kind=observed` for the
      map's view while the layer is on (off by default, saved with the filters as the apps'
      `showsConflicts`; the sheet's Reset leaves it alone, as the apps). No window: the server keeps a
@@ -512,6 +512,42 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - **Glyph fix (all markers).** A marker drawn first as a picture during React's render (the
        inspector's header, the toast) cached an empty glyph, leaving that type blank on the map for
        the visit; every type's glyph is now drawn once when the marker code loads. Conflicts showed it first.
+   - **W7, part 3: live flights.** `GET /v1/aircraft?bbox=` for the map's view while the layer is on
+     (ADR 28): off at every load and never saved, as the apps. One switch, two ways in: a plane
+     toggle at the top of the map controls (tinted `accent` while on) and `a` (the apps' ⌥⌘A). Asked
+     only for a view of at most four 5° cells; wider, or when the server answers 400, the key reads
+     "Flights · zoom in to see them" over "Shown for an area up to about 5° across." and nothing is
+     asked. Once a minute and at once on a view change, never sooner: a failure, a return to the tab
+     and `r` all leave it to its minute, as the apps. A failed load for a new view drops the old
+     view's positions (a later view never shows them while it loads); for the same view it keeps
+     them under "The last refresh failed; these positions are older.". Aircraft draw in `ink` with a thin `canvas` edge, a plane turned
+     to its track, a dot when the feed gives no track (direction not guessed); they give way to one
+     another where they crowd. Under the notices, between heat and conflicts, the key reads
+     "Flights · 12 in this view" (or "· none in this view", "· loading…", "Flights didn’t load"; "zoom
+     in" and failures are announced, the count and age are not), the
+     data's age ("Positions from 3 min ago · 11:03 UTC"), "Incomplete: part of this view has no
+     recent data." when the feed says so, and "© adsb.lol contributors · ODbL 1.0". A click within
+     22 px of an aircraft (a 44 px target round the apps' 28 px marker) selects it (an `accent` disc
+     under it, and it wins any crowding) and opens its report in the inspector or the sheet:
+     callsign (else registration, else address), emergency and military flags as the feed gives
+     them, the position's age, then altitude, ground speed, track, vertical rate, type, registration,
+     squawk and address in aviation units with metric after, and the apps' coverage note with the
+     licence link. One selection at a time: choosing an event clears the aircraft and the other
+     way round, an event arriving by the address included; Escape, Close, turning the layer off or
+     zooming out clears it, and Close gives focus back to the flights switch.
+     - **Not reachable by keyboard.** Aircraft are canvas symbols with no list of their own; the
+       apps' VoiceOver reads each one. A keyboard-reachable list is future work.
+     - **Credit in the key.** The plan put the body's `attribution` in the map's attribution
+       control; it sits in the flights key instead, which shows only while the layer does.
+     - **Under hazards, without avoiding them.** Aircraft draw under every hazard marker as the
+       apps, but MapLibre can't make them give way to the hazards' markers (placed outside its
+       collision), only to each other. A hazard under the same point wins the click.
+     - **No military shape.** The plan marked military aircraft by shape; the apps say it in the
+       report ("Military (as the feed flags it)"), and so does the web.
+     - **Bases and historic layers** (ADR 29, 30) are in the apps' controls but not in the web plan.
+     - **Shortcuts with the map focused (all).** A click on the map left focus on its canvas, where
+       every shortcut was ignored, so Escape couldn't close what the click opened. The map now keeps
+       only its own keys (arrows, + − =), and the others work there.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

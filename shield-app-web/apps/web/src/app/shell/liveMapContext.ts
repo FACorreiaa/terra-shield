@@ -23,6 +23,12 @@ interface LiveMap {
   select: (id: string | undefined) => void;
   /** Selects an event from outside the map's list (a country's), which the map then draws too. */
   choose: (event: HazardEvent) => void;
+  /** The selected aircraft's address, while one is: never with an event (live flights, ADR 28). */
+  aircraftHex: string | undefined;
+  /** Selects an aircraft, clearing the event, or clears it with `undefined`. */
+  selectAircraft: (hex: string | undefined) => void;
+  /** An event or an aircraft is selected: the inspector and the sheet show its detail. */
+  inspecting: boolean;
   /** The selected event: the map's copy, else the detail's, else as last seen once gone. */
   selected: HazardEvent | undefined;
   /** The selection's detail as it loads (DESIGN.md §10.3); undefined with nothing selected. */

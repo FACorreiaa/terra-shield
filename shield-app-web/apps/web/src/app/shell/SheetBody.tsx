@@ -30,9 +30,9 @@ function SectionBody({ children }: { children: ReactNode }): ReactElement {
  * scroll away; the event's detail carries its own.
  */
 function SheetBody({ children }: { children: ReactNode }): ReactElement {
-  const { selectedId } = useLiveMap();
+  const { inspecting } = useLiveMap();
   const { active } = useMapSearch();
-  const detail = !active && selectedId !== undefined;
+  const detail = !active && inspecting;
   // Sources carries the disclaimer at its top, as in the apps; once is enough.
   const { sources } = usePage();
   return (

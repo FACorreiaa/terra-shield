@@ -25,7 +25,9 @@ interface MobileChromeProps {
  * to medium to show it; searching opens it to large.
  */
 function MobileChrome({ children, onInsets }: MobileChromeProps): ReactElement {
-  const { selectedId } = useLiveMap();
+  // An event or an aircraft: either lifts the sheet to show its detail.
+  const { selectedId: eventId, aircraftHex } = useLiveMap();
+  const selectedId = eventId ?? aircraftHex;
   // A shared link opens with its event at half height, as a selection made here would.
   const [detent, setDetent] = useState<Detent>(selectedId === undefined ? "peek" : "medium");
   const [shownId, setShownId] = useState(selectedId);

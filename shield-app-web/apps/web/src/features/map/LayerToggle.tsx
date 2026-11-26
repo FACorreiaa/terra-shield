@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils.ts";
 import { controlButton } from "./controlStyles.ts";
 
 interface LayerToggleProps {
+  /** A stable key for the controls column. */
+  id: string;
   /** What the layer is, e.g. "Satellite heat detections": the name, with the state as pressed. */
   label: string;
   icon: LucideIcon;
@@ -16,7 +18,13 @@ interface LayerToggleProps {
 }
 
 /** One map layer's switch in the controls column: a 44 px toggle button, tinted while on. */
-function LayerToggle({ label, icon: Glyph, pressed, pressedClass, onToggle }: LayerToggleProps): ReactElement {
+function LayerToggle({
+  label,
+  icon: Glyph,
+  pressed,
+  pressedClass,
+  onToggle,
+}: Omit<LayerToggleProps, "id">): ReactElement {
   return (
     <button
       type="button"
@@ -31,4 +39,5 @@ function LayerToggle({ label, icon: Glyph, pressed, pressedClass, onToggle }: La
   );
 }
 
+export type { LayerToggleProps as LayerSwitch };
 export { LayerToggle };

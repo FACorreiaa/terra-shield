@@ -13,6 +13,7 @@ type Shortcut =
         | "world"
         | "detections"
         | "conflicts"
+        | "flights"
         | "next"
         | "previous"
         | "clear"
@@ -43,6 +44,7 @@ const SHORTCUT_HELP: readonly { keys: string; does: string }[] = [
   { keys: "i", does: "Show or hide the inspector" },
   { keys: "0", does: "Show the whole world" },
   { keys: "h", does: "Show or hide satellite heat detections" },
+  { keys: "a", does: "Show or hide live flights" },
   { keys: "c", does: "Show or hide armed conflicts" },
   { keys: "r", does: "Refresh now" },
   { keys: "?", does: "These shortcuts" },
@@ -54,6 +56,7 @@ const SINGLE = new Map<string, Shortcut>([
   ["r", { action: "refresh" }],
   ["0", { action: "world" }],
   ["h", { action: "detections" }],
+  ["a", { action: "flights" }],
   ["c", { action: "conflicts" }],
   ["ArrowDown", { action: "next" }],
   ["ArrowUp", { action: "previous" }],
@@ -62,20 +65,31 @@ const SINGLE = new Map<string, Shortcut>([
   ["/", { action: "search" }],
 ]);
 const SECTION_KEYS = new Set(["1", "2", "3", "4", "5"]);
-const LAYER_ACTIONS: ReadonlySet<string> = new Set(["detections", "conflicts"]);
+const LAYER_ACTIONS: ReadonlySet<string> = new Set(["detections", "conflicts", "flights"]);
 /**
- * Typing here, or keys these already use: the map pans with arrows, radios move with them, and a
- * dialog closes on Escape without also clearing the selection behind it.
+ * Typing here, or keys these already use: radios move with arrows, and a dialog closes on Escape
+ * without also clearing the selection behind it.
  */
-const OWNS_KEYS =
-  "input, textarea, select, [contenteditable=''], [contenteditable='true'], .maplibregl-canvas, [role='slider'], dialog";
+const OWNS_KEYS = "input, textarea, select, [contenteditable=''], [contenteditable='true'], [role='slider'], dialog";
+/**
+ * The map's own keys (MapLibre's keyboard handler): it pans with arrows and zooms with + − =. Every
+ * other key still works with the map focused, so Escape closes what a click on it opened.
+ */
+const MAP_KEYS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "+", "-", "=", "_"]);
+
+function ownedBy(target: EventTarget | null, key: string): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return target.closest(OWNS_KEYS) !== null || (MAP_KEYS.has(key) && target.closest(".maplibregl-canvas") !== null);
+}
 
 /** The shortcut a key press means, or undefined when the key belongs to something else. */
 function shortcutFor(press: KeyPress): Shortcut | undefined {
   if (press.ctrlKey || press.metaKey || press.altKey || press.defaultPrevented) {
     return undefined;
   }
-  if (press.target instanceof Element && press.target.closest(OWNS_KEYS) !== null) {
+  if (ownedBy(press.target, press.key)) {
     return undefined;
   }
   if (SECTION_KEYS.has(press.key)) {

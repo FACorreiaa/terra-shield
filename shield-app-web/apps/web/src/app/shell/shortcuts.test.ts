@@ -37,12 +37,20 @@ describe(shortcutFor, () => {
     expect(shortcutFor(press("0", { altKey: true }))).toBeUndefined();
   });
 
+  it("works with the map focused, but leaves it its pan and zoom keys", () => {
+    const canvas = document.createElement("canvas");
+    canvas.className = "maplibregl-canvas";
+    expect(shortcutFor(press("Escape", { target: canvas }))).toStrictEqual({ action: "clear" });
+    expect(shortcutFor(press("a", { target: canvas }))).toStrictEqual({ action: "flights" });
+  });
+
   it("never fires while typing or where the keys already mean something", () => {
     const input = document.createElement("input");
     const canvas = document.createElement("canvas");
     canvas.className = "maplibregl-canvas";
     expect(shortcutFor(press("r", { target: input }))).toBeUndefined();
     expect(shortcutFor(press("ArrowDown", { target: canvas }))).toBeUndefined();
+    expect(shortcutFor(press("+", { target: canvas }))).toBeUndefined();
     expect(shortcutFor(press("ArrowUp", { defaultPrevented: true }))).toBeUndefined();
     const dialog = document.createElement("dialog");
     dialog.append(document.createElement("button"));

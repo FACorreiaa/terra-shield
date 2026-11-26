@@ -6,13 +6,13 @@ import { CONFLICT } from "@/domain/taxonomy.ts";
 import { DetailPlaceholder } from "@/features/detail/DetailPlaceholder.tsx";
 import { EventDetailView } from "@/features/detail/EventDetailView.tsx";
 import { sourceOf } from "@/features/detail/officialSource.ts";
+import { SelectedAircraft } from "@/features/flights/SelectedAircraft.tsx";
 
 import { useLiveMap } from "./liveMapContext.ts";
 import { useFocusOnOpen } from "./useDetailFocus.ts";
 import { useShowOnMap } from "./useShowOnMap.ts";
 
-/** The selection's detail, for the inspector and the sheet alike; nothing with nothing selected. */
-function SelectedDetail(): ReactElement | undefined {
+function SelectedEvent(): ReactElement | undefined {
   const { selectedId, selected, detail, selectedShape, sources, staleSources, select, now } = useLiveMap();
   const close = useCallback(() => {
     select(undefined);
@@ -21,7 +21,6 @@ function SelectedDetail(): ReactElement | undefined {
   const retry = useCallback(() => {
     void client.refetchQueries({ queryKey: ["event", selectedId] });
   }, [client, selectedId]);
-  useFocusOnOpen(selectedId);
   const showOnMap = useShowOnMap();
   if (detail === undefined) {
     return undefined;
@@ -43,6 +42,16 @@ function SelectedDetail(): ReactElement | undefined {
       onShowOnMap={showOnMap}
     />
   );
+}
+
+/** The selection's detail, an event's or an aircraft's, for the inspector and the sheet alike. */
+function SelectedDetail(): ReactElement | undefined {
+  const { selectedId, aircraftHex, selectAircraft } = useLiveMap();
+  useFocusOnOpen(selectedId ?? aircraftHex);
+  const closeAircraft = useCallback(() => {
+    selectAircraft(undefined);
+  }, [selectAircraft]);
+  return aircraftHex === undefined ? <SelectedEvent /> : <SelectedAircraft onClose={closeAircraft} />;
 }
 
 export { SelectedDetail };
