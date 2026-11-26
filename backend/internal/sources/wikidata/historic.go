@@ -158,7 +158,6 @@ var HistoricClasses = func() []HistoricClass {
 		HistoricClass{"Q2087181", "historic house museum", domain.HistoricGeneral, false},
 		HistoricClass{"Q543654", "Rathaus", domain.HistoricGeneral, false},
 		HistoricClass{"Q65177565", "former town hall", domain.HistoricGeneral, false},
-		HistoricClass{"Q25550691", "city hall", domain.HistoricGeneral, false},
 		HistoricClass{"Q39715", "lighthouse", domain.HistoricGeneral, false},
 		HistoricClass{"Q797765", "inclined tower", domain.HistoricGeneral, false},
 		HistoricClass{"Q72926449", "church tower", domain.HistoricGeneral, false},
@@ -261,7 +260,7 @@ func (*Historic) PollAttempts() int { return pollAttempts }
 // Wikidata Query Service (a mirror, in development).
 func (h *Historic) UseEndpoint(u string) { h.q.endpoint = u }
 
-// PollTimeout implements ingest.SlowSource: 137 queries (136 classes and
+// PollTimeout implements ingest.SlowSource: 136 queries (135 classes and
 // World Heritage) of up to a minute, each preceded by a wait as long as
 // the last. 56 queries took about 12 minutes (2026-11-25); a retry
 // resumes where it failed.
