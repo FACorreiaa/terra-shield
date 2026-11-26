@@ -15,6 +15,7 @@ import {
   eventFeatures,
   eventLayer,
   markerRequests,
+  markerState,
   SELECTION_LAYER,
   selectionLayer,
 } from "./eventLayer.ts";
@@ -107,7 +108,8 @@ function useSelection(map: MapLibreMap | undefined, styleEpoch: number, data: Ha
     }
     addHazardLayers(map);
     map.setFilter(SELECTION_LAYER, ["==", ["get", "id"], selectedId ?? ""]);
-    const faded = event !== undefined && (event.status === "resolved" || staleSources.has(event.source));
+    // Faded as its marker is: resolved, or stale (a conflict never is).
+    const faded = event !== undefined && markerState(event, staleSources) !== "live";
     const selected = event && selectedShape && { event, shape: selectedShape, faded };
     void map.getSource<GeoJSONSource>(AREA_SOURCE)?.setData(areaFeatures(selected));
   }, [map, styleEpoch, selectedId, selectedShape, event, staleSources]);

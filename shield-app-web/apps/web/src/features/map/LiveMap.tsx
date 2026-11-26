@@ -2,7 +2,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement } from "react";
 import { useCallback, useState } from "react";
 
-import { toggleShowsDetections, useSavedFilters } from "@/features/filters/filterPrefs.ts";
+import { toggleShowsConflicts, toggleShowsDetections, useSavedFilters } from "@/features/filters/filterPrefs.ts";
 
 import type { HazardMapProps } from "./HazardMap.tsx";
 import { HazardMap } from "./HazardMap.tsx";
@@ -19,6 +19,7 @@ function LiveMap(props: LiveMapProps): ReactElement {
   const {
     events,
     clusters,
+    conflictClusters,
     staleSources,
     selectedId,
     selectedShape,
@@ -38,12 +39,13 @@ function LiveMap(props: LiveMapProps): ReactElement {
     [onMap],
   );
   const { projection } = useMapPrefs();
-  const { showsDetections } = useSavedFilters();
+  const { showsDetections, showsConflicts } = useSavedFilters();
   return (
     <>
       <HazardMap
         events={events}
         clusters={clusters}
+        conflictClusters={conflictClusters}
         staleSources={staleSources}
         selectedId={selectedId}
         selectedShape={selectedShape}
@@ -60,8 +62,10 @@ function LiveMap(props: LiveMapProps): ReactElement {
           map={map}
           projection={projection}
           showsDetections={showsDetections}
+          showsConflicts={showsConflicts}
           onProjectionChange={setProjection}
           onDetectionsToggle={toggleShowsDetections}
+          onConflictsToggle={toggleShowsConflicts}
         />
       </div>
     </>

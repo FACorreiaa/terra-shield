@@ -76,4 +76,4 @@ function useEvents(view: EventsView, query: EventQuery): UseQueryResult<EventLis
 }
 
 export type { EventsView };
-export { eventsKey, LoadFailureError, useEvents };
+export { eventsKey, LoadFailureError, request as requestEvents, useEvents };

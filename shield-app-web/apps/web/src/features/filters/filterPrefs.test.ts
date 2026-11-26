@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { DEFAULT_QUERY } from "@/domain/filters.ts";
 
-import { resetFilterPrefsForTests, resetFilters, savedFilters, setQuery, setShowsDetections } from "./filterPrefs.ts";
+import {
+  resetFilterPrefsForTests,
+  resetFilters,
+  savedFilters,
+  setQuery,
+  setShowsDetections,
+  toggleShowsConflicts,
+} from "./filterPrefs.ts";
 
 const KEY = "shield.filters";
 
@@ -64,7 +71,16 @@ describe("filter prefs", () => {
     expect(savedFilters().query.minimumSeverity).toBe("severe");
 
     resetFilters(DEFAULT_QUERY);
-    expect(savedFilters()).toStrictEqual({ query: DEFAULT_QUERY, showsDetections: false });
+    expect(savedFilters()).toStrictEqual({ query: DEFAULT_QUERY, showsDetections: false, showsConflicts: false });
     expect(stored()).toMatchObject({ showsDetections: false, minimumSeverity: "minor" });
+  });
+
+  it("flips the conflicts layer from what is stored, and Reset leaves it on", () => {
+    toggleShowsConflicts();
+    expect(savedFilters().showsConflicts).toBe(true);
+    resetFilters(DEFAULT_QUERY);
+    expect(stored()).toMatchObject({ showsConflicts: true, showsDetections: false });
+    toggleShowsConflicts();
+    expect(savedFilters().showsConflicts).toBe(false);
   });
 });

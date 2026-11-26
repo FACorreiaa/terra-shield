@@ -47,7 +47,8 @@ function step({ live, search, onMap }: Context, direction: 1 | -1): boolean {
   if (search.active || !onMap) {
     return false;
   }
-  const next = neighbour(live.list, live.selectedId, direction);
+  // Hazards, then the conflicts section, as the list shows them.
+  const next = neighbour(live.known, live.selectedId, direction);
   if (next === undefined) {
     return false;
   }
@@ -100,9 +101,14 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
     live.detections.toggle();
     return true;
   },
+  conflicts: ({ live }) => {
+    live.conflicts.toggle();
+    return true;
+  },
   refresh: ({ live }) => {
     void live.events.refetch();
     live.detections.refetch();
+    live.conflicts.refetch();
     return true;
   },
   search: ({ search }) => search.focus(),

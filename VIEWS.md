@@ -477,6 +477,41 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        API names satellites, e.g. NOAA-20, not instruments); the key follows the apps' words.
      - **No inspector for a detection yet.** Detections aren't selectable in the apps either; the
        satellite, confidence and FRP inspector arrives with the flights' selection (W7, part 3).
+   - **W7, part 2: armed conflicts.** Their own `GET /v1/events?type=conflict&kind=observed` for the
+     map's view while the layer is on (off by default, saved with the filters as the apps'
+     `showsConflicts`; the sheet's Reset leaves it alone, as the apps). No window: the server keeps a
+     conflict 90 days after its end date. Never streamed and never in the hazards' strip, counts,
+     clusters or search; checked every 6 h, a pan asks at once, `r` asks now. One switch, two ways
+     in: a crosshair toggle in the map controls above heat (tinted `accent` while on) and `c`.
+     Markers use the severity shape and colour like hazards, with the crosshair glyph, a dashed
+     ring when the location is approximate, and are never stale; they sort under every hazard.
+     Server clusters of conflicts get a dashed ring and a small crosshair badge ("Cluster, 14
+     armed-conflict events, highest severity severe"). Under the notices a key reads "Armed
+     conflicts, past 90 days · 12 in this view" (listed plus clustered), "· zoom in for all",
+     "Armed conflicts · loading…" or "Armed conflicts didn’t load", always over "Conflict data are
+     monthly research estimates (UCDP), not live reports.". The list shows them in their own section
+     after the hazards ("Armed conflicts · past 90 days", with how many the map grouped); a row
+     carries its dates ("24 Sep · monthly estimate (UCDP)") instead of kind, source and freshness.
+     With no hazards in view the list says "No hazards in this view from covered sources." above
+     the section. A conflict selects and opens like any event, and ↑ ↓ walk into the section.
+     - **No category menu.** The plan opted in from a category menu; the apps have the one toggle
+       (category menus are still unapproved), so the web does too.
+     - **Dashed, not hollow, approximate ring.** The plan said a hollow ring labelled "Approximate
+       location"; the apps draw a dashed ring and say "approximate location" in the marker's
+       spoken label and the detail's location note. The web draws the dashed ring, says it in the
+       detail's note, and, since canvas markers aren't read aloud, in the row's spoken name.
+     - **No grouping of conflicts on the map from zoom 6.** The apps cluster nearby conflicts among
+       themselves; the web draws each one (they sort under every hazard). To revisit if a busy
+       region proves unreadable.
+     - **Turned off with a conflict selected,** its marker goes and its detail stays, as the apps.
+     - **No hazards and no conflicts** shows the hazards' empty state, not the apps' "No hazards in
+       this view…" over an empty conflicts section.
+     - **Cluster order.** Conflict clusters are buttons over the canvas, so they sit over hazard
+       markers (the apps put them under every hazard). Hazard clusters still draw over them.
+     - **Types, not `category=`.** The query names `type=conflict`, as the apps' `EventQuery`.
+     - **Glyph fix (all markers).** A marker drawn first as a picture during React's render (the
+       inspector's header, the toast) cached an empty glyph, leaving that type blank on the map for
+       the visit; every type's glyph is now drawn once when the marker code loads. Conflicts showed it first.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

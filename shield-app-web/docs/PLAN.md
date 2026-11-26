@@ -265,7 +265,7 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
   - Body `attribution` added to the map attribution.
   - Sheet/inspector: callsign, altitude, speed.
   - Dev only against aircraft-replay.
-- [ ] **Conflicts.** Their own query, `useConflicts(view)`: `category=conflicts`, no `since`, server-clustered like events. The time window and status filters don't apply, because conflicts are active and dated by month (`observedAt` = end date; checked live 2026-11-19: 2,000+ returned only without `since`). Not streamed; refetched every 6 h. Never alerted. The category menu opts in. Non-exact precision is drawn as a hollow approximate ring labelled "Approximate location". Copy is fixed (see Global constraints). Never in hazard counts.
+- [x] **Conflicts.** Their own query, `useConflicts(view)`: `category=conflicts`, no `since`, server-clustered like events. The time window and status filters don't apply, because conflicts are active and dated by month (`observedAt` = end date; checked live 2026-11-19: 2,000+ returned only without `since`). Not streamed; refetched every 6 h. Never alerted. The category menu opts in. Non-exact precision is drawn as a hollow approximate ring labelled "Approximate location". Copy is fixed (see Global constraints). Never in hazard counts.
 - [ ] **Tests:** unit tests for the aircraft gate; e2e for layer toggles with stubs.
 
 ### W8 — Landing (`/`)

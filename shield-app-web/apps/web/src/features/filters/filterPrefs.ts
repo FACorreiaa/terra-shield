@@ -51,9 +51,23 @@ function toggleShowsDetections(): void {
   setShowsDetections(!savedFilters().showsDetections);
 }
 
-/** The sheet's Reset: default filters and the heat layer off (FilterSheet.swift). */
+/** Shows or hides armed conflicts (ADR 27): the map control and `c`. */
+function setShowsConflicts(showsConflicts: boolean): void {
+  if (savedFilters().showsConflicts !== showsConflicts) {
+    save({ ...savedFilters(), showsConflicts });
+  }
+}
+
+function toggleShowsConflicts(): void {
+  setShowsConflicts(!savedFilters().showsConflicts);
+}
+
+/**
+ * The sheet's Reset: default filters and the heat layer off (FilterSheet.swift). The conflicts layer
+ * stays as it is: the sheet doesn't offer it.
+ */
 function resetFilters(query: EventQuery): void {
-  save({ query, showsDetections: false });
+  save({ ...savedFilters(), query, showsDetections: false });
 }
 
 /** Calls `listener` when the filters change here or in another tab. */
@@ -83,8 +97,10 @@ export {
   resetFilters,
   savedFilters,
   setQuery,
+  setShowsConflicts,
   setShowsDetections,
   subscribeFilters,
+  toggleShowsConflicts,
   toggleShowsDetections,
   useSavedFilters,
 };

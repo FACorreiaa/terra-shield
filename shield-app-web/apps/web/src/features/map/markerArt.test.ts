@@ -47,6 +47,15 @@ describe(markerSvg, () => {
     expect(markerSvg({ ...base, state: "resolved" }, STALE)).toContain("M20 6 9 17l-5-5");
   });
 
+  it("rings a roughly placed marker with a dashed circle in its severity colour, in a wider frame", () => {
+    expect(markerSvg(base, STALE)).not.toContain("stroke-dasharray");
+    const svg = markerSvg({ ...base, approximate: true }, STALE);
+    expect(svg).toContain(
+      `stroke="${severityColors.moderate}" stroke-opacity="0.8" stroke-width="1.5" stroke-dasharray="3 3"`,
+    );
+    expect(markerFrame("moderate", true)).toBeGreaterThan(markerFrame("moderate"));
+  });
+
   it("draws at the requested pixel ratio over the same view box", () => {
     const frame = markerFrame("moderate");
     expect(markerSvg(base, STALE, 2)).toContain(
@@ -66,6 +75,9 @@ describe(markerImageName, () => {
   it("names one image per type, severity, kind and state", () => {
     expect(markerImageName("flood", { severity: "severe", kind: "warning", state: "stale" })).toBe(
       "marker/flood/severe/warning/stale",
+    );
+    expect(markerImageName("conflict", { severity: "minor", kind: "observed", state: "live", approximate: true })).toBe(
+      "marker/conflict/minor/observed/live/approximate",
     );
   });
 });

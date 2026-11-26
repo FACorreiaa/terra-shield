@@ -7,7 +7,7 @@ import type { CountrySummary, MatrixCell } from "@/domain/countries.ts";
 import { eventsIn } from "@/domain/countries.ts";
 import { capNote, cellWords } from "@/domain/countryOverview.ts";
 import { nearbyWords } from "@/domain/place.ts";
-import { EventRow } from "@/features/events/EventList.tsx";
+import { EventRow } from "@/features/events/EventRow.tsx";
 
 import { Section } from "./Section.tsx";
 

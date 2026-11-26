@@ -1,11 +1,11 @@
-import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import type { DetectionLayer } from "@/domain/detections.ts";
 import { detectionLayer, EMPTY_DETECTIONS, sameDetections } from "@/domain/detections.ts";
 import type { View } from "@/domain/viewport.ts";
 import { toggleShowsDetections } from "@/features/filters/filterPrefs.ts";
+import { sameSession, useLastGood, useSession } from "@/features/map/layerSession.ts";
 import { api } from "@/lib/api/client.ts";
 
 /** The heat layer as the map and its legend need it. */
@@ -51,31 +51,6 @@ async function requestFires(view: View, signal: AbortSignal): Promise<DetectionL
 const FIRES_GC_MS = 30_000;
 
 /**
- * Counts the times the layer was turned on. Each time starts afresh, as the apps' `.empty`: an
- * answer from before it was last turned off (another view, an old error) never shows again.
- */
-function useSession(shown: boolean): number {
-  const [state, setState] = useState({ shown, session: 0 });
-  if (state.shown !== shown) {
-    setState({ shown, session: shown ? state.session + 1 : state.session });
-  }
-  return state.session;
-}
-
-/** The latest answer of this session that arrived; kept through a failed load for a new view. */
-function useLastGood(fires: UseQueryResult<DetectionLayer>, shown: boolean): DetectionLayer | undefined {
-  const [last, setLast] = useState<DetectionLayer>();
-  const fresh = shown && fires.isSuccess && !fires.isPlaceholderData;
-  if (fresh && fires.data !== last) {
-    setLast(fires.data);
-  }
-  if (!shown && last !== undefined) {
-    setLast(undefined);
-  }
-  return last;
-}
-
-/**
  * `GET /v1/fires` for the map's view while the heat layer is on (LiveMapModel `detections`): grid
  * cells below zoom 6, single detections from 6. A failed load keeps the last layer on the map.
  */
@@ -86,7 +61,7 @@ function useDetections(view: View, shown: boolean): Detections {
     queryFn: ({ signal }) => requestFires(view, signal),
     enabled: shown,
     // Across a pan, the last view's layer, but never one from before the layer was last turned on.
-    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === session ? previous : undefined),
+    placeholderData: (previous, previousQuery) => (sameSession(previousQuery, session) ? previous : undefined),
     staleTime: FIRES_MS,
     refetchInterval: FIRES_MS,
     gcTime: FIRES_GC_MS,
@@ -94,7 +69,7 @@ function useDetections(view: View, shown: boolean): Detections {
     structuralSharing: (previous, next) =>
       isLayer(previous) && isLayer(next) && sameDetections(previous, next) ? previous : next,
   });
-  const last = useLastGood(fires, shown);
+  const last = useLastGood(fires, shown, session);
   const layer = shown ? (fires.data ?? last ?? EMPTY_DETECTIONS) : EMPTY_DETECTIONS;
   const failed = shown && fires.isError;
   const loading = shown && fires.isFetching;
