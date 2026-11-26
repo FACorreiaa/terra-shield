@@ -40,5 +40,5 @@ test("says so when the API is unreachable instead of showing anything", async ({
     route.fulfill({ status: 503, json: { error: true, code: "unavailable", reason: "database down" } }),
   );
   await page.goto("/map");
-  await expect(page.getByText("Can’t reach Shield’s API.")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Something went wrong loading events.").first()).toBeVisible({ timeout: 10_000 });
 });

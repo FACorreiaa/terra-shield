@@ -42,3 +42,13 @@ body {
     transition: none !important;
   }
 }
+
+/* The loading line under the capsule (DESIGN.md §10.1 *Loading*). */
+@keyframes progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}

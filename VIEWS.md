@@ -269,13 +269,13 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        live only outside text fields, the map canvas and dialogs: `1`–`5` sections, `↑`/`↓` list,
        `Esc` clear selection, `o` official source, `i` inspector, `0` whole world, `r` refresh, and
        `?` for a sheet that lists them all.
-     - **Search and filter keys wait.** `/` and `h` arrive with search and the heat layer (W4, W7).
+     - **Search and filter keys wait.** `/` arrives with search (W4, part 2) and `h` with the heat
+       layer (W7).
      - **Sidebar nav lists built sections only.** It shows only the sections that exist, so Monitor
        alone for now.
-     - **No locate button yet.** Locate needs the user-location layer and a permission prompt, and
-       lands with W4's map notices.
-     - **Deferred to W4:** `StatStrip` and `FilterChips` over the map, the compact strip at peek,
-       and the rule that focusing search opens the sheet at full height.
+     - **No locate button.** See W4.
+     - **Deferred to W4:** `StatStrip` and `FilterChips` over the map and the compact strip at peek
+       (built in W4, part 1); the rule that focusing search opens the sheet at full height (W4, part 2).
      - **Deferred to W5:** Sources pinned at the foot of the sidebar with the health dot, and the
        sheet header's Sources button.
      - **Deferred to W9:** the sheet header's Saved, Alerts and Settings buttons, and the sidebar's
@@ -285,6 +285,41 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        visible toggle.
      - **Tap target:** a tap anywhere on the sheet's header, not only on the grabber, steps the
        detent, so the target is far larger than 44 px.
+   - **W4 Monitor, part 1.** `StatStrip` (full, and compact at the phone's peek), the status capsule's
+     states, `FilterChips` and the filter sheet, the list's states, and the error banner, after the
+     apps' `StatStrip`, `FilterChips`, `FilterSheet`, `EventList` and `MapScreen`.
+     - **Copy is the apps':** "Loading events…", "Offline · showing data from 14:02 UTC", "Updated
+       2 min ago", and "Last update 14 min ago" after three missed 60 s refreshes. Load failures read
+       "Shield’s server isn’t responding." or "Something went wrong loading events.", never the
+       server's own text. The empty view reads "No active events in this view from covered sources."
+       (or "…match your filters." with Reset filters), then "Absence of data is not safety. Official
+       warnings come from national services.", with Zoom out. The footnote counts clustered events.
+     - **Nothing is cleared.** A failed load for a new view or new filters keeps the last events on
+       the map and in the list, with the banner. Offline, requests wait and the capsule says from
+       when the data is.
+     - **Filters persist** under `shield.filters` as the apps' own versioned blob, shared between
+       tabs. A stat cell toggles its filter, marked by an accent underline.
+   - **Deviations for the owner:**
+     - **Flat type grid.** The type grid is flat, like the apps and DESIGN §10.6, not grouped by
+       category as the web plan said. Conflicts are a layer of their own (W7), never in the grid.
+     - **No heat toggle yet.** The Satellite heat detection switch arrives with the heat layer (W7).
+       The stored choice is kept untouched until then.
+     - **Desktop layout.** On a wide screen the chips sit under the strip at the map's top left,
+       not top centre, so they never meet the controls or the inspector at 1024 px.
+     - **Phone header.** At half and full height the compact strip hides but keeps its line, so the
+       peek height never shifts; the full strip heads the sheet's body.
+     - **Chip height.** Chips are 44 px tall (the apps use 32 pt) to meet the hit-target rule.
+     - **Offline capsule on a phone.** Offline, the capsule keeps the mark but drops the wordmark,
+       so "Offline · showing data from 14:02 UTC" and Retry fit beside it.
+     - **Owner verdict:** at half and full height the hidden compact strip leaves a blank band under
+       "Live events" in the sheet's header, the cost of a peek that never shifts.
+     - **Locate, owner call.** The apps have no locate button, and one would ask for the person's
+       location. It is not built; it needs a yes first.
+     - **Deferred to W4, part 2:** search (events in view, and countries that fit the map to the
+       country until W5's overview takes them), with `/`.
+     - **Deferred to W5:** `SourceBadge`, fading the events of a stale source, and Sources in the
+       sidebar, all of which need `/v1/sources`. `SampleDataBadge` has no use on the web yet: it shows
+       no sample data.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

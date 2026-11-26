@@ -1,4 +1,3 @@
-import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement, ReactNode } from "react";
 import { useCallback, useRef, useState } from "react";
 
@@ -21,10 +20,9 @@ const NO_STALE_SOURCES: ReadonlySet<string> = new Set();
  */
 function AppFrame({ children }: { children: ReactNode }): ReactElement {
   const wide = useIsWide();
-  const { list, clusters, selectedId, selected, setView, select } = useLiveMap();
+  const { list, clusters, selectedId, selected, setView, select, setMap } = useLiveMap();
   const frame = useRef<HTMLDivElement>(null);
   const applyInsets = useInsets(frame);
-  const [map, setMap] = useState<MapLibreMap>();
   const [inspectorWanted, setInspectorWanted] = useState(true);
   const toggleInspector = useCallback(() => {
     setInspectorWanted((was) => !was);
@@ -60,7 +58,7 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
           <DisclaimerBanner variant="footer" />
         </footer>
       ) : undefined}
-      <Shortcuts map={map} toggleInspector={toggleInspector} />
+      <Shortcuts toggleInspector={toggleInspector} />
     </div>
   );
 }

@@ -1,4 +1,6 @@
 /** The sheet's three detents (DESIGN.md §10 shells). */
+import { createContext } from "react";
+
 type Detent = "peek" | "medium" | "large";
 
 const DETENTS: readonly Detent[] = ["peek", "medium", "large"];
@@ -35,5 +37,8 @@ function nextOnPress(detent: Detent): Detent {
   return ON_PRESS[detent];
 }
 
+/** The phone sheet's resting detent, for the header, which the sheet draws without props. */
+const RestingDetent = createContext<Detent>("peek");
+
 export type { Detent, Heights };
-export { detentAt, detentHeights, DETENTS, nextOnPress };
+export { detentAt, detentHeights, DETENTS, nextOnPress, RestingDetent };

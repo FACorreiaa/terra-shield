@@ -47,6 +47,27 @@ function writeStored(key: string, version: number, value: unknown): void {
   }
 }
 
+/**
+ * The string under `key` as stored, for values that carry their own version (the filter blob the
+ * apps share); undefined when absent or unreadable.
+ */
+function readRawStored(key: string): string | undefined {
+  try {
+    return storage()?.getItem(key) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Saves `value` under `key` as is; does nothing when storage refuses. */
+function writeRawStored(key: string, value: string): void {
+  try {
+    storage()?.setItem(key, value);
+  } catch {
+    // Full or blocked: the value lives for this page only.
+  }
+}
+
 /** Calls `onChange` when another tab writes or clears `key` (the `storage` event never fires in the writer). */
 function subscribeStored(key: string, onChange: () => void): Unsubscribe {
   const listener = (event: StorageEvent): void => {
@@ -68,4 +89,4 @@ function subscribeStored(key: string, onChange: () => void): Unsubscribe {
 }
 
 export type { Unsubscribe };
-export { readStored, subscribeStored, writeStored };
+export { readRawStored, readStored, subscribeStored, writeRawStored, writeStored };
