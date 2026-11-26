@@ -50,8 +50,22 @@ class MarkerView: MKAnnotationView {
     }
 
     #if os(iOS)
+    /// A marker MapKit hides (a member of a cluster it draws, or one beaten in a collision) keeps
+    /// its view in the map's container, which still hands it to accessibility: without this,
+    /// VoiceOver finds a "Moderate wind…" button where the map shows only the cluster.
+    override var isAccessibilityElement: Bool {
+        get { !isHidden && super.isAccessibilityElement }
+        set { super.isAccessibilityElement = newValue }
+    }
+
+    override var accessibilityElementsHidden: Bool {
+        get { isHidden || super.accessibilityElementsHidden }
+        set { super.accessibilityElementsHidden = newValue }
+    }
+
     override var accessibilityFrame: CGRect {
         get {
+            if isHidden { return .zero }
             let grow = CGSize(width: max(0, 44 - bounds.width) / 2, height: max(0, 44 - bounds.height) / 2)
             return UIAccessibility.convertToScreenCoordinates(bounds.insetBy(dx: -grow.width, dy: -grow.height), in: self)
         }
