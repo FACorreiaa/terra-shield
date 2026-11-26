@@ -37,7 +37,8 @@ function useOnline(): boolean {
 function useLastGood(events: UseQueryResult<EventList>): { list: EventList | undefined; at: number | undefined } {
   const [last, setLast] = useState<{ list: EventList; at: number }>();
   const fresh = events.isSuccess && !events.isPlaceholderData;
-  if (fresh && events.dataUpdatedAt !== last?.at) {
+  // By identity, not time: a live patch keeps the load's time but is a newer list.
+  if (fresh && (events.data !== last?.list || events.dataUpdatedAt !== last.at)) {
     setLast({ list: events.data, at: events.dataUpdatedAt });
   }
   return { list: events.data ?? last?.list, at: last?.at };
@@ -48,15 +49,22 @@ function useLastGood(events: UseQueryResult<EventList>): { list: EventList | und
  * cleared): a request for a new view or new filters that fails has no data of its own, so the last
  * response that arrived stays on screen. Says how loading is going, for the capsule and the banner.
  */
-function useShownEvents(events: UseQueryResult<EventList>, now: Date): Shown {
+function useShownEvents(events: UseQueryResult<EventList>, now: Date, liveAt: Date | undefined): Shown {
   const online = useOnline();
   const { list, at } = useLastGood(events);
   const failed = online && events.isError;
   const loading = events.isFetching;
   const status = useMemo(
     () =>
-      liveStatus({ lastSuccess: at === undefined ? undefined : new Date(at), loading, offline: !online, failed, now }),
-    [at, loading, online, failed, now],
+      liveStatus({
+        lastSuccess: at === undefined ? undefined : new Date(at),
+        loading,
+        offline: !online,
+        failed,
+        liveAt,
+        now,
+      }),
+    [at, loading, online, failed, liveAt, now],
   );
   return { shown: list, status, failure: failed ? failureWords(events.error) : undefined };
 }

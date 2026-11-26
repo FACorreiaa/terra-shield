@@ -29,7 +29,9 @@ const FAILED = "Something went wrong loading events.";
 
 async function request(query: ListEventsQuery, signal: AbortSignal): Promise<EventList> {
   try {
-    const { data, error } = await api.GET("/v1/events", { params: { query }, signal });
+    // `no-cache`: the server's `max-age` would answer a reload the stream asked for with the list
+    // it's meant to replace (a URL without `since` repeats); the query cache already spares requests.
+    const { data, error } = await api.GET("/v1/events", { params: { query }, signal, cache: "no-cache" });
     // The endpoint also serves GeoJSON (Accept: application/geo+json); JSON is what we ask for.
     if (error !== undefined || !("events" in data)) {
       throw new LoadFailureError(FAILED);
@@ -53,10 +55,15 @@ function filterKey(query: EventQuery): readonly unknown[] {
   return [rest, query.windowSeconds];
 }
 
+/** The cache key of the events for a view and filters; the live stream patches the entry in place. */
+function eventsKey(view: EventsView, query: EventQuery): readonly unknown[] {
+  return ["events", view.zoom, view.bbox, ...filterKey(query)];
+}
+
 /** `GET /v1/events` for the current view and filters. The server clusters below zoom 6 (ADR 9). */
 function useEvents(view: EventsView, query: EventQuery): UseQueryResult<EventList> {
   return useQuery({
-    queryKey: ["events", view.zoom, view.bbox, ...filterKey(query)],
+    queryKey: eventsKey(view, query),
     queryFn: ({ signal }) =>
       request(
         { ...toApiQuery(query), zoom: view.zoom, ...(view.bbox === undefined ? {} : { bbox: view.bbox }) },
@@ -69,4 +76,4 @@ function useEvents(view: EventsView, query: EventQuery): UseQueryResult<EventLis
 }
 
 export type { EventsView };
-export { LoadFailureError, useEvents };
+export { eventsKey, LoadFailureError, useEvents };

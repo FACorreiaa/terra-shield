@@ -12,7 +12,8 @@ const NOT_FOUND = 404;
 const BAD_REQUEST = 400;
 
 async function request(id: string, signal: AbortSignal): Promise<DetailAnswer> {
-  const { data, response } = await api.GET("/v1/events/{id}", { params: { path: { id } }, signal });
+  // `no-cache`: a refetch after a live change must reach the server, not the HTTP cache's copy.
+  const { data, response } = await api.GET("/v1/events/{id}", { params: { path: { id } }, signal, cache: "no-cache" });
   if (response.status === NOT_FOUND || response.status === BAD_REQUEST) {
     return { found: false };
   }

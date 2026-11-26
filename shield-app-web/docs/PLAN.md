@@ -235,14 +235,14 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
 
 ### W6 — Live
 
-- [ ] **`streamLeader.ts`.** `navigator.locks.request("shield-stream")` elects one tab. That tab opens `EventSource("/v1/stream?lastEventId=<persisted>")`:
+- [x] **`lib/live/feedNode.ts`** (was `streamLeader.ts`). `navigator.locks.request("shield-stream")` elects one tab. That tab reads `/v1/stream` with `fetch` (not `EventSource`: it hides the id-only heartbeat and `Retry-After`; see VIEWS W6 deviations), sending `Last-Event-ID`:
   - Unfiltered (hazards only), like the Apple `LiveStream`. Conflicts are never streamed: they are monthly data (W7).
   - Native auto-reconnect is safe. The server prefers the `Last-Event-ID` header over the query (`stream.go:102`), so a stale `?lastEventId=` on reconnect is ignored.
   - Relays messages over `BroadcastChannel("shield-live")`.
   - Persists the cursor (`shield.live` v1).
   - Followers take over when the leader exits. A follower that hears no relayed message or heartbeat for 45 s pings the leader. With no answer, it requests `{steal: true}` (frozen or background-throttled leader).
   - Fallback when Locks/BroadcastChannel are missing: a per-tab stream.
-- [ ] **`liveStore.ts`.**
+- [x] **`domain/livePatch.ts` + `app/shell/useLiveChanges.ts`** (was `liveStore.ts`).
   - created/updated → upsert into the TanStack Query `events` caches when the event matches filters and view.
   - removed → drop.
   - `reset` → invalidate.

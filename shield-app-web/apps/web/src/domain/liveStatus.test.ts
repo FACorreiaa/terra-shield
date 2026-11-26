@@ -12,7 +12,15 @@ function minutesAgo(minutes: number): Date {
 }
 
 function state(extra: Partial<LoadState>): LoadState {
-  return { lastSuccess: undefined, loading: false, offline: false, failed: false, now: NOW, ...extra };
+  return {
+    lastSuccess: undefined,
+    loading: false,
+    offline: false,
+    failed: false,
+    liveAt: undefined,
+    now: NOW,
+    ...extra,
+  };
 }
 
 /** The status with the last success `minutes` ago. */
@@ -27,6 +35,7 @@ describe(liveStatus, () => {
       dot: "ok",
       warns: false,
       retry: false,
+      live: false,
     });
   });
 
@@ -46,6 +55,7 @@ describe(liveStatus, () => {
       dot: "muted",
       warns: true,
       retry: true,
+      live: false,
     });
     expect(liveStatus(state({ offline: true })).text).toBe("Offline");
   });
@@ -55,5 +65,17 @@ describe(liveStatus, () => {
       text: "Updated 1 min ago",
       dot: "danger",
     });
+  });
+
+  it("while live, fills the dot, dates the data by the stream's latest word and never calls it stale", () => {
+    expect(after(14, { liveAt: minutesAgo(0) })).toStrictEqual({
+      text: "Updated now",
+      dot: "ok",
+      warns: false,
+      retry: false,
+      live: true,
+    });
+    // A load newer than the stream's last word dates it instead.
+    expect(after(1, { liveAt: minutesAgo(2) }).text).toBe("Updated 1 min ago");
   });
 });
