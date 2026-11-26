@@ -1,5 +1,7 @@
 import type { RefObject } from "react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import { setChromeMoving } from "@/features/map/mapInsets.ts";
 
 import type { Detent, Heights } from "./sheetDetents.ts";
 import { detentAt } from "./sheetDetents.ts";
@@ -58,6 +60,8 @@ function useSheetPlacement(options: PlacementOptions): Placement {
     (height: number) => {
       setRested(height);
       onRest(height, heights);
+      // The insets are written: a camera move waiting for the sheet can run now.
+      setChromeMoving(false);
     },
     [onRest, heights],
   );
@@ -66,6 +70,7 @@ function useSheetPlacement(options: PlacementOptions): Placement {
     (height: number, velocity: number) => {
       const target = detentAt(height, heights);
       heading.current = target === detent ? undefined : target;
+      setChromeMoving(true);
       motion.springTo(height, velocity, () => {
         rest(height);
       });
@@ -82,6 +87,7 @@ function useSheetPlacement(options: PlacementOptions): Placement {
     if (heading.current === detent) {
       heading.current = undefined;
     } else if (placed.current) {
+      setChromeMoving(true);
       motion.springTo(height, 0, () => {
         rest(height);
       });
@@ -91,6 +97,14 @@ function useSheetPlacement(options: PlacementOptions): Placement {
       rest(height);
     }
   }, [measured, heights, detent, motion, rest]);
+
+  // A sheet gone mid-spring (the shell changed) must not hold camera moves back for good.
+  useEffect(
+    () => () => {
+      setChromeMoving(false);
+    },
+    [],
+  );
 
   return { rested, settle };
 }

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 4173;
+/** `E2E_PORT` moves it when another dev server already holds 4173 (it would be reused and tested instead). */
+const port = Number(process.env["E2E_PORT"] ?? "4173");
 const isCI = process.env["CI"] !== undefined;
 
 /** Smoke tests against the production build (`vp preview`), API mocked per test. */

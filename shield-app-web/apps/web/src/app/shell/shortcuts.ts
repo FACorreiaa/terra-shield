@@ -1,11 +1,11 @@
 /**
  * The web's keyboard shortcuts (DESIGN.md §10 shells). The Mac's ⌘1–5, ⌘L, ⌘R and ⌘F belong to the
  * browser, so the web uses single keys instead, active only outside text fields (VIEWS.md, web
- * deviations).
+ * deviations); `/` stands in for ⌘F.
  */
 type Shortcut =
   | { action: "section"; key: string }
-  | { action: "inspector" | "source" | "refresh" | "world" | "next" | "previous" | "clear" | "help" };
+  | { action: "inspector" | "source" | "refresh" | "world" | "next" | "previous" | "clear" | "help" | "search" };
 
 interface KeyPress {
   key: string;
@@ -19,8 +19,9 @@ interface KeyPress {
 /** Shown in the help sheet, in this order. */
 const SHORTCUT_HELP: readonly { keys: string; does: string }[] = [
   { keys: "1", does: "Monitor" },
+  { keys: "/", does: "Search countries and events in view" },
   { keys: "↑ ↓", does: "Previous or next event in the list" },
-  { keys: "Esc", does: "Clear the selection" },
+  { keys: "Esc", does: "End the search, then clear the selection" },
   { keys: "o", does: "Open the selected event's official source" },
   { keys: "i", does: "Show or hide the inspector" },
   { keys: "0", does: "Show the whole world" },
@@ -37,6 +38,7 @@ const SINGLE = new Map<string, Shortcut>([
   ["ArrowUp", { action: "previous" }],
   ["Escape", { action: "clear" }],
   ["?", { action: "help" }],
+  ["/", { action: "search" }],
 ]);
 const SECTION_KEYS = new Set(["1", "2", "3", "4", "5"]);
 /**

@@ -10,6 +10,7 @@ import { INSPECTOR_WIDTH, MAP_GAP, SIDEBAR_WIDTH_CLASS } from "./insets.ts";
 import { useLiveMap } from "./liveMapContext.ts";
 import { MonitorHud } from "./MonitorHud.tsx";
 import { SECTIONS } from "./sections.ts";
+import { SidebarBody } from "./SidebarBody.tsx";
 
 interface DesktopChromeProps {
   /** The open section's body (the route), shown under the navigation. */
@@ -77,7 +78,7 @@ function DesktopChrome({ children, inspectorOpen, onInsets }: DesktopChromeProps
           <Brand />
         </div>
         <SectionNav />
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto border-t border-hairline">{children}</div>
+        <SidebarBody>{children}</SidebarBody>
       </aside>
       <MonitorHud />
       {inspectorOpen ? <Inspector /> : undefined}

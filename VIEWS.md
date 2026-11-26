@@ -269,8 +269,8 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        live only outside text fields, the map canvas and dialogs: `1`–`5` sections, `↑`/`↓` list,
        `Esc` clear selection, `o` official source, `i` inspector, `0` whole world, `r` refresh, and
        `?` for a sheet that lists them all.
-     - **Search and filter keys wait.** `/` arrives with search (W4, part 2) and `h` with the heat
-       layer (W7).
+     - **Search and heat keys.** `/` focuses search (W4, part 2), standing in for ⌘F; `h` waits for
+       the heat layer (W7).
      - **Sidebar nav lists built sections only.** It shows only the sections that exist, so Monitor
        alone for now.
      - **No locate button.** See W4.
@@ -283,8 +283,8 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - **Owner call:** `i` hides the inspector until `i` is pressed again, across new selections, and
        nothing on screen brings it back. Options: show it again on the next selection, or add a
        visible toggle.
-     - **Tap target:** a tap anywhere on the sheet's header, not only on the grabber, steps the
-       detent, so the target is far larger than 44 px.
+     - **Tap target:** a tap anywhere on the sheet's header outside the search field, not only on
+       the grabber, steps the detent, so the target is far larger than 44 px.
    - **W4 Monitor, part 1.** `StatStrip` (full, and compact at the phone's peek), the status capsule's
      states, `FilterChips` and the filter sheet, the list's states, and the error banner, after the
      apps' `StatStrip`, `FilterChips`, `FilterSheet`, `EventList` and `MapScreen`.
@@ -312,14 +312,37 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - **Offline capsule on a phone.** Offline, the capsule keeps the mark but drops the wordmark,
        so "Offline · showing data from 14:02 UTC" and Retry fit beside it.
      - **Owner verdict:** at half and full height the hidden compact strip leaves a blank band under
-       "Live events" in the sheet's header, the cost of a peek that never shifts.
+       the search field in the sheet's header, the cost of a peek that never shifts.
      - **Locate, owner call.** The apps have no locate button, and one would ask for the person's
        location. It is not built; it needs a yes first.
-     - **Deferred to W4, part 2:** search (events in view, and countries that fit the map to the
-       country until W5's overview takes them), with `/`.
      - **Deferred to W5:** `SourceBadge`, fading the events of a stale source, and Sources in the
        sidebar, all of which need `/v1/sources`. `SampleDataBadge` has no use on the web yet: it shows
        no sample data.
+   - **W4 Monitor, part 2: search.** One field, after the apps' `MapSearchField` and
+     `MapSearchResults`: under the nav in the sidebar on a wide screen, in the sheet's header on a
+     phone. It finds countries from `/v1/countries` (by name or ISO code, ignoring case and accents)
+     and events in view by title, in the list's order; events grouped on the map aren't searched,
+     and a hint says so. Choosing an event selects it. Choosing a country ends the search, clears
+     the selection and, once the sheet or inspector has settled, fits the map to the country and its
+     events in view (never narrower than half a degree, as in the apps). On a wide screen results
+     wait for text, as on the Mac, so the list stays and Tab walks on into it; keyboard focus goes
+     back to the field when the search ends, or to the chosen event's row. On a phone, focusing the
+     field opens the sheet at full height, and Cancel or ending the search puts it back if it is
+     still there (at half height when an event was chosen from collapsed); results take the sheet
+     over a selection. `/` focuses the field, Escape ends the search before it clears the
+     selection, and ↑/↓ do nothing while results show. The result count is spoken as it changes.
+   - **Deviations for the owner:**
+     - **No places.** The apps search places with MapKit's completer. The web has no geocoder, so it
+       searches countries and events only, and the placeholder reads "Search countries or events".
+       A geocoder (Photon, or a paid one) is an open item in the web plan.
+     - **Countries only move the map** until W5's country overview takes them. A country across
+       ±180° (United States, Russia, Fiji) is framed by its events in view, so with none in view the
+       map shows the whole band of the world; W5's overview brings the country's own events.
+     - **Phone peek.** The field takes the place of the visible "Live events" title, which stays as
+       a heading for screen readers. Peek is the field over the compact strip.
+     - **A failed country list** shows no countries and no error; events stay searchable.
+     - **Device check.** The field uses a 16 px font so iOS Safari doesn't zoom on focus. The soft
+       keyboard over the sheet at full height still needs a check on a real phone.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

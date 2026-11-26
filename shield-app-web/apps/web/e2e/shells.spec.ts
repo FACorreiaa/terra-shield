@@ -2,6 +2,7 @@ import { AxeBuilder } from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures.ts";
+import { openHalf } from "./sheet.ts";
 
 const MINUTE_MS = 60_000;
 
@@ -111,11 +112,13 @@ test.describe("phone shell", () => {
 
   test("opens a step on a tap anywhere on the sheet's header", async ({ page }) => {
     await open(page);
-    const handle = page.getByRole("button", { name: /^Resize sheet/u });
-    await handle.tap();
-    await expect(handle).toHaveAccessibleName("Resize sheet, now half height");
-    await page.getByText("Live events", { exact: true }).tap();
-    await expect(handle).toHaveAccessibleName("Resize sheet, now full height");
+    await openHalf(page);
+    // The strip's line, hidden from half height up: a tap there lands on the header itself, not a
+    // control in it.
+    await page.getByTestId("sheet-strip-line").tap({ force: true });
+    await expect(page.getByRole("button", { name: /^Resize sheet/u })).toHaveAccessibleName(
+      "Resize sheet, now full height",
+    );
   });
 
   test("throws the sheet to full height with a drag", async ({ page }) => {
@@ -134,7 +137,7 @@ test.describe("phone shell", () => {
 
   test("opens a selection at half height with the disclaimer and the credits in view", async ({ page }) => {
     await open(page);
-    await page.getByRole("button", { name: /^Resize sheet/u }).tap();
+    await openHalf(page);
     await page.getByRole("button", { name: /Coquimbo/u }).tap();
     await expect(page.getByRole("button", { name: "Close", exact: true })).toBeInViewport();
 
