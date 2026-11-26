@@ -108,6 +108,7 @@ type HistoricSite struct {
 	CountryHint   *string
 	UpdatedAt     time.Time
 	WorldHeritage bool
+	Sitelinks     int32
 }
 
 type MeteoalarmArea struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -173,10 +174,11 @@ var HistoricClasses = func() []HistoricClass {
 // WorldHeritageQuery asks for every UNESCO World Heritage item with
 // coordinates, with its selection criteria, or its parent's for a part of a
 // serial site (1,731 of the 1,986 items without criteria of their own).
-const WorldHeritageQuery = `SELECT ?b ?c ?label ?desc ?iso ?cr WHERE {
-  ?b wdt:P1435 wd:Q9259 ; wdt:P625 ?c ; rdfs:label ?label . FILTER(LANG(?label) = "en")
+const WorldHeritageQuery = `SELECT ?b ?c ?label ?desc ?iso ?n ?cr WHERE {
+  ?b wdt:P1435 wd:Q9259 ; wdt:P625 ?c ; rdfs:label ?label . FILTER(LANG(?label) = "en" || LANG(?label) = "mul")
   OPTIONAL { ?b schema:description ?desc FILTER(LANG(?desc) = "en") }
   OPTIONAL { ?b wdt:P17/wdt:P297 ?iso }
+  OPTIONAL { ?b wikibase:sitelinks ?n }
   OPTIONAL { { ?b wdt:P2614 ?cr } UNION { ?b wdt:P361 ?p . ?p wdt:P2614 ?cr } }
 }`
 
@@ -188,12 +190,16 @@ var naturalCriteria = map[string]bool{"Q23038981": true, "Q23038983": true, "Q23
 
 // HistoricQuery is the SPARQL for one class: every named item with
 // coordinates, closed or not. Castles, the largest class (20,622 items),
-// take 10-25 s this way.
+// take 10-25 s this way. The name is English, else Wikidata's default
+// ("mul", one name for every language: 2% of castles have only that).
+// Sitelinks (how many Wikipedias and other wikis cover the item) rank the
+// sites when a view holds more than it can show.
 func HistoricQuery(classQID string) string {
-	return fmt.Sprintf(`SELECT ?b ?c ?label ?desc ?iso WHERE {
-  ?b wdt:P31 wd:%s ; wdt:P625 ?c ; rdfs:label ?label . FILTER(LANG(?label) = "en")
+	return fmt.Sprintf(`SELECT ?b ?c ?label ?desc ?iso ?n WHERE {
+  ?b wdt:P31 wd:%s ; wdt:P625 ?c ; rdfs:label ?label . FILTER(LANG(?label) = "en" || LANG(?label) = "mul")
   OPTIONAL { ?b schema:description ?desc FILTER(LANG(?desc) = "en") }
   OPTIONAL { ?b wdt:P17/wdt:P297 ?iso }
+  OPTIONAL { ?b wikibase:sitelinks ?n }
 }`, classQID)
 }
 
@@ -362,7 +368,8 @@ func ParseHistoric(body []byte, c HistoricClass) ([]domain.HistoricSite, map[str
 	if r.Results == nil {
 		return nil, nil, errShape
 	}
-	seen := map[string]bool{}
+	at := map[string]int{} // QID to its site in out
+	english := map[string]bool{}
 	hints := map[string]string{}
 	var out []domain.HistoricSite
 	for _, b := range r.Results.Bindings {
@@ -373,21 +380,35 @@ func ParseHistoric(body []byte, c HistoricClass) ([]domain.HistoricSite, map[str
 		if iso := b["iso"].Value; len(iso) == 2 && hints[qid] == "" {
 			hints[qid] = strings.ToUpper(iso)
 		}
-		if seen[qid] {
-			continue // another coordinate or country: first wins
-		}
 		name := strings.TrimSpace(b["label"].Value)
+		if i, ok := at[qid]; ok {
+			// Another coordinate or country: the first wins, but an
+			// English name beats the default one.
+			if b["label"].Lang == "en" && !english[qid] && name != "" {
+				out[i].Name, english[qid] = name, true
+			}
+			continue
+		}
 		lon, lat, ok := point(b["c"].Value)
 		if name == "" || name == qid || !ok {
 			continue
 		}
-		seen[qid] = true
+		at[qid], english[qid] = len(out), b["label"].Lang == "en"
 		out = append(out, domain.HistoricSite{
 			QID: qid, Name: name, Description: strings.TrimSpace(b["desc"].Value),
-			Kind: c.Kind, Class: c.Label, Lon: lon, Lat: lat,
+			Kind: c.Kind, Class: c.Label, Lon: lon, Lat: lat, Sitelinks: sitelinks(b["n"].Value),
 		})
 	}
 	return out, hints, nil
+}
+
+// sitelinks reads the count; 0 when absent or not a number.
+func sitelinks(s string) int {
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
 }
 
 // ParseWorldHeritage reads the WorldHeritageQuery answer: every World
@@ -404,7 +425,7 @@ func ParseWorldHeritage(body []byte) ([]domain.HistoricSite, map[string]string, 
 	}
 	type item struct {
 		site              domain.HistoricSite
-		ok                bool
+		ok, english       bool
 		cultural, natural bool
 	}
 	items := map[string]*item{}
@@ -420,14 +441,19 @@ func ParseWorldHeritage(body []byte) ([]domain.HistoricSite, map[string]string, 
 			it = &item{}
 			items[qid] = it
 			order = append(order, qid)
-			name := strings.TrimSpace(b["label"].Value)
+		}
+		name := strings.TrimSpace(b["label"].Value)
+		if !it.ok {
 			if lon, lat, ok := point(b["c"].Value); ok && name != "" && name != qid {
-				it.ok = true
+				it.ok, it.english = true, b["label"].Lang == "en"
 				it.site = domain.HistoricSite{
 					QID: qid, Name: name, Description: strings.TrimSpace(b["desc"].Value),
-					Kind: domain.HistoricGeneral, Class: "World Heritage Site", Lon: lon, Lat: lat, WorldHeritage: true,
+					Kind: domain.HistoricGeneral, Class: "World Heritage Site", Lon: lon, Lat: lat,
+					WorldHeritage: true, Sitelinks: sitelinks(b["n"].Value),
 				}
 			}
+		} else if b["label"].Lang == "en" && !it.english && name != "" {
+			it.site.Name, it.english = name, true // English beats the default name
 		}
 		if iso := b["iso"].Value; len(iso) == 2 && hints[qid] == "" {
 			hints[qid] = strings.ToUpper(iso)

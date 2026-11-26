@@ -226,7 +226,7 @@ func TestQueriesDeclarePrefixes(t *testing.T) {
 	if _, err := p.run(context.Background(), "k", "label", HistoricQuery("Q1"), func([]byte) (int, error) { return 0, nil }); err != nil {
 		t.Fatal(err)
 	}
-	for _, pfx := range []string{"wd", "wdt", "rdfs", "schema", "p", "ps", "pq"} {
+	for _, pfx := range []string{"wd", "wdt", "rdfs", "schema", "p", "ps", "pq", "wikibase"} {
 		if !strings.Contains(got, "PREFIX "+pfx+": <") {
 			t.Errorf("query does not declare %s:", pfx)
 		}

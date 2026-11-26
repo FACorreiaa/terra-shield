@@ -124,7 +124,7 @@ func (f *Feature) list(c *echo.Context) error {
 			s := &pts[i]
 			fc.Features = append(fc.Features, feature{Type: "Feature", Geometry: at(s.Lon, s.Lat), Properties: Site{
 				ID: s.QID, Name: s.Name, Description: s.Description, Kind: string(s.Kind), Class: s.Class,
-				Country: s.ISO2, WorldHeritage: s.WorldHeritage, URL: "https://www.wikidata.org/wiki/" + s.QID,
+				Country: s.ISO2, WorldHeritage: s.WorldHeritage, Sitelinks: s.Sitelinks, URL: "https://www.wikidata.org/wiki/" + s.QID,
 			}})
 			if fc.UpdatedAt == nil || s.UpdatedAt.After(*fc.UpdatedAt) {
 				u := s.UpdatedAt.UTC()
@@ -176,8 +176,11 @@ type Site struct {
 	Class       string `json:"class"`
 	Country     string `json:"country,omitempty"`
 	// WorldHeritage: a UNESCO World Heritage Site, or a listed part of one.
-	WorldHeritage bool   `json:"worldHeritage"`
-	URL           string `json:"url"`
+	WorldHeritage bool `json:"worldHeritage"`
+	// Sitelinks: Wikipedias and other wikis with a page on it; the points
+	// come most notable first.
+	Sitelinks int    `json:"sitelinks"`
+	URL       string `json:"url"`
 }
 
 // Cell is the sites in one grid cell, in total and per kind.

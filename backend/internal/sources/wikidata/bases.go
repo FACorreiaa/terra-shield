@@ -188,6 +188,7 @@ type response struct {
 	Results *struct {
 		Bindings []map[string]struct {
 			Value string `json:"value"`
+			Lang  string `json:"xml:lang"`
 		} `json:"bindings"`
 	} `json:"results"`
 }

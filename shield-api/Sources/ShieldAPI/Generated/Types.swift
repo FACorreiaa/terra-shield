@@ -87,7 +87,7 @@ public protocol APIProtocol: Sendable {
     func listBases(_ input: Operations.ListBases.Input) async throws -> Operations.ListBases.Output
     /// Historic sites listed on Wikidata (forts, castles, bunkers, war cemeteries), a static layer separate from events.
     ///
-    /// Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, `memorial` (military museums and war cemeteries), and `general` (palaces, cathedrals, basilicas, monasteries, temples, shrines, mausoleums, manor houses, town halls, lighthouses, gates, towers, windmills, Roman monuments, and every cultural UNESCO World Heritage Site not in another kind). Every site says whether it is a World Heritage Site (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned (`truncated` says when more matched). Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
+    /// Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, `memorial` (military museums and war cemeteries), and `general` (palaces, cathedrals, basilicas, monasteries, temples, shrines, mausoleums, manor houses, town halls, lighthouses, gates, towers, windmills, Roman monuments, and every cultural UNESCO World Heritage Site not in another kind). Every site says whether it is a World Heritage Site (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned, most notable first (`sitelinks`); `truncated` says when more matched. That happens in the densest views: around Tokyo, temples and shrines put 20,000 sites in one zoom-8 view and 13,000 at zoom 9; turning off `general` there leaves a few hundred. Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
     ///
     ///
     /// - Remark: HTTP `GET /v1/historic`.
@@ -241,7 +241,7 @@ extension APIProtocol {
     }
     /// Historic sites listed on Wikidata (forts, castles, bunkers, war cemeteries), a static layer separate from events.
     ///
-    /// Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, `memorial` (military museums and war cemeteries), and `general` (palaces, cathedrals, basilicas, monasteries, temples, shrines, mausoleums, manor houses, town halls, lighthouses, gates, towers, windmills, Roman monuments, and every cultural UNESCO World Heritage Site not in another kind). Every site says whether it is a World Heritage Site (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned (`truncated` says when more matched). Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
+    /// Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, `memorial` (military museums and war cemeteries), and `general` (palaces, cathedrals, basilicas, monasteries, temples, shrines, mausoleums, manor houses, town halls, lighthouses, gates, towers, windmills, Roman monuments, and every cultural UNESCO World Heritage Site not in another kind). Every site says whether it is a World Heritage Site (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned, most notable first (`sitelinks`); `truncated` says when more matched. That happens in the densest views: around Tokyo, temples and shrines put 20,000 sites in one zoom-8 view and 13,000 at zoom 9; turning off `general` there leaves a few hundred. Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
     ///
     ///
     /// - Remark: HTTP `GET /v1/historic`.
@@ -1786,6 +1786,10 @@ public enum Components {
             ///
             /// - Remark: Generated from `#/components/schemas/HistoricSite/worldHeritage`.
             public var worldHeritage: Swift.Bool?
+            /// How many Wikipedias and other Wikimedia wikis have a page on it: a notability measure, for label priority or symbol size.
+            ///
+            /// - Remark: Generated from `#/components/schemas/HistoricSite/sitelinks`.
+            public var sitelinks: Swift.Int?
             /// The Wikidata item.
             ///
             /// - Remark: Generated from `#/components/schemas/HistoricSite/url`.
@@ -1800,6 +1804,7 @@ public enum Components {
             ///   - _class: Wikidata class in English.
             ///   - country: ISO 3166-1 alpha-2 where it sits; absent at sea or when unknown.
             ///   - worldHeritage: A UNESCO World Heritage Site, or a listed part of one, on Wikidata.
+            ///   - sitelinks: How many Wikipedias and other Wikimedia wikis have a page on it: a notability measure, for label priority or symbol size.
             ///   - url: The Wikidata item.
             public init(
                 id: Swift.String,
@@ -1809,6 +1814,7 @@ public enum Components {
                 _class: Swift.String,
                 country: Swift.String? = nil,
                 worldHeritage: Swift.Bool? = nil,
+                sitelinks: Swift.Int? = nil,
                 url: Swift.String
             ) {
                 self.id = id
@@ -1818,6 +1824,7 @@ public enum Components {
                 self._class = _class
                 self.country = country
                 self.worldHeritage = worldHeritage
+                self.sitelinks = sitelinks
                 self.url = url
             }
             public enum CodingKeys: String, CodingKey {
@@ -1828,6 +1835,7 @@ public enum Components {
                 case _class = "class"
                 case country
                 case worldHeritage
+                case sitelinks
                 case url
             }
         }
@@ -5487,7 +5495,7 @@ public enum Operations {
     }
     /// Historic sites listed on Wikidata (forts, castles, bunkers, war cemeteries), a static layer separate from events.
     ///
-    /// Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, `memorial` (military museums and war cemeteries), and `general` (palaces, cathedrals, basilicas, monasteries, temples, shrines, mausoleums, manor houses, town halls, lighthouses, gates, towers, windmills, Roman monuments, and every cultural UNESCO World Heritage Site not in another kind). Every site says whether it is a World Heritage Site (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned (`truncated` says when more matched). Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
+    /// Named items with coordinates from Wikidata (CC0), refreshed weekly, in three kinds a client can filter: `military` (forts, fortifications, bunkers, barracks, arsenals, hillforts and military bases no longer in use), `castle`, `memorial` (military museums and war cemeteries), and `general` (palaces, cathedrals, basilicas, monasteries, temples, shrines, mausoleums, manor houses, town halls, lighthouses, gates, towers, windmills, Roman monuments, and every cultural UNESCO World Heritage Site not in another kind). Every site says whether it is a World Heritage Site (`worldHeritage`), and `worldHeritage=true` keeps only those. Installations on `/v1/bases` are never here; some sites here are still in use (see `note`). Without `zoom` or below 8, sites are counted in grid cells (`HistoricCell` features, 360/2^(zoom+5) degrees, with a count per kind, `bbox` required from zoom 6); cells on the viewport's edge are counted whole. From zoom 8 each site is a point (`HistoricSite` features), `bbox` is required, and at most 10,000 are returned, most notable first (`sitelinks`); `truncated` says when more matched. That happens in the densest views: around Tokyo, temples and shrines put 20,000 sites in one zoom-8 view and 13,000 at zoom 9; turning off `general` there leaves a few hundred. Show `note` with the layer and link each site to its Wikidata item (`url`). Cached for an hour.
     ///
     ///
     /// - Remark: HTTP `GET /v1/historic`.

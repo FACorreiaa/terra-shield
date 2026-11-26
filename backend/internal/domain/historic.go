@@ -47,7 +47,10 @@ type HistoricSite struct {
 	// WorldHeritage: the item is designated a UNESCO World Heritage Site
 	// (or a listed part of one) on Wikidata, whatever its kind.
 	WorldHeritage bool
-	UpdatedAt     time.Time
+	// Sitelinks: how many Wikipedias and other Wikimedia wikis have a page
+	// on it, a notability proxy that ranks a view holding too many sites.
+	Sitelinks int
+	UpdatedAt time.Time
 }
 
 // HistoricQuery filters the layer. Empty Kinds means all of them.

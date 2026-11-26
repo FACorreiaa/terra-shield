@@ -252,3 +252,20 @@ func TestParseWorldHeritage(t *testing.T) {
 		t.Fatalf("every item is flagged: %v", wh)
 	}
 }
+
+// A name in Wikidata's default language ("mul") stands in for a missing
+// English one, and an English one wins when both come; sitelinks rank.
+func TestParseHistoricNamesAndSitelinks(t *testing.T) {
+	body := `{"results":{"bindings":[
+		{"b":{"value":"http://www.wikidata.org/entity/Q30"},"c":{"value":"Point(1 2)"},"label":{"value":"Burg Mul","xml:lang":"mul"},"n":{"value":"12"}},
+		{"b":{"value":"http://www.wikidata.org/entity/Q30"},"c":{"value":"Point(1 2)"},"label":{"value":"Mul Castle","xml:lang":"en"},"n":{"value":"12"}},
+		{"b":{"value":"http://www.wikidata.org/entity/Q31"},"c":{"value":"Point(3 4)"},"label":{"value":"Château Seul","xml:lang":"mul"}}
+	]}}`
+	sites, _, err := ParseHistoric([]byte(body), castleClass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sites) != 2 || sites[0].Name != "Mul Castle" || sites[0].Sitelinks != 12 || sites[1].Name != "Château Seul" || sites[1].Sitelinks != 0 {
+		t.Fatalf("%+v", sites)
+	}
+}

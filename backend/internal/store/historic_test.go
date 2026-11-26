@@ -24,7 +24,7 @@ func TestHistoricReplaceGridAndPoints(t *testing.T) {
 	repo := store.NewHistoricRepository(pool)
 	sites := []domain.HistoricSite{
 		{QID: "Q1", Name: "Burg A", Kind: domain.HistoricCastle, Class: "castle", Lon: 10.2, Lat: 50.2, Description: "castle", WorldHeritage: true},
-		{QID: "Q2", Name: "Burg B", Kind: domain.HistoricCastle, Class: "castle", Lon: 10.3, Lat: 50.3},
+		{QID: "Q2", Name: "Burg B", Kind: domain.HistoricCastle, Class: "castle", Lon: 10.3, Lat: 50.3, Sitelinks: 40},
 		{QID: "Q3", Name: "Fort C", Kind: domain.HistoricMilitary, Class: "fort", Lon: 10.4, Lat: 50.4},
 		{QID: "Q100", Name: "Active Fort", Kind: domain.HistoricMilitary, Class: "fort", Lon: 10.1, Lat: 50.1},
 		{QID: "Q5", Name: "Pacific Cemetery", Kind: domain.HistoricMemorial, Class: "war cemetery", Lon: 179.5, Lat: -17},
@@ -64,7 +64,14 @@ func TestHistoricReplaceGridAndPoints(t *testing.T) {
 		BBox:  &domain.BBox{MinLon: 10, MinLat: 50, MaxLon: 11, MaxLat: 51},
 		Kinds: []domain.HistoricKind{domain.HistoricCastle},
 	}, 1)
-	if err != nil || len(pts) != 1 || !more || pts[0].QID != "Q1" || pts[0].ISO2 != "DE" || pts[0].Description != "castle" || !pts[0].UpdatedAt.Equal(at) {
+	if err != nil || len(pts) != 1 || !more || pts[0].QID != "Q2" || pts[0].Sitelinks != 40 {
+		t.Fatalf("a truncated view keeps the most notable first: %+v more=%v %v", pts, more, err)
+	}
+	pts, more, err = repo.Points(ctx, domain.HistoricQuery{
+		BBox:  &domain.BBox{MinLon: 10, MinLat: 50, MaxLon: 11, MaxLat: 51},
+		Kinds: []domain.HistoricKind{domain.HistoricCastle},
+	}, 2)
+	if err != nil || len(pts) != 2 || pts[1].QID != "Q1" || more || pts[1].ISO2 != "DE" || pts[1].Description != "castle" || !pts[1].UpdatedAt.Equal(at) {
 		t.Fatalf("castle points %+v more=%v %v", pts, more, err)
 	}
 	all, _, err := repo.Points(ctx, domain.HistoricQuery{BBox: &domain.BBox{MinLon: 10, MinLat: 50, MaxLon: 11, MaxLat: 51}}, 10)
@@ -88,7 +95,7 @@ func TestHistoricReplaceGridAndPoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	again, _, err := repo.Points(ctx, domain.HistoricQuery{Kinds: []domain.HistoricKind{domain.HistoricCastle}}, 10)
-	if err != nil || len(again) != 2 || again[0].ISO2 != "DE" || again[1].ISO2 != "FR" || again[0].WorldHeritage {
+	if err != nil || len(again) != 2 || again[1].ISO2 != "DE" || again[0].ISO2 != "FR" || again[1].WorldHeritage {
 		t.Fatalf("countries carried forward: %+v %v", again, err)
 	}
 }

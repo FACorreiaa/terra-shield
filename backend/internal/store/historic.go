@@ -26,7 +26,7 @@ func NewHistoricRepository(pool *pgxpool.Pool) *HistoricRepository {
 	return &HistoricRepository{pool: pool, q: historicdb.New(pool)}
 }
 
-var historicColumns = []string{"qid", "name", "description", "kind", "class", "lat", "lon", "country_hint", "world_heritage", "updated_at"}
+var historicColumns = []string{"qid", "name", "description", "kind", "class", "lat", "lon", "country_hint", "world_heritage", "sitelinks", "updated_at"}
 
 // Replace swaps the whole layer for sites in one transaction. Countries
 // come from Shield's own geometry, with hints (QID to ISO code, from
@@ -46,7 +46,7 @@ func (r *HistoricRepository) Replace(ctx context.Context, sites []domain.Histori
 	n, err := tx.CopyFrom(ctx, pgx.Identifier{"historic_stage"}, historicColumns,
 		pgx.CopyFromSlice(len(sites), func(i int) ([]any, error) {
 			s := &sites[i]
-			return []any{s.QID, s.Name, nonEmpty(s.Description), string(s.Kind), s.Class, s.Lat, s.Lon, nonEmpty(hints[s.QID]), s.WorldHeritage, at}, nil
+			return []any{s.QID, s.Name, nonEmpty(s.Description), string(s.Kind), s.Class, s.Lat, s.Lon, nonEmpty(hints[s.QID]), s.WorldHeritage, s.Sitelinks, at}, nil
 		}))
 	if err != nil {
 		return 0, fmt.Errorf("copy historic sites: %w", err)
@@ -174,9 +174,9 @@ func (r *HistoricRepository) Points(ctx context.Context, q domain.HistoricQuery,
 	var b sqlBuilder
 	where := historicFilters(&b, &q)
 	rows, err := r.pool.Query(ctx, `
-SELECT h.qid, h.name, COALESCE(h.description, ''), h.kind, h.class, h.lat, h.lon, COALESCE(h.iso2, ''), h.world_heritage, h.updated_at
+SELECT h.qid, h.name, COALESCE(h.description, ''), h.kind, h.class, h.lat, h.lon, COALESCE(h.iso2, ''), h.world_heritage, h.sitelinks, h.updated_at
 FROM historic_sites h`+where+`
-ORDER BY h.qid
+ORDER BY h.sitelinks DESC, h.qid
 LIMIT `+b.arg(limit+1), b.args...)
 	if err != nil {
 		return nil, false, fmt.Errorf("historic points: %w", err)
@@ -186,7 +186,7 @@ LIMIT `+b.arg(limit+1), b.args...)
 	for rows.Next() {
 		var s domain.HistoricSite
 		var kind string
-		if err := rows.Scan(&s.QID, &s.Name, &s.Description, &kind, &s.Class, &s.Lat, &s.Lon, &s.ISO2, &s.WorldHeritage, &s.UpdatedAt); err != nil {
+		if err := rows.Scan(&s.QID, &s.Name, &s.Description, &kind, &s.Class, &s.Lat, &s.Lon, &s.ISO2, &s.WorldHeritage, &s.Sitelinks, &s.UpdatedAt); err != nil {
 			return nil, false, fmt.Errorf("historic points: %w", err)
 		}
 		s.Kind = domain.HistoricKind(kind)
