@@ -269,7 +269,8 @@ struct HistoricLegend: View {
         guard let layer = model.historic else {
             return model.historicFailed ? "Historic sites didn’t load" : "Historic sites · loading…"
         }
-        let line = layer.headline(in: model.viewport.box, kinds: model.historicKinds)
+        let line = layer.headline(in: model.viewport.box, kinds: model.historicKinds,
+                                  worldHeritageOnly: model.historicWorldHeritageOnly)
         return model.historicFailed ? line + " · couldn’t refresh" : line
     }
 }

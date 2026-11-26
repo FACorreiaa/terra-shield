@@ -184,8 +184,22 @@ public final class LiveMapModel {
             save()
             guard showsHistoric else { return }
             // Fewer groups are filtered from the answer at once; more are asked for.
-            historic = historicAnswer?.filtered(to: historicKinds)
+            historic = historicAnswer?.filtered(to: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
             // A deliberate change: asked at once, even within a minute of a failure.
+            historicFailedAt = nil
+            startHistoric()
+        }
+    }
+
+    /// Only UNESCO World Heritage Sites (owner, 2026-11-26, as on the web): `worldHeritage=true`,
+    /// with the groups shown. Saved with the filters.
+    public var historicWorldHeritageOnly = false {
+        didSet {
+            guard historicWorldHeritageOnly != oldValue, !restoring else { return }
+            if historicWorldHeritageOnly, let site = selectedHistoricSite, !site.worldHeritage { selectedHistoricID = nil }
+            save()
+            guard showsHistoric else { return }
+            historic = historicAnswer?.filtered(to: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
             historicFailedAt = nil
             startHistoric()
         }
@@ -388,6 +402,7 @@ public final class LiveMapModel {
             showsBases = saved.showsBases && provider.supportsBases
             showsHistoric = saved.showsHistoric && provider.supportsHistoric
             historicKinds = saved.historicKinds
+            historicWorldHeritageOnly = saved.historicWorldHeritageOnly
             restoring = false
         }
     }
@@ -398,7 +413,8 @@ public final class LiveMapModel {
     private func save() {
         filterStore?.save(SavedFilters(query: query, showsDetections: showsDetections, showsConflicts: showsConflicts,
                                        showsBases: showsBases, showsHistoric: showsHistoric,
-                                       historicKinds: historicKinds))
+                                       historicKinds: historicKinds,
+                                       historicWorldHeritageOnly: historicWorldHeritageOnly))
     }
 
     /// The map settled on a new region. Loads after `debounce` unless another change follows.
@@ -743,14 +759,16 @@ public final class LiveMapModel {
         // Not before the map has reported a view: the default is the whole world at zoom 1.
         guard hasViewport else { return }
         if let historicAnswered, let historicAnswer, let historic,
-           historicAnswered.serves(viewport, kinds: historicKinds, truncated: historicAnswer.isTruncated,
+           historicAnswered.serves(viewport, kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly,
+                                   truncated: historicAnswer.isTruncated,
                                    sites: historic.sites.count) {
             dropHistoricRequest()
             return
         }
         if historicTask != nil, let historicAsking,
-           historicAsking.serves(viewport, kinds: historicKinds, truncated: false) { return }
-        let wanted = HistoricRequest(viewport, kinds: historicKinds)
+           historicAsking.serves(viewport, kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly,
+                                 truncated: false) { return }
+        let wanted = HistoricRequest(viewport, kinds: historicKinds, worldHeritageOnly: historicWorldHeritageOnly)
         if let historicFailedAt, now().timeIntervalSince(historicFailedAt) < 60,
            historicRateLimited || wanted == historicFailedRequest { return }
         historicTask?.cancel()
@@ -765,7 +783,7 @@ public final class LiveMapModel {
             switch result {
             case .success(let layer):
                 self.historicAnswer = layer
-                self.historic = layer.filtered(to: self.historicKinds)
+                self.historic = layer.filtered(to: self.historicKinds, worldHeritageOnly: self.historicWorldHeritageOnly)
                 self.historicAnswered = wanted
                 self.historicFailed = false
                 self.historicFailedAt = nil

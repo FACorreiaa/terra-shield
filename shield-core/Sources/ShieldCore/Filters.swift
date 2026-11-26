@@ -108,16 +108,20 @@ public struct SavedFilters: Sendable, Equatable {
     public var showsHistoric: Bool
     /// Never empty: the API reads no kinds as every kind.
     public var historicKinds: Set<HistoricKind>
+    /// Only UNESCO World Heritage Sites (owner, 2026-11-26).
+    public var historicWorldHeritageOnly: Bool
 
     public init(query: EventQuery = EventQuery(), showsDetections: Bool = false, showsConflicts: Bool = false,
                 showsBases: Bool = false, showsHistoric: Bool = false,
-                historicKinds: Set<HistoricKind> = Set(HistoricKind.allCases)) {
+                historicKinds: Set<HistoricKind> = Set(HistoricKind.allCases),
+                historicWorldHeritageOnly: Bool = false) {
         self.query = query
         self.showsDetections = showsDetections
         self.showsConflicts = showsConflicts
         self.showsBases = showsBases
         self.showsHistoric = showsHistoric
         self.historicKinds = historicKinds
+        self.historicWorldHeritageOnly = historicWorldHeritageOnly
     }
 }
 
@@ -154,6 +158,8 @@ public struct FilterStore: Sendable {
         var showsHistoric: Bool?
         /// Excluded, like the hazard kinds: a group added later shows by default.
         var excludedHistoricKinds: [String]?
+        /// Added with the World Heritage switch (2026-11-26); optional for the same reason.
+        var historicWorldHeritageOnly: Bool?
     }
 
     public func load() -> SavedFilters {
@@ -179,7 +185,8 @@ public struct FilterStore: Sendable {
         if historicKinds.isEmpty { historicKinds = Set(HistoricKind.allCases) }
         return SavedFilters(query: query, showsDetections: blob.showsDetections,
                             showsConflicts: blob.showsConflicts ?? false, showsBases: blob.showsBases ?? false,
-                            showsHistoric: blob.showsHistoric ?? false, historicKinds: historicKinds)
+                            showsHistoric: blob.showsHistoric ?? false, historicKinds: historicKinds,
+                            historicWorldHeritageOnly: blob.historicWorldHeritageOnly ?? false)
     }
 
     public func save(_ filters: SavedFilters) {
@@ -194,7 +201,8 @@ public struct FilterStore: Sendable {
             showsConflicts: filters.showsConflicts,
             showsBases: filters.showsBases,
             showsHistoric: filters.showsHistoric,
-            excludedHistoricKinds: HistoricKind.allCases.filter { !filters.historicKinds.contains($0) }.map(\.rawValue)
+            excludedHistoricKinds: HistoricKind.allCases.filter { !filters.historicKinds.contains($0) }.map(\.rawValue),
+            historicWorldHeritageOnly: filters.historicWorldHeritageOnly
         )
         if let data = try? JSONEncoder().encode(blob) { defaults.set(data, forKey: key) }
     }

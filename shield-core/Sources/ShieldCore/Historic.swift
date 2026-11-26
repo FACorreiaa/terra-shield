@@ -176,8 +176,8 @@ public struct HistoricLayer: Sendable, Hashable {
 
     /// The legend's line: how many sites are in `box`, "about" for a grid, whose cells on the
     /// view's edge are counted whole, and which groups when not all are shown.
-    public func headline(in box: GeoBox, kinds: Set<HistoricKind>) -> String {
-        var title = "Historic sites"
+    public func headline(in box: GeoBox, kinds: Set<HistoricKind>, worldHeritageOnly: Bool = false) -> String {
+        var title = worldHeritageOnly ? "World Heritage sites" : "Historic sites"
         if kinds.count < HistoricKind.allCases.count {
             title += " (" + kinds.sorted { $0.label < $1.label }.map { $0.label.lowercased() }.joined(separator: ", ") + ")"
         }
@@ -202,10 +202,14 @@ public struct HistoricLayer: Sendable, Hashable {
 
     /// The answer with only the groups shown: sites of other groups, and of groups this version
     /// doesn't know, leave; a cell keeps the count of the groups shown, and leaves at none.
-    public func filtered(to shown: Set<HistoricKind>) -> HistoricLayer {
-        guard shown.count < HistoricKind.allCases.count else { return self }
+    public func filtered(to shown: Set<HistoricKind>, worldHeritageOnly: Bool = false) -> HistoricLayer {
         var out = self
-        switch content {
+        if worldHeritageOnly, case .points(let sites, let truncated) = content {
+            // Sites carry the flag; grid cells don't, so a grid is the server's answer already.
+            out.content = .points(sites.filter(\.worldHeritage), truncated: truncated)
+        }
+        guard shown.count < HistoricKind.allCases.count else { return out }
+        switch out.content {
         case .grid(let cells, let cellDegrees):
             out.content = .grid(cells.compactMap { cell in
                 let n = cell.count(of: shown)
@@ -238,20 +242,23 @@ public struct HistoricRequest: Sendable, Hashable {
     public var zoom: Int
     /// Nil: every group, those this version doesn't know included.
     public var kinds: Set<HistoricKind>?
+    /// `worldHeritage=true`: only UNESCO World Heritage Sites.
+    public var worldHeritage: Bool
 
     public var isPoints: Bool { zoom >= HistoricLayer.pointsZoom }
 
-    public init(box: GeoBox?, zoom: Int, kinds: Set<HistoricKind>?) {
+    public init(box: GeoBox?, zoom: Int, kinds: Set<HistoricKind>?, worldHeritage: Bool = false) {
         self.box = box
         self.zoom = zoom
         self.kinds = kinds
+        self.worldHeritage = worldHeritage
     }
 
     /// The request for a view. Below zoom 6 the world's grid is one answer (17,448 cells at zoom
     /// 5, 129 KB gzipped, measured 2026-11-26 with 203,532 sites); at 6 and 7 half a view is added
     /// around it, so a pan stays inside. Points ask for the view alone: the densest view of a large
     /// window already passes the server's 10,000 cap (it comes back cut short, drawn as dots).
-    public init(_ viewport: MapViewport, kinds: Set<HistoricKind>) {
+    public init(_ viewport: MapViewport, kinds: Set<HistoricKind>, worldHeritageOnly: Bool = false) {
         let box: GeoBox? = if viewport.zoom >= HistoricLayer.pointsZoom {
             Self.pointsBox(viewport.box)
         } else if viewport.zoom >= MapViewport.detailZoom {
@@ -259,7 +266,7 @@ public struct HistoricRequest: Sendable, Hashable {
         } else {
             nil
         }
-        self.init(box: box, zoom: viewport.zoom, kinds: Self.sent(kinds))
+        self.init(box: box, zoom: viewport.zoom, kinds: Self.sent(kinds), worldHeritage: worldHeritageOnly)
     }
 
     /// Whether this request's answer, `truncated` or not and holding `sites` sites, also serves
@@ -268,16 +275,22 @@ public struct HistoricRequest: Sendable, Hashable {
     /// sites to draw as chips: a smaller view may then hold few enough. An answer for more groups
     /// than shown serves fewer, filtered on the device (`HistoricLayer.filtered(to:)`), unless its
     /// sites were cut short: the server would send more of the groups left.
-    public func serves(_ viewport: MapViewport, kinds shown: Set<HistoricKind>, truncated: Bool,
-                       sites: Int = 0) -> Bool {
+    public func serves(_ viewport: MapViewport, kinds shown: Set<HistoricKind>, worldHeritageOnly: Bool = false,
+                       truncated: Bool, sites: Int = 0) -> Bool {
         let wanted = Self.sent(shown)
-        let narrower: Bool
+        var narrower: Bool
         if kinds == wanted {
             narrower = false
         } else if let wanted, kinds.map({ wanted.isSubset(of: $0) }) ?? true {
             narrower = true
         } else {
             return false
+        }
+        if worldHeritage != worldHeritageOnly {
+            // Every site answered serves World Heritage only (sites carry the flag); the reverse,
+            // or a grid (cells don't), needs the server.
+            guard worldHeritageOnly, viewport.zoom >= HistoricLayer.pointsZoom else { return false }
+            narrower = true
         }
         if viewport.zoom >= HistoricLayer.pointsZoom {
             guard isPoints, let box else { return false }

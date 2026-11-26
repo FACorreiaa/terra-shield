@@ -145,7 +145,9 @@ public struct APIEventProvider: HazardEventProvider {
     public func historic(_ request: HistoricRequest) async throws -> HistoricLayer {
         let q = Operations.ListHistoricSites.Input.Query(
             bbox: request.box?.parameter, zoom: request.zoom,
-            kind: request.kinds.map { $0.sorted().compactMap { .init(rawValue: $0.rawValue) } })
+            kind: request.kinds.map { $0.sorted().compactMap { .init(rawValue: $0.rawValue) } },
+            // Only "true" is ever sent; the server's default is every site.
+            worldHeritage: request.worldHeritage ? true : nil)
         switch try await unwrapping { try await client.listHistoricSites(query: q) } {
         case .ok(let ok):
             return HistoricLayer(try ok.body.applicationGeoJson)

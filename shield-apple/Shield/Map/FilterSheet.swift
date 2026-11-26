@@ -166,6 +166,10 @@ struct FilterSheet: View {
                     }
                 ), disabled: on && model.historicKinds.count == 1)
             }
+            Divider().overlay(Color.ink.opacity(ShieldAlpha.hairline))
+            // With the groups above, as on the web: only UNESCO World Heritage Sites of them.
+            switchRow("World Heritage Sites only", symbol: "checkmark.seal",
+                      isOn: $model.historicWorldHeritageOnly, disabled: false)
         }
         .padding(.horizontal, ShieldSpace.s3)
         .background(Color.ink.opacity(ShieldAlpha.hairline / 2), in: RoundedRectangle(cornerRadius: ShieldRadius.md))

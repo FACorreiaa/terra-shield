@@ -70,6 +70,22 @@ enum HistoricFixture {
         }
     }
 
+    /// World Heritage only (owner, 2026-11-26, to match the web): sent as `worldHeritage=true`, in
+    /// both modes. Sites carry the flag, so an answer for every site not cut short serves the
+    /// narrower view on the device; grid cells don't, so the grid asks.
+    @Test func worldHeritageOnlyIsAskedForOrFilteredFromPoints() {
+        let wh = HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: all, worldHeritageOnly: true)
+        #expect(wh.worldHeritage)
+        #expect(!wh.serves(MapViewport(box: alps, zoom: 9), kinds: all, truncated: false))
+        #expect(wh.serves(MapViewport(box: alps, zoom: 9), kinds: all, worldHeritageOnly: true, truncated: false))
+        let every = HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: all)
+        #expect(!every.worldHeritage)
+        #expect(every.serves(MapViewport(box: alps, zoom: 9), kinds: all, worldHeritageOnly: true, truncated: false))
+        #expect(!every.serves(MapViewport(box: alps, zoom: 9), kinds: all, worldHeritageOnly: true, truncated: true))
+        let grid = HistoricRequest(MapViewport(box: alps, zoom: 4), kinds: all)
+        #expect(!grid.serves(MapViewport(box: alps, zoom: 4), kinds: all, worldHeritageOnly: true, truncated: false))
+    }
+
     @Test func landmarksAreAKindOfTheirOwn() {
         #expect(HistoricKind(rawValue: "general") == .general)
         #expect(HistoricKind.general.label == "Landmarks")
@@ -156,6 +172,16 @@ enum HistoricFixture {
         #expect(!castles.serves(MapViewport(box: alps, zoom: 9), kinds: all, truncated: false))
         let grid = HistoricRequest(MapViewport(box: alps, zoom: 4), kinds: all)
         #expect(grid.serves(MapViewport(box: alps, zoom: 4), kinds: [.memorial], truncated: false))
+    }
+
+    @Test func filteringKeepsOnlyWorldHeritageSites() {
+        var duomo = HistoricFixture.neuschwanstein
+        duomo.id = "Q750245"
+        duomo.worldHeritage = true
+        let layer = HistoricFixture.points([HistoricFixture.neuschwanstein, duomo])
+        #expect(layer.filtered(to: Set(HistoricKind.allCases), worldHeritageOnly: true).sites.map(\.id) == ["Q750245"])
+        #expect(layer.headline(in: .world, kinds: Set(HistoricKind.allCases), worldHeritageOnly: true)
+                == "World Heritage sites · 2 in this view")
     }
 
     @Test func filteringKeepsOnlyTheGroupsShown() {
@@ -407,6 +433,34 @@ enum HistoricFixture {
         await m.settle()
         #expect(p.historicRequests.count == 2)
         #expect(!m.historicFailed && m.historic != nil)
+    }
+
+    @Test func worldHeritageOnlyAsksInTheGridAndFiltersPoints() async {
+        let p = ScriptedProvider()
+        var duomo = HistoricFixture.neuschwanstein
+        duomo.id = "Q750245"
+        duomo.worldHeritage = true
+        p.historicAnswer = HistoricFixture.points([HistoricFixture.neuschwanstein, HistoricFixture.fortress, duomo])
+        let store = FilterStore(suiteName: "wh-\(UUID())")
+        let m = model(p, filters: store)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        m.selectedHistoricID = "Q2"
+        m.historicWorldHeritageOnly = true
+        await m.settle()
+        #expect(m.historic?.sites.map(\.id) == ["Q750245"])
+        #expect(m.selectedHistoricID == nil) // not a World Heritage Site
+        #expect(p.historicRequests.count == 1)
+        #expect(store.load().historicWorldHeritageOnly)
+
+        m.viewportDidChange(alpsWide)
+        await m.settle()
+        #expect(p.historicRequests.last?.worldHeritage == true)
+        m.historicWorldHeritageOnly = false
+        await m.settle()
+        #expect(p.historicRequests.last?.worldHeritage == false)
+        #expect(p.historicRequests.count == 3)
     }
 
     @Test func moreKindsThanTheAnswerHeldAreAskedFor() async {

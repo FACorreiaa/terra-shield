@@ -25,6 +25,8 @@ struct ShieldApp: App {
         if env["SHIELD_BASES"] == "1" { model.showsBases = true }
         // … with the historic-sites layer on (`SHIELD_HISTORIC=1`).
         if env["SHIELD_HISTORIC"] == "1" { model.showsHistoric = true }
+        // … showing only World Heritage Sites (`SHIELD_WORLD_HERITAGE=1`).
+        if env["SHIELD_WORLD_HERITAGE"] == "1" { model.historicWorldHeritageOnly = true }
         // … and with an event selected (`SHIELD_SELECT=<event id>`).
         if let id = env["SHIELD_SELECT"].flatMap(UUID.init(uuidString:)) { model.selectedEventID = id }
         // … and with a set of filters on (`SHIELD_FILTER_DEMO=1`): moderate and up, warnings

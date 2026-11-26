@@ -103,6 +103,14 @@ import ShieldCore
         #expect(q["bbox"] == nil && q["zoom"] == "3")
     }
 
+    @Test func worldHeritageOnlyIsSentAsTrueAndOtherwiseLeftOut() async throws {
+        let (p, t) = provider(.ok, grid)
+        _ = try await p.historic(HistoricRequest(box: nil, zoom: 3, kinds: nil, worldHeritage: true))
+        #expect(try query(t)["worldHeritage"] == "true")
+        _ = try await p.historic(HistoricRequest(box: nil, zoom: 3, kinds: nil))
+        #expect(try query(t)["worldHeritage"] == nil)
+    }
+
     @Test func theAPIOffersHistoricSites() {
         #expect(provider(.ok, grid).0.supportsHistoric)
     }
