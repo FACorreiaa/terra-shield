@@ -133,6 +133,23 @@ test.describe("countries, desktop", () => {
     await expect(inspector).toHaveCount(0);
   });
 
+  test("asks for the countries again on each visit", async ({ page }) => {
+    await stubCountries(page, {});
+    let asked = 0;
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/v1/countries") {
+        asked += 1;
+      }
+    });
+    await page.goto("/countries");
+    await expect(page.getByRole("link", { name: /^Chile, 3 active events/u })).toBeVisible();
+    const before = asked;
+    await page.getByRole("link", { name: "Monitor" }).click();
+    await expect(page.getByRole("searchbox", { name: "Filter countries" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Countries" }).click();
+    await expect.poll(() => asked).toBeGreaterThan(before);
+  });
+
   test("says when there is no boundary, and when a quiet country has nothing", async ({ page }) => {
     await stubCountries(page, { PT: quietSummary() });
     await page.goto("/c/zz");

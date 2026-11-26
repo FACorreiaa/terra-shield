@@ -1,7 +1,7 @@
 import type { Source } from "@shield/api-client";
 import { describe, expect, it } from "vite-plus/test";
 
-import { health, interval, listed, statusLine } from "./sources.ts";
+import { health, interval, listed, overallHealth, statusLine } from "./sources.ts";
 
 // 2026-11-19 17:40 UTC, as in shield-core SourcesTests.
 const now = new Date(1_795_110_000_000);
@@ -14,9 +14,10 @@ interface Options {
   stale?: boolean;
   enabled?: boolean;
   cadence?: string;
+  onDemand?: boolean;
 }
 
-function source({ poll = 600, success, error, stale, enabled = true, cadence }: Options): Source {
+function source({ poll = 600, success, error, stale, enabled = true, cadence, onDemand }: Options): Source {
   return {
     id: "eonet",
     name: "NASA EONET",
@@ -29,6 +30,7 @@ function source({ poll = 600, success, error, stale, enabled = true, cadence }: 
     ...(error === undefined ? {} : { lastErrorAt: at(error) }),
     ...(stale === undefined ? {} : { stale }),
     ...(cadence === undefined ? {} : { cadence }),
+    ...(onDemand === undefined ? {} : { onDemand }),
   };
 }
 
@@ -89,5 +91,49 @@ describe(interval, () => {
 describe(listed, () => {
   it("lists only active sources", () => {
     expect(listed([source({}), source({ enabled: false })])).toHaveLength(1);
+  });
+});
+
+describe(overallHealth, () => {
+  const ok = source({ success: -120, stale: false });
+  const failing = source({ success: -2400, error: -120, stale: false });
+  const stale = source({ success: -86_400, stale: true });
+
+  it("has no dot before the first list: no health is not good health", () => {
+    expect(overallHealth(undefined, now)).toBeUndefined();
+    expect(overallHealth([], now)).toBeUndefined();
+  });
+
+  it("shows the worst listed source: stale over a failed check over healthy", () => {
+    expect(overallHealth([ok, ok], now)).toBe("ok");
+    expect(overallHealth([ok, failing], now)).toBe("warning");
+    expect(overallHealth([failing, stale, ok], now)).toBe("danger");
+  });
+
+  it("leaves out a disabled source, as the list does", () => {
+    expect(overallHealth([ok, { ...stale, enabled: false }], now)).toBe("ok");
+    expect(overallHealth([{ ...stale, enabled: false }], now)).toBeUndefined();
+  });
+});
+
+describe("an on-demand source (live flights)", () => {
+  it("says when it was fetched, never stale, and why it isn't polled", () => {
+    const flights = source({ poll: 60, success: -10_800, onDemand: true });
+    expect(health(flights, now)).toBe("ok");
+    expect(statusLine(flights, now)).toBe("Fetched 3 h ago · 14:40 UTC");
+    expect(statusLine(source({ poll: 60, onDemand: true }), now)).toBe("Not fetched yet");
+    expect(interval(flights)).toBe("Fetched only while the flights layer is shown, at most once a minute");
+  });
+
+  it("still says when its last fetch failed", () => {
+    const flights = source({ poll: 60, success: -600, error: -60, onDemand: true });
+    expect(statusLine(flights, now)).toBe("Last check failed 1 min ago · last good check 10 min ago");
+  });
+});
+
+describe("overallHealth without the server's stale", () => {
+  it("applies the local rule: no success, or three missed polls, is stale", () => {
+    expect(overallHealth([source({ success: -120 })], now)).toBe("ok");
+    expect(overallHealth([source({ success: -120 }), source({})], now)).toBe("danger");
   });
 });

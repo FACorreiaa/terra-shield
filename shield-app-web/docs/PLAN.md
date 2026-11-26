@@ -212,7 +212,7 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
 
 ### W5 — Detail, Country, Sources
 
-- [ ] **`EventDetailView`** (inspector / sheet large; deep link `/e/$id`), per §10.3 and the accepted S3.5 deviations:
+- [x] **`EventDetailView`** (inspector / sheet large; deep link `/e/$id`), per §10.3 and the accepted S3.5 deviations:
   - Header: glyph in shape, title, every country as a link; type art at 30% under a vignette (Precipitation / Wildfire SVG).
   - `SEVERITY · AEGIS / SOURCE` row; rating labels and provisional note.
   - Kind, status, times.
@@ -230,7 +230,7 @@ Brand art is copied from `design/brand/` into `apps/web/public/brand/`:
   - Recent changes (24 h, sentences).
   - Events: "Near Chile, 38 km offshore".
   - Mascot empty state; not-found "We have no boundary for this place."
-- [ ] **`SourcesView`** (`/sources`): disclaimer on top; `SourceRow` + `HealthDot` per the design session's rules; refresh on open; keeps the last list if a refresh fails.
+- [x] **`SourcesView`** (`/sources`): disclaimer on top; `SourceRow` + `HealthDot` per the design session's rules; refresh on open; keeps the last list if a refresh fails.
 - [ ] **Tests:** unit tests on the facts and timeline words; e2e for detail deep link / gone / resolved, the country matrix filter, and the sources dot rule.
 
 ### W6 — Live

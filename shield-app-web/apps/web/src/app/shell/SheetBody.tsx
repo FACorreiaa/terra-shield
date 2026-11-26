@@ -33,6 +33,8 @@ function SheetBody({ children }: { children: ReactNode }): ReactElement {
   const { selectedId } = useLiveMap();
   const { active } = useMapSearch();
   const detail = !active && selectedId !== undefined;
+  // Sources carries the disclaimer at its top, as in the apps; once is enough.
+  const { sources } = usePage();
   return (
     <>
       {active ? <SearchPanel /> : undefined}
@@ -40,7 +42,7 @@ function SheetBody({ children }: { children: ReactNode }): ReactElement {
       <div hidden={active || detail}>
         <SectionBody>{children}</SectionBody>
       </div>
-      {detail ? undefined : (
+      {detail || sources ? undefined : (
         <footer className="border-t border-hairline px-4 py-4">
           <DisclaimerBanner variant="footer" />
         </footer>

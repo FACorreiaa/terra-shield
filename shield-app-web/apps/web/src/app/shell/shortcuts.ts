@@ -20,6 +20,7 @@ interface KeyPress {
 const SHORTCUT_HELP: readonly { keys: string; does: string }[] = [
   { keys: "1", does: "Monitor" },
   { keys: "2", does: "Countries" },
+  { keys: "5", does: "Sources" },
   { keys: "/", does: "Search countries and events in view" },
   { keys: "↑ ↓", does: "Previous or next event in the list" },
   { keys: "Esc", does: "End the search, then clear the selection, then close the country" },

@@ -6,9 +6,10 @@ import { Brand } from "./Brand.tsx";
 import type { Insets } from "./insets.ts";
 import { INSPECTOR_WIDTH, MAP_GAP, SIDEBAR_WIDTH_CLASS } from "./insets.ts";
 import { MonitorHud } from "./MonitorHud.tsx";
-import { SECTIONS } from "./sections.ts";
+import { LISTED_SECTIONS } from "./sections.ts";
 import { SelectedDetail } from "./SelectedDetail.tsx";
 import { SidebarBody } from "./SidebarBody.tsx";
+import { SourcesNavRow } from "./SourcesNavRow.tsx";
 
 interface DesktopChromeProps {
   /** The open section's body (the route), shown under the navigation. */
@@ -26,7 +27,7 @@ function SectionNav(): ReactElement {
   return (
     <nav aria-label="Sections" className="px-2">
       <ul className="flex flex-col gap-0.5">
-        {SECTIONS.map((section) => (
+        {LISTED_SECTIONS.map((section) => (
           <li key={section.id}>
             <Link
               to={section.to}
@@ -76,6 +77,7 @@ function DesktopChrome({ children, inspectorOpen, onInsets }: DesktopChromeProps
         </div>
         <SectionNav />
         <SidebarBody>{children}</SidebarBody>
+        <SourcesNavRow />
       </aside>
       <MonitorHud />
       {inspectorOpen ? <Inspector /> : undefined}

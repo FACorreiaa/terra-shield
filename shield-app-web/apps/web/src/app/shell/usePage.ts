@@ -8,6 +8,10 @@ interface Page {
   listing: boolean;
   /** The open country's code as written in the address, on its overview. */
   country: string | undefined;
+  /** Sources & attribution. */
+  sources: boolean;
+  /** A page with no use for the map's search field: the Countries list (its own filter) and Sources. */
+  fieldless: boolean;
 }
 
 /** Which section the address shows, by route rather than by path text (a trailing slash, a case). */
@@ -19,7 +23,8 @@ function usePage(): Page {
     shouldThrow: false,
     select: (match) => match.params.iso2,
   });
-  return { onMap, listing, country };
+  const sources = useMatch({ from: "/_app/sources", shouldThrow: false }) !== undefined;
+  return { onMap, listing, country, sources, fieldless: listing || sources };
 }
 
 /** Keyboard focus after a country closes: its row in the list, else the list's filter. */
@@ -73,4 +78,5 @@ function useReopens(): number {
   return useSyncExternalStore(subscribe, currentReopens);
 }
 
+export type { Page };
 export { reopenCountry, useCloseCountry, usePage, useReopens };

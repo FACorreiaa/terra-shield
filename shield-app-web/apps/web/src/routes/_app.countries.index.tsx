@@ -5,10 +5,13 @@ import { useCallback } from "react";
 import { useIsWide } from "@/app/shell/useBreakpoint.ts";
 import { CountriesPane } from "@/features/countries/CountriesPane.tsx";
 import { useCountries } from "@/features/countries/useCountries.ts";
+import { useRefreshOnOpen } from "@/lib/useRefreshOnOpen.ts";
 
 /** The Countries section: every country with its active count; its counts are refreshed on each visit. */
 function CountriesSection(): ReactElement {
-  const countries = useCountries(true, { fresh: true });
+  const countries = useCountries(true);
+  // Asked again on each visit: its counts should be current (MapScreen.swift).
+  useRefreshOnOpen(countries.refetch);
   const wide = useIsWide();
   const { refetch } = countries;
   const retry = useCallback(() => {

@@ -49,4 +49,4 @@ function useSelectionUpkeep(selectedId: string | undefined): void {
   useFocusReturn(selectedId);
 }
 
-export { DETAIL_HEADING, focusRow, useFocusOnOpen, useSelectionUpkeep };
+export { DETAIL_HEADING, focusLost, focusRow, useFocusOnOpen, useSelectionUpkeep };

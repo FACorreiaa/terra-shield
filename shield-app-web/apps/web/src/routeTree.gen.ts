@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppMapRouteImport } from './routes/_app.map'
+import { Route as AppSourcesRouteImport } from './routes/_app.sources'
 import { Route as CIso2RouteImport } from './routes/c.$iso2'
 import { Route as EIdRouteImport } from './routes/e.$id'
 import { Route as AppCountriesIndexRouteImport } from './routes/_app.countries.index'
@@ -29,6 +30,11 @@ const AppRoute = AppRouteImport.update({
 const AppMapRoute = AppMapRouteImport.update({
   id: '/map',
   path: '/map',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSourcesRoute = AppSourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
   getParentRoute: () => AppRoute,
 } as any)
 const CIso2Route = CIso2RouteImport.update({
@@ -55,6 +61,7 @@ const AppCountriesIso2Route = AppCountriesIso2RouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/map': typeof AppMapRoute
+  '/sources': typeof AppSourcesRoute
   '/c/$iso2': typeof CIso2Route
   '/e/$id': typeof EIdRoute
   '/countries/$iso2': typeof AppCountriesIso2Route
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/map': typeof AppMapRoute
+  '/sources': typeof AppSourcesRoute
   '/c/$iso2': typeof CIso2Route
   '/e/$id': typeof EIdRoute
   '/countries/$iso2': typeof AppCountriesIso2Route
@@ -73,6 +81,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_app/map': typeof AppMapRoute
+  '/_app/sources': typeof AppSourcesRoute
   '/c/$iso2': typeof CIso2Route
   '/e/$id': typeof EIdRoute
   '/_app/countries/$iso2': typeof AppCountriesIso2Route
@@ -81,14 +90,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/map' | '/c/$iso2' | '/e/$id' | '/countries/$iso2' | '/countries/'
+    | '/'
+    | '/map'
+    | '/sources'
+    | '/c/$iso2'
+    | '/e/$id'
+    | '/countries/$iso2'
+    | '/countries/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/map' | '/c/$iso2' | '/e/$id' | '/countries/$iso2' | '/countries'
+  to:
+    | '/'
+    | '/map'
+    | '/sources'
+    | '/c/$iso2'
+    | '/e/$id'
+    | '/countries/$iso2'
+    | '/countries'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/_app/map'
+    | '/_app/sources'
     | '/c/$iso2'
     | '/e/$id'
     | '/_app/countries/$iso2'
@@ -125,6 +148,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMapRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sources': {
+      id: '/_app/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof AppSourcesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/c/$iso2': {
       id: '/c/$iso2'
       path: '/c/$iso2'
@@ -158,12 +188,14 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppMapRoute: typeof AppMapRoute
+  AppSourcesRoute: typeof AppSourcesRoute
   AppCountriesIso2Route: typeof AppCountriesIso2Route
   AppCountriesIndexRoute: typeof AppCountriesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppMapRoute: AppMapRoute,
+  AppSourcesRoute: AppSourcesRoute,
   AppCountriesIso2Route: AppCountriesIso2Route,
   AppCountriesIndexRoute: AppCountriesIndexRoute,
 }

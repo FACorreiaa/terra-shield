@@ -12,11 +12,11 @@ import { usePage } from "./usePage.ts";
 function SidebarBody({ children }: { children: ReactNode }): ReactElement {
   const { active } = useMapSearch();
   // The Countries list has its own filter, as on the Mac; one field is enough.
-  const { listing } = usePage();
-  const searching = active && !listing;
+  const { fieldless } = usePage();
+  const searching = active && !fieldless;
   return (
     <div data-search-area className="mt-3 flex min-h-0 flex-1 flex-col border-t border-hairline">
-      {listing ? undefined : (
+      {fieldless ? undefined : (
         <div className="px-3 pt-3">
           <MapSearchBox />
         </div>
