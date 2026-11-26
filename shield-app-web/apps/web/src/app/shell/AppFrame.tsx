@@ -1,10 +1,10 @@
 import type { ReactElement, ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import { DisclaimerBanner } from "@/components/DisclaimerBanner.tsx";
 import { LiveMap } from "@/features/map/LiveMap.tsx";
 
 import { DesktopChrome } from "./DesktopChrome.tsx";
+import { ShellFooter, ShellHeader } from "./frameBars.tsx";
 import { MAP_LEFT_CLASS, useInsets } from "./insets.ts";
 import { KeyboardShortcuts } from "./KeyboardShortcuts.tsx";
 import { useLiveMap } from "./liveMapContext.ts";
@@ -34,6 +34,7 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
 
   return (
     <div className="flex h-full flex-col bg-canvas">
+      {wide ? <ShellHeader /> : undefined}
       <div ref={frame} className="relative min-h-0 flex-1 overflow-hidden">
         <div className={wide ? `absolute inset-y-0 right-0 ${MAP_LEFT_CLASS}` : "absolute inset-0"}>
           <LiveMap
@@ -61,11 +62,7 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
           <MobileChrome onInsets={applyInsets}>{children}</MobileChrome>
         )}
       </div>
-      {wide ? (
-        <footer className="border-t border-hairline px-4 py-2">
-          <DisclaimerBanner variant="footer" />
-        </footer>
-      ) : undefined}
+      {wide ? <ShellFooter /> : undefined}
       <KeyboardShortcuts toggleInspector={toggleInspector} />
     </div>
   );

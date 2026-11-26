@@ -2,10 +2,10 @@ import { Plane } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { flightsAttribution, flightsHeadline, flightsLines } from "@/domain/aircraft.ts";
+import { useTick } from "@/lib/useTick.ts";
 import { cn } from "@/lib/utils.ts";
 
 import { useFlightsLayer } from "./flightsContext.ts";
-import { useTick } from "./useTick.ts";
 
 /** What the key says aloud: why there are no positions, never the count or age as they tick. */
 function announcement({ list, failed, needsZoom }: Parameters<typeof flightsHeadline>[0]): string {

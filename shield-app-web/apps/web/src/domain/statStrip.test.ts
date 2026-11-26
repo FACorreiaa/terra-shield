@@ -1,7 +1,7 @@
 import type { EventCluster, EventKind, EventList, HazardEvent, Severity } from "@shield/api-client";
 import { describe, expect, it } from "vite-plus/test";
 
-import { cellDescription, compactWords, liveMapCells } from "./statStrip.ts";
+import { cellDescription, compactWords, liveMapCells, worldCells } from "./statStrip.ts";
 
 const NOW = "2027-01-15T08:00:00Z";
 
@@ -108,5 +108,27 @@ describe(cellDescription, () => {
     expect(cellDescription({ value: "–", label: "Official warnings" })).toBe(
       "Official warnings: not counted at this zoom",
     );
+  });
+});
+
+describe(worldCells, () => {
+  const world = list([event("severe"), event("minor", "warning")], [cluster(10, "moderate", { moderate: 10 })]);
+  const warnings = list([event("minor", "warning")], [cluster(4, "minor", { minor: 4 })]);
+
+  it("counts warnings exactly from their own answer, clustered ones included", () => {
+    expect(values(worldCells(world, warnings))).toStrictEqual(["12", "1", "5"]);
+    expect(worldCells(world, warnings).map((cell) => cell.label)).toStrictEqual([
+      "Observed events",
+      "High severity",
+      "Official warnings",
+    ]);
+  });
+
+  it("filters nothing, and never guesses: a dash while unknown, a plus when cut short", () => {
+    expect(worldCells(world, warnings).some((cell) => "filter" in cell)).toBe(false);
+    expect(values(worldCells(undefined, undefined))).toStrictEqual(["–", "–", "–"]);
+    expect(values(worldCells(world, undefined))).toStrictEqual(["12", "1", "–"]);
+    const cutShort = list([event("minor", "warning")], [], true);
+    expect(values(worldCells(world, cutShort))).toStrictEqual(["12", "1", "1+"]);
   });
 });

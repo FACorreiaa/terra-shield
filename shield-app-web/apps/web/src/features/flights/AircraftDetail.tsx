@@ -3,9 +3,8 @@ import { X } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { aircraftFigures, aircraftNotes, aircraftTitle, flightsAttribution } from "@/domain/aircraft.ts";
+import { useTick } from "@/lib/useTick.ts";
 import { cn } from "@/lib/utils.ts";
-
-import { useTick } from "./useTick.ts";
 
 interface AircraftDetailProps {
   aircraft: Aircraft;

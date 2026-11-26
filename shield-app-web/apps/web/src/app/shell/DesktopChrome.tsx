@@ -2,7 +2,8 @@ import { Link } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect } from "react";
 
-import { Brand } from "./Brand.tsx";
+import { keepSelection } from "@/lib/keepSelection.ts";
+
 import type { Insets } from "./insets.ts";
 import { INSPECTOR_WIDTH, MAP_GAP, SIDEBAR_WIDTH_CLASS } from "./insets.ts";
 import { MonitorHud } from "./MonitorHud.tsx";
@@ -16,11 +17,6 @@ interface DesktopChromeProps {
   children: ReactNode;
   inspectorOpen: boolean;
   onInsets: (insets: Insets) => void;
-}
-
-/** Changing section keeps the selected event open, as on the Mac. */
-function keepSelection(previous: { event?: string | undefined }): { event?: string | undefined } {
-  return { event: previous.event };
 }
 
 function SectionNav(): ReactElement {
@@ -72,10 +68,10 @@ function DesktopChrome({ children, inspectorOpen, onInsets }: DesktopChromeProps
         aria-label="Sidebar"
         className={`absolute inset-y-0 left-0 z-10 flex ${SIDEBAR_WIDTH_CLASS} flex-col border-r border-hairline bg-panel`}
       >
-        <div className="px-4 pt-2 pb-3">
-          <Brand />
+        {/* The nav mark is in the site's header above (owner, 2026-11-26). */}
+        <div className="pt-3">
+          <SectionNav />
         </div>
-        <SectionNav />
         <SidebarBody>{children}</SidebarBody>
         <SourcesNavRow />
       </aside>
