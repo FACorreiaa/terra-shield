@@ -127,17 +127,17 @@ latest forecast cone. Winds are knots, sustained over one minute.
 
 ## USGS volcano alert levels (ADR 35)
 
-One event is one US volcano while it is above normal, keyed by its GVP volcano number (`usgs:<code>` for the few GVP
-does not number). `started_at` is when the current level began; `updated_at` the latest notice.
+One event is one US volcano while it is above normal, keyed by USGS's volcano code. `started_at` is when the current
+level began (so it moves when the level changes); `updated_at` the latest notice.
 
 | Key | Type | Meaning |
 |---|---|---|
 | `alertLevel` | string, **always** | Ground alert level: `ADVISORY`, `WATCH`, `WARNING`, or `UNASSIGNED` |
 | `colorCode` | string, **always** | Aviation colour code: `YELLOW`, `ORANGE`, `RED`, or `UNASSIGNED` |
 | `alertLevelPrev`, `colorCodePrev` | string | The levels before the current ones |
-| `observatory` | string, **always** | `avo` Alaska, `hvo` Hawaiian, `cvo` Cascades, `calvo` California, `yvo` Yellowstone, `nmi` Northern Mariana Islands |
-| `vnum` | string | GVP volcano number (the join key with EONET's volcanoes) |
-| `volcanoCode` | string | USGS volcano code (`hi3`) |
+| `volcanoCode` | string, **always** | USGS volcano code (`hi3`), the event's id |
+| `observatory` | string | `avo` Alaska, `hvo` Hawaiian, `cvo` Cascades, `calvo` California, `yvo` Yellowstone, `nmi` Northern Mariana Islands |
+| `vnum` | string | GVP volcano number (the join key with EONET's volcanoes); a few volcanoes have none |
 | `volcanoUrl` | string | The observatory's page for the volcano |
 | `region` | string | USGS region (`Aleutians`, `Hawaii`) |
 | `noticeId` | string | The latest notice; the event's `url` opens it |

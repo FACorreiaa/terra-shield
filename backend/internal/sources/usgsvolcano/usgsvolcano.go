@@ -7,14 +7,15 @@
 //     aviation color code (GREEN, YELLOW, ORANGE, RED), or UNASSIGNED
 //     where an observatory sets none. It is the state of record.
 //   - /vsc/api/volcanoApi/elevated: the volcanoes above normal, adding
-//     when the current level began and the levels before it.
+//     when the current level began and the levels before it. It only adds
+//     history: if it fails or disagrees, the poll goes on without it.
 //
-// One event per volcano while it is above normal, keyed by its GVP volcano
-// number (the join key with EONET's GVP volcanoes, ADR 5), or by USGS's own
-// volcano code for the few GVP does not number (Folsoms Bluff). It ends when
-// the list shows it back at NORMAL or UNASSIGNED, at the notice that said
-// so: the full list names every volcano's state, so an absence is never
-// read as an ending.
+// One event per volcano while it is above normal, keyed by USGS's volcano
+// code (every volcano has one; GVP does not number them all), with the GVP
+// number in attrs as the join key with EONET's volcanoes (ADR 5). It ends
+// only when the list names it at NORMAL, or UNASSIGNED with no aviation
+// color: a level missing, null or unknown is unreadable, and a volcano
+// missing from the list is never read as ended.
 //
 // License: public domain (USGS-authored); USGS asks to be credited.
 package usgsvolcano
@@ -44,6 +45,10 @@ const (
 	// PollInterval: notices are issued as activity changes, daily for an
 	// erupting volcano; neither feed sends validators.
 	PollInterval = 5 * time.Minute
+	// noticeTrust is how old a "back to normal" notice may be and still
+	// date the ending; an older one (seen after an outage, or a list that
+	// reverted) ends the event at the poll instead.
+	noticeTrust = 7 * 24 * time.Hour
 )
 
 // Coverage is where USGS observatories set alert levels: the states, the
@@ -53,7 +58,7 @@ var Coverage = []string{"US", "MP", "AS"}
 // Store is what the adapter needs.
 type Store interface {
 	ingest.EventStore
-	ActiveIDs(ctx context.Context, sourceID string) ([]string, error)
+	ActiveStarts(ctx context.Context, sourceID string) (map[string]time.Time, error)
 	Resolve(ctx context.Context, sourceID string, sourceEventIDs []string, at time.Time) (int, error)
 }
 
@@ -96,41 +101,61 @@ func (*Source) Info() domain.SourceInfo {
 	}
 }
 
-// Poll implements ingest.Source. Both feeds are read before anything is
-// written.
+// Poll implements ingest.Source.
 func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, error) {
 	status, err := s.client.Get(ctx, s.statusURL, domain.Validators{})
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	elevated, err := s.client.Get(ctx, s.elevatedURL, domain.Validators{})
-	if err != nil {
-		return ingest.Result{}, err
+	var history []byte
+	if resp, err := s.client.Get(ctx, s.elevatedURL, domain.Validators{}); err != nil {
+		// An escalation must not wait on the history feed.
+		metrics.SourceSkipped.WithLabelValues(ID, "history_unavailable").Inc()
+		s.logger.Warn("usgs volcano history unavailable; stored starts kept", "err", err)
+	} else {
+		history = resp.Body
 	}
-	f, err := Parse(status.Body, elevated.Body)
+	f, err := Parse(status.Body, history)
 	if err != nil {
 		return ingest.Result{}, err
 	}
 	if f.Unreadable > 0 {
 		metrics.SourceSkipped.WithLabelValues(ID, "unreadable").Add(float64(f.Unreadable))
-		s.logger.Warn("usgs volcanoes unreadable", "count", f.Unreadable)
+		s.logger.Warn("usgs volcanoes unreadable; neither stored nor ended", "count", f.Unreadable)
+	}
+	stored, err := s.store.ActiveStarts(ctx, ID)
+	if err != nil {
+		return ingest.Result{}, err
+	}
+	now := s.now()
+	for i := range f.Events {
+		e := &f.Events[i]
+		// Without matching history, keep the start already stored rather
+		// than clear it for a poll.
+		if start, ok := stored[e.SourceEventID]; ok && e.StartedAt == nil && !start.IsZero() {
+			e.StartedAt = &start
+		}
+		if e.UpdatedAt.IsZero() { // no notice time at all: seen now
+			e.ObservedAt, e.UpdatedAt = now, now
+		}
 	}
 	n, err := s.store.Upsert(ctx, ID, f.Events)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	active, err := s.store.ActiveIDs(ctx, ID)
-	if err != nil {
-		return ingest.Result{}, err
-	}
 	r := 0
-	for _, id := range active {
+	var unlisted []string
+	for id, start := range stored {
+		if !f.Listed[id] {
+			unlisted = append(unlisted, id)
+			continue
+		}
 		at, quiet := f.Quiet[id]
 		if !quiet {
-			continue // still elevated, or not listed: never read as an ending
+			continue
 		}
-		if at.IsZero() || at.After(s.now()) {
-			at = s.now()
+		if at.IsZero() || at.After(now) || at.Before(start) || now.Sub(at) > noticeTrust {
+			at = now
 		}
 		k, err := s.store.Resolve(ctx, ID, []string{id}, at)
 		if err != nil {
@@ -138,17 +163,23 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 		}
 		r += k
 	}
+	if len(unlisted) > 0 {
+		metrics.SourceSkipped.WithLabelValues(ID, "unlisted").Add(float64(len(unlisted)))
+		s.logger.Warn("usgs volcanoes stored but no longer listed; kept", "ids", unlisted)
+	}
 	return ingest.Result{Upserted: n + r}, nil
 }
 
 // Feed is one reading of both feeds.
 type Feed struct {
 	Events []domain.Event
-	// Quiet maps each volcano listed at NORMAL or UNASSIGNED to the time
-	// of its latest notice (zero when it has none).
+	// Quiet maps each volcano the list names at normal to the time of its
+	// latest notice (zero when it has none).
 	Quiet map[string]time.Time
-	// Unreadable counts volcanoes above normal without an id, a position
-	// or any time, which are not stored.
+	// Listed is every volcano id the status list names, readable or not.
+	Listed map[string]bool
+	// Unreadable counts volcanoes with a level that is missing or unknown,
+	// or elevated without a position, which are neither stored nor ended.
 	Unreadable int
 }
 
@@ -180,7 +211,9 @@ type statusProps struct {
 }
 
 type elevatedRecord struct {
-	Vnum           string `json:"vnum"`
+	Code           string `json:"volcanoCd"`
+	AlertLevel     string `json:"alertLevel"`
+	ColorCode      string `json:"colorCode"`
 	AlertLevelPrev string `json:"alertLevelPrev"`
 	ColorCodePrev  string `json:"colorCodePrev"`
 	CodeChangeDate string `json:"codeChangeDate"`
@@ -189,10 +222,10 @@ type elevatedRecord struct {
 // timeLayout is how both feeds write UTC times.
 const timeLayout = "2006-01-02 15:04:05"
 
-// Parse reads the status list and the elevated list. The status list is
-// the state of record; the elevated list only adds history, and a volcano
-// missing from it is stored without a start.
-func Parse(status, elevated []byte) (Feed, error) {
+// Parse reads the status list and, when given, the elevated list. The
+// status list is the state of record; elevated history is applied only
+// where its levels match the status list's.
+func Parse(status, elevatedList []byte) (Feed, error) {
 	var st statusFeed
 	if err := json.Unmarshal(status, &st); err != nil {
 		return Feed{}, fmt.Errorf("usgs-volcano: decode status: %w", err)
@@ -200,31 +233,42 @@ func Parse(status, elevated []byte) (Feed, error) {
 	if len(st.Features) == 0 {
 		return Feed{}, fmt.Errorf("usgs-volcano: status list is empty")
 	}
-	var el []elevatedRecord
-	if err := json.Unmarshal(elevated, &el); err != nil {
-		return Feed{}, fmt.Errorf("usgs-volcano: decode elevated: %w", err)
-	}
-	history := make(map[string]elevatedRecord, len(el))
-	for _, r := range el {
-		if r.Vnum != "" {
-			history[r.Vnum] = r
+	history := map[string]elevatedRecord{}
+	if len(elevatedList) > 0 {
+		var el []elevatedRecord
+		if err := json.Unmarshal(elevatedList, &el); err != nil {
+			return Feed{}, fmt.Errorf("usgs-volcano: decode elevated: %w", err)
+		}
+		for _, r := range el {
+			if r.Code != "" {
+				history[r.Code] = r
+			}
 		}
 	}
 
-	out := Feed{Quiet: map[string]time.Time{}}
+	out := Feed{Quiet: map[string]time.Time{}, Listed: map[string]bool{}}
+	stored := map[string]bool{}
 	for i := range st.Features {
 		ft := &st.Features[i]
 		p := &ft.Properties
-		latest := latestOf(p.AlertDate, p.ColorDate)
-		id := eventID(p)
-		level, elevated := Classify(p.AlertLevel, p.ColorCode)
-		if !elevated {
-			if id != "" {
-				out.Quiet[id] = latest
+		id := p.Code
+		if id == "" {
+			out.Unreadable++
+			continue
+		}
+		out.Listed[id] = true
+		level, state := Classify(p.AlertLevel, p.ColorCode)
+		switch state {
+		case Unknown:
+			out.Unreadable++
+			continue
+		case Quiet:
+			if !stored[id] { // an id listed twice, once elevated, stays elevated
+				out.Quiet[id] = latestOf(p.AlertDate, p.ColorDate)
 			}
 			continue
 		}
-		if id == "" || ft.Geometry.Type != "Point" || len(ft.Geometry.Coordinates) < 2 {
+		if ft.Geometry.Type != "Point" || len(ft.Geometry.Coordinates) < 2 {
 			out.Unreadable++
 			continue
 		}
@@ -233,37 +277,33 @@ func Parse(status, elevated []byte) (Feed, error) {
 			return Feed{}, err
 		}
 		attrs := map[string]any{
-			"alertLevel":  p.AlertLevel,
-			"colorCode":   p.ColorCode,
-			"observatory": p.Observatory,
+			"alertLevel":  norm(p.AlertLevel),
+			"colorCode":   norm(p.ColorCode),
+			"volcanoCode": p.Code,
 		}
 		for k, v := range map[string]string{
-			"vnum": p.Vnum, "volcanoCode": p.Code, "volcanoUrl": p.VolcanoURL, "region": p.Region,
-			"noticeId": p.NoticeID, "threat": p.Threat,
+			"vnum": p.Vnum, "observatory": p.Observatory, "volcanoUrl": p.VolcanoURL,
+			"region": p.Region, "noticeId": p.NoticeID, "threat": p.Threat,
 		} {
 			if v != "" {
 				attrs[k] = v
 			}
 		}
 		var started *time.Time
-		if h, ok := history[p.Vnum]; ok {
+		if h, ok := history[id]; ok && norm(h.AlertLevel) == norm(p.AlertLevel) && norm(h.ColorCode) == norm(p.ColorCode) {
 			if h.AlertLevelPrev != "" {
-				attrs["alertLevelPrev"] = h.AlertLevelPrev
+				attrs["alertLevelPrev"] = norm(h.AlertLevelPrev)
 			}
 			if h.ColorCodePrev != "" {
-				attrs["colorCodePrev"] = h.ColorCodePrev
+				attrs["colorCodePrev"] = norm(h.ColorCodePrev)
 			}
 			if t, err := time.Parse(timeLayout, h.CodeChangeDate); err == nil {
 				started = &t
 			}
 		}
-		updated := latest
+		updated := latestOf(p.AlertDate, p.ColorDate)
 		if updated.IsZero() && started != nil {
 			updated = *started
-		}
-		if updated.IsZero() {
-			out.Unreadable++ // no time at all: nothing honest to show
-			continue
 		}
 		url := p.NoticeURL
 		if url == "" {
@@ -273,6 +313,8 @@ func Parse(status, elevated []byte) (Feed, error) {
 		if p.Region != "" {
 			title += ", " + p.Region
 		}
+		stored[id] = true
+		delete(out.Quiet, id)
 		out.Events = append(out.Events, domain.Event{
 			SourceEventID:  id,
 			Type:           domain.TypeVolcano,
@@ -284,7 +326,7 @@ func Parse(status, elevated []byte) (Feed, error) {
 			Summary:        strings.TrimSpace(p.Synopsis),
 			Geometry:       geom,
 			StartedAt:      started,
-			ObservedAt:     updated,
+			ObservedAt:     updated, // zero when no time at all: Poll sets the poll's
 			UpdatedAt:      updated,
 			URL:            url,
 			Attrs:          attrs,
@@ -293,27 +335,28 @@ func Parse(status, elevated []byte) (Feed, error) {
 	return out, nil
 }
 
-// eventID is the GVP volcano number, else USGS's volcano code.
-func eventID(p *statusProps) string {
-	if p.Vnum != "" {
-		return p.Vnum
-	}
-	if p.Code != "" {
-		return "usgs:" + p.Code
-	}
-	return ""
-}
-
 // latestOf is the later of the alert-level and color-code times.
 func latestOf(times ...string) time.Time {
 	var out time.Time
 	for _, s := range times {
-		if t, err := time.Parse(timeLayout, s); err == nil && t.After(out) {
+		if t, err := time.Parse(timeLayout, strings.TrimSpace(s)); err == nil && t.After(out) {
 			out = t
 		}
 	}
 	return out
 }
+
+func norm(s string) string { return strings.ToUpper(strings.TrimSpace(s)) }
+
+// State is what a volcano's levels say.
+type State int
+
+// The states a volcano's levels can give.
+const (
+	Unknown  State = iota // missing, null or unrecognized: neither stored nor ended
+	Quiet                 // at normal: not a warning
+	Elevated              // above normal: a warning
+)
 
 var groundLevels = map[string]severity.Level{
 	"ADVISORY": severity.Moderate,
@@ -330,26 +373,35 @@ var aviationColors = map[string]severity.Level{
 // Classify derives severity from the ground alert level, which is about
 // people on the ground (docs/severity.md). Only a volcano with no ground
 // level (UNASSIGNED: a seamount, an unmonitored volcano) is rated by its
-// aviation color code. It reports false for a volcano at normal.
-func Classify(alertLevel, colorCode string) (severity.Level, bool) {
-	if l, ok := groundLevels[strings.ToUpper(alertLevel)]; ok {
-		return l, true
+// aviation color code. A level it does not recognize is Unknown, never
+// Quiet, so a feed change cannot end every warning at once.
+func Classify(alertLevel, colorCode string) (severity.Level, State) {
+	ground, color := norm(alertLevel), norm(colorCode)
+	if l, ok := groundLevels[ground]; ok {
+		return l, Elevated
 	}
-	if strings.EqualFold(alertLevel, "NORMAL") {
-		return 0, false
+	switch ground {
+	case "NORMAL":
+		return 0, Quiet
+	case "UNASSIGNED":
+		if l, ok := aviationColors[color]; ok {
+			return l, Elevated
+		}
+		if color == "GREEN" || color == "UNASSIGNED" {
+			return 0, Quiet
+		}
 	}
-	l, ok := aviationColors[strings.ToUpper(colorCode)]
-	return l, ok
+	return 0, Unknown
 }
 
 // sourceSeverity is both of USGS's levels, as USGS names them: "Advisory
 // · aviation Yellow".
 func sourceSeverity(alertLevel, colorCode string) string {
 	var parts []string
-	if a := strings.ToUpper(alertLevel); a != "" && a != "UNASSIGNED" {
+	if a := norm(alertLevel); a != "" && a != "UNASSIGNED" {
 		parts = append(parts, title(a))
 	}
-	if c := strings.ToUpper(colorCode); c != "" && c != "UNASSIGNED" {
+	if c := norm(colorCode); c != "" && c != "UNASSIGNED" {
 		parts = append(parts, "aviation "+title(c))
 	}
 	return strings.Join(parts, " · ")
