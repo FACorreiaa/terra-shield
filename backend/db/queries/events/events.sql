@@ -5,7 +5,7 @@
 INSERT INTO events (
     source_id, source_event_id, type, kind, status, severity, source_severity,
     title, summary, geom, centroid, started_at, observed_at, updated_at, ended_at,
-    fetched_at, url, attrs, change_op
+    fetched_at, url, attrs, change_op, first_seen_at
 ) SELECT
     @source_id, @source_event_id, @type, @kind, @status, @severity, @source_severity,
     @title, @summary, r.g::geography,
@@ -13,7 +13,17 @@ INSERT INTO events (
              ST_PointOnSurface(r.g))::geography,
     @started_at, @observed_at, @updated_at, @ended_at,
     now(), @url, @attrs,
-    CASE WHEN @status::text = 'resolved' THEN 'resolved' ELSE 'created' END
+    CASE WHEN @status::text = 'resolved' THEN 'resolved' ELSE 'created' END,
+    -- First seen active: now, or, for a new version of warnings it
+    -- supersedes (MeteoAlarm), when the earliest of them was first seen,
+    -- so an update is not reported as a new warning. Never set on an
+    -- event that arrives already resolved, or on conflict (kept as is).
+    CASE WHEN @status::text = 'resolved' THEN NULL
+         WHEN EXISTS (SELECT 1 FROM events p WHERE p.source_id = @source_id
+                      AND p.source_event_id = ANY(@supersedes::text[]))
+         THEN (SELECT min(p.first_seen_at) FROM events p WHERE p.source_id = @source_id
+               AND p.source_event_id = ANY(@supersedes::text[]))
+         ELSE now() END
 FROM (
     -- Feeds send the odd self-intersecting polygon; repair it here so
     -- country assignment and the map never trip over it. The structure
@@ -227,3 +237,11 @@ SELECT at, changes FROM event_revisions
 WHERE event_id = @event_id
 ORDER BY at DESC, id DESC
 LIMIT @max_rows;
+
+-- name: SupersededSeverity :one
+-- The severity of the latest active warning a new version supersedes, to
+-- record the change across versions as a revision of the new one.
+SELECT severity FROM events
+WHERE source_id = @source_id AND source_event_id = ANY(@supersedes::text[]) AND status = 'active'
+ORDER BY updated_at DESC, id
+LIMIT 1;

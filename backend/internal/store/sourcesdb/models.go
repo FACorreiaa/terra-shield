@@ -51,6 +51,7 @@ type Event struct {
 	Attrs          []byte
 	ChangeSeq      int64
 	ChangeOp       string
+	FirstSeenAt    *time.Time
 }
 
 type EventCountry struct {

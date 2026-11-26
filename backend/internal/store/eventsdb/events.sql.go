@@ -522,11 +522,32 @@ func (q *Queries) StreamFloor(ctx context.Context) (int64, error) {
 	return seq, err
 }
 
+const supersededSeverity = `-- name: SupersededSeverity :one
+SELECT severity FROM events
+WHERE source_id = $1 AND source_event_id = ANY($2::text[]) AND status = 'active'
+ORDER BY updated_at DESC, id
+LIMIT 1
+`
+
+type SupersededSeverityParams struct {
+	SourceID   string
+	Supersedes []string
+}
+
+// The severity of the latest active warning a new version supersedes, to
+// record the change across versions as a revision of the new one.
+func (q *Queries) SupersededSeverity(ctx context.Context, arg SupersededSeverityParams) (string, error) {
+	row := q.db.QueryRow(ctx, supersededSeverity, arg.SourceID, arg.Supersedes)
+	var severity string
+	err := row.Scan(&severity)
+	return severity, err
+}
+
 const upsertEvent = `-- name: UpsertEvent :one
 INSERT INTO events (
     source_id, source_event_id, type, kind, status, severity, source_severity,
     title, summary, geom, centroid, started_at, observed_at, updated_at, ended_at,
-    fetched_at, url, attrs, change_op
+    fetched_at, url, attrs, change_op, first_seen_at
 ) SELECT
     $1, $2, $3, $4, $5, $6, $7,
     $8, $9, r.g::geography,
@@ -534,7 +555,17 @@ INSERT INTO events (
              ST_PointOnSurface(r.g))::geography,
     $12, $13, $14, $15,
     now(), $16, $17,
-    CASE WHEN $5::text = 'resolved' THEN 'resolved' ELSE 'created' END
+    CASE WHEN $5::text = 'resolved' THEN 'resolved' ELSE 'created' END,
+    -- First seen active: now, or, for a new version of warnings it
+    -- supersedes (MeteoAlarm), when the earliest of them was first seen,
+    -- so an update is not reported as a new warning. Never set on an
+    -- event that arrives already resolved, or on conflict (kept as is).
+    CASE WHEN $5::text = 'resolved' THEN NULL
+         WHEN EXISTS (SELECT 1 FROM events p WHERE p.source_id = $1
+                      AND p.source_event_id = ANY($18::text[]))
+         THEN (SELECT min(p.first_seen_at) FROM events p WHERE p.source_id = $1
+               AND p.source_event_id = ANY($18::text[]))
+         ELSE now() END
 FROM (
     -- Feeds send the odd self-intersecting polygon; repair it here so
     -- country assignment and the map never trip over it. The structure
@@ -545,7 +576,7 @@ FROM (
     SELECT CASE WHEN ST_IsEmpty(v.s) THEN ST_MakeValid(v.raw) ELSE v.s END AS g
     FROM (
         SELECT x.raw, ST_MakeValid(x.raw, 'method=structure keepcollapsed=false') AS s
-        FROM (SELECT ST_Force2D(ST_GeomFromGeoJSON($18::text)) AS raw) x
+        FROM (SELECT ST_Force2D(ST_GeomFromGeoJSON($19::text)) AS raw) x
     ) v
 ) r
 ON CONFLICT (source_id, source_event_id) DO UPDATE SET
@@ -601,6 +632,7 @@ type UpsertEventParams struct {
 	EndedAt        *time.Time
 	Url            *string
 	Attrs          []byte
+	Supersedes     []string
 	Geom           string
 }
 
@@ -626,6 +658,7 @@ func (q *Queries) UpsertEvent(ctx context.Context, arg UpsertEventParams) (uuid.
 		arg.EndedAt,
 		arg.Url,
 		arg.Attrs,
+		arg.Supersedes,
 		arg.Geom,
 	)
 	var id uuid.UUID

@@ -234,6 +234,9 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 				continue
 			}
 			w.Geometry = geom
+			// The versions it replaces are deleted below; it carries on
+			// their first-seen time and records a severity change.
+			w.Event.Supersedes = w.Supersedes
 			events = append(events, w.Event)
 		}
 		n, err := s.store.Upsert(ctx, ID, events)

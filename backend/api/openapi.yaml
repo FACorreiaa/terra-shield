@@ -211,6 +211,42 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "503": { $ref: "#/components/responses/Unavailable" }
         default: { $ref: "#/components/responses/Error" }
+  /v1/changes:
+    get:
+      operationId: listChanges
+      tags: [events]
+      summary: What changed over a window, 24 hours by default.
+      description: >
+        One net change per event: new (first seen active, or listed again),
+        ended, escalated or downgraded (severity now against the window's
+        start; a round trip is no change). An event that arrived and ended
+        inside the window is ended. Geometry-only updates are not changes.
+        Counts cover every change; the list is cut at `limit`, most severe
+        first, newest first within a severity. Events stored before Shield
+        recorded first-seen times are never new; a source's first poll, or
+        the first after an outage, reports what it lists as new (compare
+        `startedAt`). Conflicts only when named, as in /v1/events.
+      parameters:
+        - { name: since, in: query, description: "Window start, RFC 3339, within the last 7 days. Default: 24 hours ago.", schema: { type: string, format: date-time } }
+        - $ref: "#/components/parameters/Category"
+        - { name: type, in: query, description: "Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both.", schema: { type: string } }
+        - { name: severity, in: query, description: "Comma-separated severities, matched against the severity now.", schema: { type: string }, examples: { serious: { value: "severe,extreme" } } }
+        - { name: country, in: query, description: "ISO 3166-1 alpha-2; events within the country or nearby offshore.", schema: { type: string, pattern: "^[A-Z]{2}$" } }
+        - { name: limit, in: query, description: "Most changes listed (counts are never cut).", schema: { type: integer, minimum: 1, maximum: 500, default: 200 } }
+      responses:
+        "200":
+          description: The changes.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Changes" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        default: { $ref: "#/components/responses/Error" }
   /v1/fires:
     get:
       operationId: listFires
@@ -778,6 +814,61 @@ components:
           type: array
           description: Ids of the sources that cover the country.
           items: { type: string }
+    ChangeKind:
+      type: string
+      description: How an event changed over the window.
+      enum: [new, escalated, downgraded, ended]
+    ChangeCounts:
+      type: object
+      required: [new, escalated, downgraded, ended]
+      properties:
+        new: { type: integer, minimum: 0 }
+        escalated: { type: integer, minimum: 0 }
+        downgraded: { type: integer, minimum: 0 }
+        ended: { type: integer, minimum: 0 }
+    Change:
+      type: object
+      description: One event's net change; enough to list and pin it. GET /v1/events/{id} has the rest.
+      required: [eventId, change, at, type, kind, severity, title, source, centroid, countries]
+      properties:
+        eventId: { type: string, format: uuid }
+        change: { $ref: "#/components/schemas/ChangeKind" }
+        at: { type: string, format: date-time, description: "When it arrived, ended, or last changed severity." }
+        type: { $ref: "#/components/schemas/OpenEventType" }
+        kind: { $ref: "#/components/schemas/EventKind" }
+        severity: { $ref: "#/components/schemas/Severity" }
+        fromSeverity: { $ref: "#/components/schemas/Severity" }
+        sourceSeverity: { type: string }
+        title: { type: string }
+        source: { type: string, description: "Source id, as in /v1/sources." }
+        centroid: { $ref: "#/components/schemas/Coordinate" }
+        countries:
+          type: array
+          description: ISO 3166-1 alpha-2 codes, within or nearby.
+          items: { type: string, pattern: "^[A-Z]{2}$" }
+        startedAt: { type: string, format: date-time }
+    Changes:
+      type: object
+      required: [since, generatedAt, counts, byType, changes, truncated]
+      properties:
+        since: { type: string, format: date-time }
+        generatedAt: { type: string, format: date-time }
+        counts: { $ref: "#/components/schemas/ChangeCounts" }
+        byType:
+          type: array
+          description: Changes per type, sorted by type; kinds with none are omitted.
+          items:
+            type: object
+            required: [type, counts]
+            properties:
+              type: { $ref: "#/components/schemas/OpenEventType" }
+              counts:
+                type: object
+                additionalProperties: { type: integer, minimum: 1 }
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/Change" }
+        truncated: { type: boolean, description: "True when more changes matched than `limit`." }
     CountrySummary:
       type: object
       required: [country, counts, coverage, events, recentChanges, generatedAt]

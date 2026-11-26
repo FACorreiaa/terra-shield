@@ -13,6 +13,7 @@ type Repositories struct {
 	Events    *EventRepository
 	Sources   *SourceRepository
 	Countries *CountryRepository
+	Changes   *ChangeRepository
 	Fires     *FireRepository
 	// Bases is the military bases layer (L3).
 	Bases *BaseRepository
@@ -30,6 +31,7 @@ func New(pool *pgxpool.Pool) *Repositories {
 		Events:    NewEventRepository(pool),
 		Sources:   NewSourceRepository(pool),
 		Countries: NewCountryRepository(pool),
+		Changes:   NewChangeRepository(pool),
 		Fires:     NewFireRepository(pool),
 		Bases:     NewBaseRepository(pool),
 		Historic:  NewHistoricRepository(pool),

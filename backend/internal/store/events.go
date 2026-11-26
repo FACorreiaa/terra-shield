@@ -85,6 +85,15 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	if !existed && domain.PastRetention(e, horizon) {
 		return false, nil
 	}
+	// A new version of warnings it replaces: the severity they had, to
+	// record the change across versions.
+	var supersededSeverity string
+	if !existed && len(e.Supersedes) > 0 {
+		supersededSeverity, err = q.SupersededSeverity(ctx, eventsdb.SupersededSeverityParams{SourceID: sourceID, Supersedes: e.Supersedes})
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return false, fmt.Errorf("superseded severity %s/%s: %w", sourceID, e.SourceEventID, err)
+		}
+	}
 
 	id, err := q.UpsertEvent(ctx, eventsdb.UpsertEventParams{
 		SourceID:       sourceID,
@@ -105,6 +114,7 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 		EndedAt:        e.EndedAt,
 		Url:            nonEmpty(e.URL),
 		Attrs:          attrsJSON,
+		Supersedes:     e.Supersedes,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil // unchanged
@@ -114,6 +124,17 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	}
 	if existed {
 		if err := recordRevision(ctx, q, key, &before); err != nil {
+			return false, fmt.Errorf("revision %s/%s: %w", sourceID, e.SourceEventID, err)
+		}
+	} else if supersededSeverity != "" && supersededSeverity != e.Severity && e.Status == domain.StatusActive {
+		body, err := json.Marshal(map[string]any{
+			"severity":   map[string]any{"from": supersededSeverity, "to": e.Severity},
+			"supersedes": e.Supersedes,
+		})
+		if err != nil {
+			return false, err
+		}
+		if err := q.InsertEventRevision(ctx, eventsdb.InsertEventRevisionParams{EventID: id, Changes: body}); err != nil {
 			return false, fmt.Errorf("revision %s/%s: %w", sourceID, e.SourceEventID, err)
 		}
 	}

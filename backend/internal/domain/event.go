@@ -72,6 +72,11 @@ type Event struct {
 	URL         string // official page for the event (ADR 12)
 	Attrs       map[string]any
 	CountryRule CountryRule // zero: every country the geometry touches
+	// Supersedes lists the source ids of earlier versions this event
+	// replaces (a MeteoAlarm Update, issued under a new id). The source
+	// deletes them; the new version inherits when they were first seen
+	// and records a severity change across versions as its own revision.
+	Supersedes []string
 }
 
 // CountryRule narrows country assignment (ADR 4) for an event whose area
