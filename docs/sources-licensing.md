@@ -12,7 +12,7 @@ document has not been located, so neither has a `termsUrl` yet. adsb.lol (live f
 | USGS | `earthquake.usgs.gov/.../summary/2.5_day.geojson` | Public domain (U.S. Government work) | U.S. Geological Survey | every minute | 60 s | ignored; Last-Modified compared client-side |
 | EMSC (ADR 34) | `www.seismicportal.eu/fdsnws/event/1/query?format=json` (past day, 27–72°N 32°W–48°E, M2+) | CC BY 4.0, commercial use allowed (`seismicportal.eu/terms.html`, checked 2026-11-26; may change without notice) | EMSC-CSEM SeismicPortal | within minutes | 2 min | none sent (ETags not shown to follow content) |
 | GDACS | `www.gdacs.org/xml/rss.xml` (+ `gdacsapi/api/polygons/getgeometry` for Orange/Red) | CC BY 4.0 (European Union) | GDACS (UN + European Commission) | every few minutes | 5 min | ETag → 304 |
-| NASA EONET | `eonet.gsfc.nasa.gov/api/v3/events?status=all&days=30` | Public domain (NASA) | NASA EONET | minutes to days, per upstream | 10 min | none (store skips unchanged) |
+| NASA EONET | `eonet.gsfc.nasa.gov/api/v3/events?status=all&days=30`, plus `?status=open&category=volcanoes` | Public domain (NASA) | NASA EONET | minutes to days, per upstream | 10 min | none (store skips unchanged) |
 | NASA FIRMS | `firms.modaps.eosdis.nasa.gov/data/active_fire/*-viirs-c2/csv/*_Global_24h.csv` | NASA open data, no restrictions | NASA FIRMS | per satellite pass (~3 h NRT latency) | 15 min | ignored; HEAD + ETag |
 | Meteoalarm | `feeds.meteoalarm.org/api/v1/warnings/feeds-<country>` | CC BY 4.0 | MeteoAlarm (EUMETNET) | per national service | 5 min (planned) | none sent |
 | NOAA Tsunami Warning Centers | `www.tsunami.gov/events/js/previous.js` (last 40 messages) + each message's CAP and bulletin text | Public domain (U.S. Government work) | NOAA/NWS Pacific and National Tsunami Warning Centers | on each earthquake that could cause a tsunami; updates about hourly | 60 s | Last-Modified |
@@ -30,7 +30,10 @@ Notes:
 
 - **GDACS** requires credit: "reuse is allowed, provided appropriate credit to GDACS is given".
 - **EONET** re-publishes other agencies' events; each event links to its upstream (IRWIN, Smithsonian GVP, ...).
-  Upstreams Shield ingests directly are dropped (ADR 5).
+  Upstreams Shield ingests directly are dropped (ADR 5), except volcanoes GVP also lists (Fuego names GDACS among
+  seven upstreams). The 30-day window filters on observation dates, and a volcano's only observation is its
+  eruption's start, so open volcanoes come from the open list (32 on 2026-11-26, about 20 KB) and resolve, at the
+  poll, once they leave it; EONET's own closed date is never in either list. GVP links are upgraded to https.
 - **FIRMS** public 24 h files need no MAP_KEY. The MAP_KEY API (area queries, archives) is not used.
   Suomi NPP's file was empty on 2026-11-16 (last modified 2026-11-12); NOAA-20 and NOAA-21 carry ~80k rows/day each.
 - **Meteoalarm** warning areas arrive as inline CAP polygons or as codes. Codes are drawn from MeteoAlarm's own
@@ -47,3 +50,8 @@ Notes:
   for information only … meant for national authorities"; Shield stores them as forecasts, labelled as guidance,
   and never counts them as official-warning coverage.
 - **Excluded** (non-commercial terms): Open-Meteo, RainViewer (ADR 11).
+- **Smithsonian GVP, read directly: not used** (checked 2026-11-26 on `volcano.si.edu/gvp_termsofuse.cfm`). The
+  Weekly Volcanic Activity Report and the Volcanoes of the World database are "a product of employees of the
+  United States" (no copyright), but the site's terms forbid commercial use without the Smithsonian's written
+  permission, and its pages sit behind a bot check (scripted requests get 403; the weekly RSS file does load).
+  Shield reaches GVP's open eruptions through NASA EONET instead. Permission would be the owner's to request.

@@ -4,11 +4,22 @@
 // Feed: /api/v3/events?status=all&days=30, every 10 minutes (ADR 16).
 // status=all rather than open, so an event's closing reaches us and it is
 // resolved; days=30 bounds the payload to recently active events (the open
-// list alone carries thousands of never-closed records).
+// list alone carries thousands of never-closed records, 7,160 of them
+// wildfires on 2026-11-26).
+//
+// days=30 filters on observation dates, and a volcano's only observation
+// is the start of its eruption, so every continuing eruption fell outside
+// it (all 32 open on 2026-11-26, Fuego's dating from 2002). Volcanoes are
+// therefore also read from the open list (?status=open&category=volcanoes,
+// about 20 KB), and a volcano that leaves it is resolved: a closing is
+// never in the 30-day window either, since EONET's closed date is not an
+// observation. An empty or failed open list resolves nothing.
 //
 // EONET aggregates other feeds. Same-origin duplicates are dropped, per
 // ADR 5's ownership rule:
-//   - events whose source is GDACS (Shield ingests GDACS directly);
+//   - events whose source is GDACS (Shield ingests GDACS directly),
+//     except volcanoes that GVP also lists: GDACS alerts one eruption
+//     episode, GVP keeps the eruption open (Fuego lists both);
 //   - earthquakes (USGS owns them) and severe storms (JTWC/NHC tracks of
 //     the cyclones GDACS already carries with an impact alert);
 //   - categories that are not hazards to people: sea and lake ice,
@@ -25,6 +36,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -40,20 +52,32 @@ const (
 	ID = "eonet"
 	// FeedURL lists every event active in the last 30 days, open or closed.
 	FeedURL = "https://eonet.gsfc.nasa.gov/api/v3/events?status=all&days=30"
+	// VolcanoesURL lists every open volcano, whenever its eruption began.
+	VolcanoesURL = "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&category=volcanoes"
 	// PollInterval: EONET's upstreams update from minutes to days.
 	PollInterval = 10 * time.Minute
 )
 
+// Store is what the adapter needs: events, and the open volcanoes to end
+// once EONET no longer lists them.
+type Store interface {
+	ingest.EventStore
+	ActiveIDsWithAttr(ctx context.Context, sourceID, key, value string) ([]string, error)
+	Resolve(ctx context.Context, sourceID string, sourceEventIDs []string, at time.Time) (int, error)
+}
+
 // Source is the EONET adapter.
 type Source struct {
-	url    string
-	client *fetch.Client
-	store  ingest.EventStore
+	url        string
+	volcanoURL string
+	client     *fetch.Client
+	store      Store
+	now        func() time.Time
 }
 
 // New builds the adapter on the production feed.
-func New(client *fetch.Client, store ingest.EventStore) *Source {
-	return &Source{url: FeedURL, client: client, store: store}
+func New(client *fetch.Client, store Store) *Source {
+	return &Source{url: FeedURL, volcanoURL: VolcanoesURL, client: client, store: store, now: time.Now}
 }
 
 // Info implements ingest.Source.
@@ -73,24 +97,99 @@ func (*Source) Info() domain.SourceInfo {
 }
 
 // Poll implements ingest.Source. EONET sends no validators; the event
-// store skips unchanged rows, so a quiet poll costs one small download.
+// store skips unchanged rows, so a quiet poll costs two downloads. Both
+// lists are read before anything is written.
 func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, error) {
 	resp, err := s.client.Get(ctx, s.url, v)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	if resp.NotModified {
-		return ingest.Result{Validators: resp.Validators, NotModified: true}, nil
-	}
-	events, err := Parse(resp.Body)
+	vresp, err := s.client.Get(ctx, s.volcanoURL, domain.Validators{})
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	n, err := s.store.Upsert(ctx, ID, events)
+	var events []domain.Event
+	if !resp.NotModified {
+		if events, err = Parse(resp.Body); err != nil {
+			return ingest.Result{}, err
+		}
+	}
+	volcanoes, err := Parse(vresp.Body)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	return ingest.Result{Validators: resp.Validators, Upserted: n}, nil
+	open, err := listed(vresp.Body)
+	if err != nil {
+		return ingest.Result{}, err
+	}
+	n, err := s.store.Upsert(ctx, ID, merge(events, volcanoes))
+	if err != nil {
+		return ingest.Result{}, err
+	}
+	r, err := s.resolveClosedVolcanoes(ctx, open)
+	if err != nil {
+		return ingest.Result{}, err
+	}
+	return ingest.Result{Validators: resp.Validators, Upserted: n + r}, nil
+}
+
+// resolveClosedVolcanoes ends the stored volcanoes the open list no longer
+// carries, at the poll: EONET's own closed date (often weeks earlier) is
+// not in either list. An empty list resolves nothing: 20 to 40 volcanoes
+// are open at any time, so it is far likelier a fault than a quiet Earth.
+func (s *Source) resolveClosedVolcanoes(ctx context.Context, open []string) (int, error) {
+	if len(open) == 0 {
+		return 0, nil
+	}
+	active, err := s.store.ActiveIDsWithAttr(ctx, ID, "category", "volcanoes")
+	if err != nil {
+		return 0, err
+	}
+	still := make(map[string]bool, len(open))
+	for _, id := range open {
+		still[id] = true
+	}
+	var gone []string
+	for _, id := range active {
+		if !still[id] {
+			gone = append(gone, id)
+		}
+	}
+	return s.store.Resolve(ctx, ID, gone, s.now())
+}
+
+// merge adds the open volcanoes the 30-day window did not carry.
+func merge(events, volcanoes []domain.Event) []domain.Event {
+	seen := make(map[string]bool, len(events))
+	for i := range events {
+		seen[events[i].SourceEventID] = true
+	}
+	for i := range volcanoes {
+		if !seen[volcanoes[i].SourceEventID] {
+			events = append(events, volcanoes[i])
+		}
+	}
+	return events
+}
+
+// listed is every event id a response carries, kept or not, so a volcano
+// skipped for its geometry is never resolved for being unlisted.
+func listed(body []byte) ([]string, error) {
+	var f struct {
+		Events []struct {
+			ID string `json:"id"`
+		} `json:"events"`
+	}
+	if err := json.Unmarshal(body, &f); err != nil {
+		return nil, fmt.Errorf("eonet: decode: %w", err)
+	}
+	ids := make([]string, 0, len(f.Events))
+	for _, e := range f.Events {
+		if e.ID != "" {
+			ids = append(ids, e.ID)
+		}
+	}
+	return ids, nil
 }
 
 // types maps EONET categories to Shield types. Absent categories are
@@ -151,7 +250,7 @@ func Parse(body []byte) ([]domain.Event, error) {
 			continue
 		}
 		typ, ok := types[e.Categories[0].ID]
-		if !ok || fromOwnedSource(e.Sources) {
+		if !ok || ownedElsewhereFor(typ, e.Sources) {
 			continue
 		}
 		// Observations come oldest first, but do not rely on it.
@@ -201,6 +300,12 @@ func Parse(body []byte) ([]domain.Event, error) {
 		if len(e.Sources) > 0 && e.Sources[0].URL != "" {
 			officialURL = e.Sources[0].URL
 		}
+		// A volcano's page is GVP's, whichever upstream EONET lists first
+		// (Fuego's first is a 2017 Copernicus map).
+		if i := slices.IndexFunc(e.Sources, func(u upstream) bool { return u.ID == "SIVolcano" && u.URL != "" }); typ == domain.TypeVolcano && i >= 0 {
+			// Some arrive as http://; the site serves https.
+			officialURL = strings.Replace(e.Sources[i].URL, "http://volcano.si.edu/", "https://volcano.si.edu/", 1)
+		}
 		summary := ""
 		if e.Description != nil {
 			summary = strings.TrimSpace(*e.Description)
@@ -227,13 +332,15 @@ func Parse(body []byte) ([]domain.Event, error) {
 	return events, nil
 }
 
-func fromOwnedSource(sources []upstream) bool {
-	for _, s := range sources {
-		if ownedElsewhere[s.ID] {
-			return true
-		}
+// ownedElsewhereFor reports an event another Shield source carries from
+// the same origin. A volcano GVP lists is GVP's, even when GDACS is among
+// its upstreams: GDACS alerts single eruption episodes (none current on
+// 2026-11-26), so dropping it would leave an erupting Fuego off the map.
+func ownedElsewhereFor(typ domain.EventType, sources []upstream) bool {
+	if typ == domain.TypeVolcano && slices.ContainsFunc(sources, func(u upstream) bool { return u.ID == "SIVolcano" }) {
+		return false
 	}
-	return false
+	return slices.ContainsFunc(sources, func(u upstream) bool { return ownedElsewhere[u.ID] })
 }
 
 // classify derives severity. EONET carries no alert level; only a
