@@ -45,6 +45,8 @@ func TestBudget(t *testing.T) {
 		{"events world GeoJSON (zoom 2)", "/v1/events?zoom=2", "application/geo+json"},
 		{"events Europe (zoom 4)", "/v1/events?zoom=4&bbox=-25,34,45,72", "application/json"},
 		{"events Iberia GeoJSON (zoom 7)", "/v1/events?zoom=7&bbox=-10,36,4,44", "application/geo+json"},
+		{"events US GeoJSON (zoom 4)", "/v1/events?zoom=4&bbox=-130,20,-60,55", "application/geo+json"},
+		{"events US East Coast GeoJSON (zoom 6)", "/v1/events?zoom=6&bbox=-84,32,-74,40", "application/geo+json"},
 		{"events, no zoom (list)", "/v1/events", "application/json"},
 		{"fires world grid", "/v1/fires", ""},
 		{"fires grid (zoom 5, Africa)", "/v1/fires?zoom=5&bbox=-20,-35,52,38", ""},

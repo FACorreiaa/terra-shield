@@ -105,7 +105,10 @@ paths:
         6. Clients should round the point to two decimals (about 1 km): it
         is a query parameter, so proxies may log it. Send
         `Accept: application/geo+json` for a GeoJSON FeatureCollection with
-        each event's geometry, simplified for `zoom`. Negotiation follows
+        each event's geometry, simplified for `zoom`: parts smaller than a
+        pixel are left out (an event always keeps its largest part), and
+        coordinates carry only the decimals the zoom can show. The exact
+        shape is in the event's detail. Negotiation follows
         q-values; plain JSON wins a tie, `*/*` and a missing Accept, so a
         client listing both types with equal weight gets JSON.
       parameters:

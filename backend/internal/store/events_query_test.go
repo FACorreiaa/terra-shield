@@ -232,3 +232,76 @@ func TestEventListNear(t *testing.T) {
 		}
 	}
 }
+
+// At a map zoom, a shape loses the parts too small to see, but never
+// itself: an event of specks keeps its largest, a small storm survives
+// zoom 2, and lines pass as they are.
+func TestEventListMapGeometry(t *testing.T) {
+	pool := testutil.DB(t)
+	seedWorld(t, pool)
+	repo := store.NewEventRepository(pool)
+	ctx := context.Background()
+	square := func(x, y, side float64) [][][2]float64 {
+		return [][][2]float64{{{x, y}, {x + side, y}, {x + side, y + side}, {x, y + side}, {x, y}}}
+	}
+	shape := func(typ string, coords any) json.RawMessage {
+		b, _ := json.Marshal(map[string]any{"type": typ, "coordinates": coords})
+		return b
+	}
+	event := func(id string, geom json.RawMessage) domain.Event {
+		return domain.Event{
+			SourceEventID: id, Type: domain.TypeFlood, Kind: domain.KindWarning, Status: domain.StatusActive,
+			Severity: "moderate", Title: id, Geometry: geom, ObservedAt: listNow, UpdatedAt: listNow,
+		}
+	}
+	if _, err := repo.Upsert(ctx, "test", []domain.Event{
+		// One island of a degree and three of a few hundred metres.
+		event("islands", shape("MultiPolygon", [][][][2]float64{
+			square(-8.12345, 38.12345, 1), square(-6.5, 38, 0.003), square(-6.5, 38.5, 0.003), square(-6.5, 39, 0.003),
+		})),
+		// Every part below a pixel at zoom 2: the largest stays.
+		event("specks", shape("MultiPolygon", [][][][2]float64{
+			square(-5, 40, 0.01), square(-4.9, 40, 0.03), square(-4.8, 40, 0.01),
+		})),
+		event("storm", shape("Polygon", square(-3, 41, 0.05))),
+		event("track", shape("LineString", [][2]float64{{-2, 42}, {-1.5, 42.001}, {-1, 42}})),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	recs, _, err := repo.List(ctx, domain.EventQuery{Limit: 10, Geometry: true, SimplifyDegrees: 0.1758}) // zoom 2
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]struct {
+		Type        string
+		Coordinates json.RawMessage
+	}{}
+	for _, r := range recs {
+		var g struct {
+			Type        string
+			Coordinates json.RawMessage
+		}
+		if err := json.Unmarshal(r.Geometry, &g); err != nil {
+			t.Fatalf("%s: %s %v", r.Title, r.Geometry, err)
+		}
+		got[r.Title] = g
+	}
+	var parts [][][][2]float64
+	if g := got["islands"]; g.Type != "MultiPolygon" || json.Unmarshal(g.Coordinates, &parts) != nil || len(parts) != 1 {
+		t.Fatalf("islands %s %s", g.Type, g.Coordinates)
+	}
+	// Two decimals at zoom 2: -8.12345 is sent as -8.12.
+	if c := parts[0][0][0]; c[0] != -8.12 || c[1] != 38.12 {
+		t.Errorf("precision %v", c)
+	}
+	var ring [][][2]float64
+	if g := got["specks"]; g.Type != "Polygon" || json.Unmarshal(g.Coordinates, &ring) != nil || len(ring) != 1 || ring[0][1][0]-ring[0][0][0] < 0.02 {
+		t.Fatalf("specks %s %s", g.Type, g.Coordinates)
+	}
+	if g := got["storm"]; g.Type != "Polygon" || len(g.Coordinates) < 10 {
+		t.Fatalf("storm %s %s", g.Type, g.Coordinates)
+	}
+	if g := got["track"]; g.Type != "LineString" {
+		t.Fatalf("track %s %s", g.Type, g.Coordinates)
+	}
+}
