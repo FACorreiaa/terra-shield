@@ -133,6 +133,10 @@ func (*Source) Info() domain.SourceInfo {
 // PollAttempts implements ingest.PatientSource: a retry resumes.
 func (*Source) PollAttempts() int { return pollAttempts }
 
+// UseEndpoint sends the queries to another SPARQL endpoint than the
+// Wikidata Query Service (a mirror, in development).
+func (s *Source) UseEndpoint(u string) { s.q.endpoint = u }
+
 // PollTimeout implements ingest.SlowSource: 16 queries of up to a minute,
 // each after a wait as long as the last query, and taking turns at the
 // gate with the historic source, which polls on the same tick (see pacer).
@@ -184,6 +188,7 @@ type response struct {
 	Results *struct {
 		Bindings []map[string]struct {
 			Value string `json:"value"`
+			Lang  string `json:"xml:lang"`
 		} `json:"bindings"`
 	} `json:"results"`
 }
@@ -203,8 +208,10 @@ var (
 	notInService = regexp.MustCompile(`(?i)^\s*(a |an |the )?(former|formerly|closed|disused|defunct|historic|historical|abandoned|decommissioned|demolished|ruins?)\b` +
 		`|\bsite of (a |the )?former\b|\bworld war\b|\bruin(s|ed)?\b|\bhistoric (site|location|forts?)\b` +
 		`|\blocal authority\b|\bmuseum\b|\binternment\b|\bprisoner`)
-	// wktPoint is an Earth point; other globes carry an IRI prefix.
-	wktPoint = regexp.MustCompile(`^Point\(\s*(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s+(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s*\)$`)
+	// wktPoint is an Earth point; other globes carry an IRI prefix. WKT
+	// keywords are case-insensitive: the Query Service writes "Point",
+	// a mirror such as QLever "POINT".
+	wktPoint = regexp.MustCompile(`^(?i:point)\(\s*(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s+(-?[0-9.]+(?:[eE]-?[0-9]+)?)\s*\)$`)
 )
 
 // errShape is a response that is not a SPARQL JSON result.

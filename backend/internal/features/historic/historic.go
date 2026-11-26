@@ -28,13 +28,21 @@ type Repository interface {
 
 const (
 	// pointsFromZoom: below it the layer is a grid, from it single sites.
-	// Measured 2026-11-25 on 53,265 sites: the densest zoom-7 view (central
-	// Europe) holds 13,334 sites, past maxPoints; the densest zoom-8 view
-	// 6,957 (230 KB gzipped).
+	// Measured 2026-11-26 on 208,118 sites: a zoom-8 view of central Europe
+	// is 5,344 sites (194 KB gzipped). The densest views, around Tokyo
+	// (temples and shrines), hold 20,008 sites at zoom 8, 13,069 at zoom 9
+	// and 7,842 at zoom 10: they truncate to the maxPoints most notable
+	// (293 KB gzipped), which keeps Sensō-ji, Meiji Jingū and the Imperial
+	// Palace. A later threshold would grey out the rest of the world.
 	pointsFromZoom = 8
 	// gridBBoxFromZoom: from it the grid also needs a bbox. The whole world
-	// is 8,238 cells (56 KB gzipped) at zoom 5 but 25,913 at zoom 7.
+	// is 17,471 cells (122 KB gzipped) at zoom 5.
 	gridBBoxFromZoom = 6
+	// maxPointsSpan bounds a points view, in degrees: ranking by notability
+	// sorts every site in the box, so the whole world at zoom 8 took 700 ms
+	// against 120 ms for 30 by 20 degrees (2026-11-26). A zoom-8 map is
+	// about 14 degrees wide on a 5K screen.
+	maxPointsLon, maxPointsLat = 30, 20
 	// maxPoints bounds a site view; a busier view is marked truncated.
 	maxPoints = 10_000
 	// maxAge: the layer is refreshed weekly.
@@ -42,7 +50,7 @@ const (
 	mimeGeoJSON = "application/geo+json"
 	// note: some barracks and castles here are still in use; the layer is
 	// a heritage view, not a list of what is or is not active.
-	note = "Historic sites listed on Wikidata: forts, castles, bunkers, barracks, war cemeteries and former bases. Some are ruins or memorials and some are still in use; for military installations listed as in use, see the bases layer."
+	note = "Historic sites and landmarks listed on Wikidata: forts, castles, bunkers, barracks, war cemeteries and former bases; palaces, cathedrals, temples, monasteries, manor houses, town halls, towers and other landmarks; and UNESCO World Heritage Sites. Some are ruins and many are still in use; for military installations listed as in use, see the bases layer."
 )
 
 // Feature mounts /v1/historic.
@@ -79,7 +87,11 @@ func (f *Feature) list(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	q := domain.HistoricQuery{BBox: bbox, Kinds: kinds}
+	wh, err := params.Bool(v, "worldHeritage")
+	if err != nil {
+		return err
+	}
+	q := domain.HistoricQuery{BBox: bbox, Kinds: kinds, WorldHeritage: wh}
 
 	ctx := c.Request().Context()
 	fc := collection{Type: "FeatureCollection", Attribution: "Wikidata", License: "CC0 1.0", Note: note}
@@ -110,6 +122,9 @@ func (f *Feature) list(c *echo.Context) error {
 		if bbox == nil {
 			return httpx.BadRequest("bbox is required from zoom 8, where sites are single points")
 		}
+		if lonSpan(bbox) > maxPointsLon || bbox.MaxLat-bbox.MinLat > maxPointsLat {
+			return httpx.BadRequest("from zoom 8 the bbox may span at most 30 degrees of longitude and 20 of latitude")
+		}
 		pts, truncated, err := f.sites.Points(ctx, q, maxPoints)
 		if err != nil {
 			return err
@@ -120,7 +135,7 @@ func (f *Feature) list(c *echo.Context) error {
 			s := &pts[i]
 			fc.Features = append(fc.Features, feature{Type: "Feature", Geometry: at(s.Lon, s.Lat), Properties: Site{
 				ID: s.QID, Name: s.Name, Description: s.Description, Kind: string(s.Kind), Class: s.Class,
-				Country: s.ISO2, URL: "https://www.wikidata.org/wiki/" + s.QID,
+				Country: s.ISO2, WorldHeritage: s.WorldHeritage, Sitelinks: s.Sitelinks, URL: "https://www.wikidata.org/wiki/" + s.QID,
 			}})
 			if fc.UpdatedAt == nil || s.UpdatedAt.After(*fc.UpdatedAt) {
 				u := s.UpdatedAt.UTC()
@@ -171,7 +186,12 @@ type Site struct {
 	Kind        string `json:"kind"`
 	Class       string `json:"class"`
 	Country     string `json:"country,omitempty"`
-	URL         string `json:"url"`
+	// WorldHeritage: a UNESCO World Heritage Site, or a listed part of one.
+	WorldHeritage bool `json:"worldHeritage"`
+	// Sitelinks: Wikipedias and other wikis with a page on it; the points
+	// come most notable first.
+	Sitelinks int    `json:"sitelinks"`
+	URL       string `json:"url"`
 }
 
 // Cell is the sites in one grid cell, in total and per kind.
@@ -185,4 +205,12 @@ func round5(v float64) float64 { return math.Round(v*1e5) / 1e5 }
 
 func at(lon, lat float64) point {
 	return point{Type: "Point", Coordinates: [2]float64{round5(lon), round5(lat)}}
+}
+
+// lonSpan is the bbox's width in degrees, across the antimeridian too.
+func lonSpan(b *domain.BBox) float64 {
+	if b.MinLon > b.MaxLon {
+		return 360 - (b.MinLon - b.MaxLon)
+	}
+	return b.MaxLon - b.MinLon
 }

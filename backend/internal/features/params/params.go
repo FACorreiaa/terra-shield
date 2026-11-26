@@ -96,6 +96,17 @@ func Zoom(v url.Values) (*int, error) {
 	return &z, nil
 }
 
+// Bool reads a true/false parameter; false when absent.
+func Bool(v url.Values, name string) (bool, error) {
+	switch v.Get(name) {
+	case "", "false":
+		return false, nil
+	case "true":
+		return true, nil
+	}
+	return false, httpx.BadRequest(name + " must be true or false")
+}
+
 // Time reads an RFC 3339 parameter as UTC; nil when absent.
 func Time(v url.Values, name string) (*time.Time, error) {
 	s := v.Get(name)

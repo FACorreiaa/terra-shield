@@ -97,16 +97,18 @@ type GeoDataset struct {
 }
 
 type HistoricSite struct {
-	Qid         string
-	Name        string
-	Description *string
-	Kind        string
-	Class       string
-	Lat         float64
-	Lon         float64
-	Iso2        *string
-	CountryHint *string
-	UpdatedAt   time.Time
+	Qid           string
+	Name          string
+	Description   *string
+	Kind          string
+	Class         string
+	Lat           float64
+	Lon           float64
+	Iso2          *string
+	CountryHint   *string
+	UpdatedAt     time.Time
+	WorldHeritage bool
+	Sitelinks     int32
 }
 
 type MeteoalarmArea struct {

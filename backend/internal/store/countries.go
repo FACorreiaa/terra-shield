@@ -61,6 +61,12 @@ func (r *CountryRepository) Load(ctx context.Context, countries []domain.Country
 	if err != nil {
 		return 0, fmt.Errorf("upsert countries: %w", err)
 	}
+	// The historic layer keeps a site's country from poll to poll while it
+	// has not moved (HistoricRepository.Replace); new borders clear them,
+	// so its next poll places every site again.
+	if _, err := tx.Exec(ctx, `UPDATE historic_sites SET iso2 = NULL WHERE iso2 IS NOT NULL`); err != nil {
+		return 0, fmt.Errorf("clear historic countries: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, err
 	}

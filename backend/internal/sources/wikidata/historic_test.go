@@ -26,6 +26,16 @@ func binding(qid, label, wkt, desc, iso string) string {
 	return b + "}"
 }
 
+// withCriterion adds a World Heritage criterion to a binding.
+func withCriterion(b, cr string) string {
+	return strings.TrimSuffix(b, "}") + fmt.Sprintf(`,"cr":{"value":"http://www.wikidata.org/entity/%s"}}`, cr)
+}
+
+const (
+	cultural = "Q23038972" // criterion (i)
+	natural  = "Q23038981" // criterion (vii)
+)
+
 func answer(bs ...string) string { return `{"results":{"bindings":[` + strings.Join(bs, ",") + `]}}` }
 
 var castleClass = HistoricClasses[0]
@@ -37,12 +47,13 @@ func TestParseHistoric(t *testing.T) {
 		binding("Q2", "Q2", "Point(1 1)", "", ""),                           // unnamed
 		binding("Q3", "Moon Castle", "<http://www.wikidata.org/entity/Q405> Point(1 1)", "", ""),
 		binding("Q4", "Former Castle", "Point(2 50)", "former castle, now ruins", ""), // kept: history is the point
+		binding("Q6", "Mirror Castle", "POINT(3 51)", "", ""),                         // WKT is case-insensitive
 	)
 	sites, hints, err := ParseHistoric([]byte(body), castleClass)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(sites) != 2 || sites[0].QID != "Q1" || sites[1].QID != "Q4" {
+	if len(sites) != 3 || sites[0].QID != "Q1" || sites[1].QID != "Q4" || sites[2].QID != "Q6" || sites[2].Lat != 51 {
 		t.Fatalf("%+v", sites)
 	}
 	s := sites[0]
@@ -57,21 +68,25 @@ func TestParseHistoric(t *testing.T) {
 type fakeHistoricStore struct {
 	mu    sync.Mutex
 	sites []domain.HistoricSite
-	held  map[domain.HistoricKind]int
+	held  domain.HistoricCounts
 }
 
 func (f *fakeHistoricStore) Replace(_ context.Context, s []domain.HistoricSite, _ map[string]string, _ time.Time) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.sites = s
-	f.held = map[domain.HistoricKind]int{}
+	f.held = domain.HistoricCounts{Kinds: map[domain.HistoricKind]int{}, Classes: map[string]int{}}
 	for i := range s {
-		f.held[s[i].Kind]++
+		f.held.Kinds[s[i].Kind]++
+		f.held.Classes[s[i].Class]++
+		if s[i].WorldHeritage {
+			f.held.WorldHeritage++
+		}
 	}
 	return len(s), nil
 }
 
-func (f *fakeHistoricStore) CountByKind(context.Context) (map[domain.HistoricKind]int, error) {
+func (f *fakeHistoricStore) Counts(context.Context) (domain.HistoricCounts, error) {
 	return f.held, nil
 }
 
@@ -80,7 +95,9 @@ type baseCount int
 func (b baseCount) Count(context.Context) (int, error) { return int(b), nil }
 
 // historicStub answers: Q10 is a castle and a fort (castle wins); Q11 a
-// fort; Q12 an air base (a bases-layer class); Q13 a war cemetery.
+// fort; Q12 an air base (a bases-layer class); Q13 a war cemetery. World
+// Heritage: Q10 (cultural), Q14 (a part of a serial site, no criteria), Q15
+// (natural only), Q16 (mixed).
 func historicStub(t *testing.T, asked map[string]int, mu *sync.Mutex) *httptest.Server {
 	t.Helper()
 	by := map[string]string{
@@ -88,6 +105,13 @@ func historicStub(t *testing.T, asked map[string]int, mu *sync.Mutex) *httptest.
 		"Q1785071": answer(binding("Q10", "Fort Castle", "Point(1 50)", "", ""), binding("Q11", "Old Fort", "Point(2 50)", "", "")),
 		"Q695850":  answer(binding("Q12", "RAF Old Field", "Point(0 52)", "", "GB")),
 		"Q1241568": answer(binding("Q13", "War Cemetery", "Point(3 50)", "", "")),
+		"Q9259": answer(
+			withCriterion(binding("Q10", "Fort Castle", "Point(1 50)", "", ""), cultural),
+			binding("Q14", "Old Town Hall", "Point(4 50)", "part of a World Heritage Site", "BE"),
+			withCriterion(binding("Q15", "Great Reef", "Point(150 -18)", "", ""), natural),
+			withCriterion(binding("Q16", "Holy Mountain", "Point(5 45)", "", ""), natural),
+			withCriterion(binding("Q16", "Holy Mountain", "Point(5 45)", "", ""), cultural),
+		),
 	}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("query")
@@ -129,7 +153,7 @@ func TestHistoricPoll(t *testing.T) {
 
 	h = newTestHistoric(srv.URL, store, baseCount(3000))
 	res, err := h.Poll(context.Background(), domain.Validators{})
-	if err != nil || res.Upserted != 4 {
+	if err != nil || res.Upserted != 6 {
 		t.Fatalf("%+v %v", res, err)
 	}
 	got := map[string]domain.HistoricSite{}
@@ -142,8 +166,22 @@ func TestHistoricPoll(t *testing.T) {
 	if got["Q12"].Kind != domain.HistoricMilitary || got["Q12"].Class != "air base" {
 		t.Errorf("a bases-layer class item: %+v", got["Q12"])
 	}
-	if got["Q13"].Kind != domain.HistoricMemorial {
+	if got["Q13"].Kind != domain.HistoricMemorial || got["Q13"].WorldHeritage {
 		t.Errorf("war cemetery: %+v", got["Q13"])
+	}
+	// World Heritage: flagged where a class took it, added as a general
+	// landmark where none did, unless it is purely natural.
+	if !got["Q10"].WorldHeritage || got["Q10"].Kind != domain.HistoricCastle {
+		t.Errorf("a World Heritage castle stays a castle, flagged: %+v", got["Q10"])
+	}
+	if s := got["Q14"]; !s.WorldHeritage || s.Kind != domain.HistoricGeneral || s.Class != "World Heritage Site" {
+		t.Errorf("a World Heritage part with no criteria is added: %+v", s)
+	}
+	if _, ok := got["Q15"]; ok {
+		t.Error("a natural World Heritage Site is not a landmark")
+	}
+	if !got["Q16"].WorldHeritage {
+		t.Errorf("a mixed site is added: %+v", got["Q16"])
 	}
 }
 
@@ -153,7 +191,7 @@ func TestHistoricRefusesToShrinkAKind(t *testing.T) {
 	srv := historicStub(t, asked, &mu)
 	defer srv.Close()
 	// Plenty stored overall, but the castles would drop from 10 to 1.
-	store := &fakeHistoricStore{held: map[domain.HistoricKind]int{domain.HistoricCastle: 10, domain.HistoricMilitary: 2}}
+	store := &fakeHistoricStore{held: domain.HistoricCounts{Kinds: map[domain.HistoricKind]int{domain.HistoricCastle: 10, domain.HistoricMilitary: 2}}}
 	h := newTestHistoric(srv.URL, store, baseCount(3000))
 	for range 2 {
 		if _, err := h.Poll(context.Background(), domain.Validators{}); err == nil || store.sites != nil {
@@ -181,10 +219,90 @@ func TestHistoricClasses(t *testing.T) {
 			t.Errorf("class %s has kind %q", c.QID, c.Kind)
 		}
 	}
+	// QIDs once mistaken for landmark classes (2026-11-25).
+	for _, wrong := range []string{"Q1371", "Q1785733", "Q1303167"} {
+		if seen[wrong] {
+			t.Errorf("%s is not a landmark class", wrong)
+		}
+	}
+	if len(HistoricClasses) != 136 {
+		t.Errorf("%d classes, want 136 (with World Heritage, 137 queries a poll)", len(HistoricClasses))
+	}
 	if bases != len(Classes) || HistoricClasses[0].Kind != domain.HistoricCastle {
 		t.Errorf("bases classes %d of %d; first %+v", bases, len(Classes), HistoricClasses[0])
 	}
 	if q := HistoricQuery("Q23413"); strings.Contains(q, "P582") || !strings.Contains(q, "wdt:P31 wd:Q23413 ;") {
 		t.Errorf("historic query must be the lean one:\n%s", q)
+	}
+}
+
+func TestParseWorldHeritage(t *testing.T) {
+	if _, _, _, err := ParseWorldHeritage([]byte(answer())); err == nil {
+		t.Fatal("an empty World Heritage answer must fail the poll")
+	}
+	body := answer(
+		withCriterion(binding("Q20", "Old City", "Point(35.2 31.8)", "", "il"), cultural),
+		withCriterion(binding("Q21", "National Park", "Point(-110 44)", "", ""), natural),
+		binding("Q22", "Q22", "Point(1 1)", "", ""), // unnamed: flagged, not added
+	)
+	sites, hints, wh, err := ParseWorldHeritage([]byte(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sites) != 1 || sites[0].QID != "Q20" || !sites[0].WorldHeritage || hints["Q20"] != "IL" {
+		t.Fatalf("sites %+v hints %v", sites, hints)
+	}
+	if !wh["Q20"] || !wh["Q21"] || !wh["Q22"] || len(wh) != 3 {
+		t.Fatalf("every item is flagged: %v", wh)
+	}
+}
+
+// A name in Wikidata's default language ("mul") stands in for a missing
+// English one, and an English one wins when both come; sitelinks rank.
+func TestParseHistoricNamesAndSitelinks(t *testing.T) {
+	body := `{"results":{"bindings":[
+		{"b":{"value":"http://www.wikidata.org/entity/Q30"},"c":{"value":"Point(1 2)"},"label":{"value":"Burg Mul","xml:lang":"mul"},"n":{"value":"12"}},
+		{"b":{"value":"http://www.wikidata.org/entity/Q30"},"c":{"value":"Point(1 2)"},"label":{"value":"Mul Castle","xml:lang":"en"},"n":{"value":"12"}},
+		{"b":{"value":"http://www.wikidata.org/entity/Q31"},"c":{"value":"Point(3 4)"},"label":{"value":"Château Seul","xml:lang":"mul"}}
+	]}}`
+	sites, _, err := ParseHistoric([]byte(body), castleClass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sites) != 2 || sites[0].Name != "Mul Castle" || sites[0].Sitelinks != 12 || sites[1].Name != "Château Seul" || sites[1].Sitelinks != 0 {
+		t.Fatalf("%+v", sites)
+	}
+}
+
+// A class or the World Heritage flags answering short is refused even
+// when every kind holds up: general is too big for its guard to notice.
+func TestHistoricPollGuardsClassesAndWorldHeritage(t *testing.T) {
+	// The stub's classes are tiny: guard every class of 2 sites or more.
+	defer func(n int) { minGuardedClass = n }(minGuardedClass)
+	minGuardedClass = 2
+	var mu sync.Mutex
+	srv := historicStub(t, map[string]int{}, &mu)
+	defer srv.Close()
+	for name, tc := range map[string]struct {
+		held   domain.HistoricCounts
+		refuse bool
+	}{
+		"a big class vanishes":   {domain.HistoricCounts{Classes: map[string]int{"palace": minGuardedClass}}, true},
+		"a small class vanishes": {domain.HistoricCounts{Classes: map[string]int{"palace": minGuardedClass - 1}}, false},
+		// Stored under a dropped class: not queried any more, not guarded.
+		"a class was dropped": {domain.HistoricCounts{Classes: map[string]int{"gurdwara": 500}}, false},
+		// The cultural World Heritage Sites no class took answer short.
+		"World Heritage additions vanish": {domain.HistoricCounts{Classes: map[string]int{worldHeritageClass: 200}}, true},
+		// Q10 answers castle (first) and fort; stored when fort came
+		// first, fort held Q10 and Q11. Its own answer still holds both.
+		"classes reordered":       {domain.HistoricCounts{Classes: map[string]int{"fort": 2}}, false},
+		"World Heritage shrinks":  {domain.HistoricCounts{WorldHeritage: 50}, true},
+		"World Heritage holds up": {domain.HistoricCounts{WorldHeritage: 3}, false},
+	} {
+		store := &fakeHistoricStore{held: tc.held}
+		_, err := newTestHistoric(srv.URL, store, baseCount(3000)).Poll(context.Background(), domain.Validators{})
+		if refused := err != nil; refused != tc.refuse {
+			t.Errorf("%s: refused=%v (%v), want %v", name, refused, err, tc.refuse)
+		}
 	}
 }

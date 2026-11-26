@@ -95,15 +95,15 @@ func TestGrid(t *testing.T) {
 func TestPoints(t *testing.T) {
 	at := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
 	repo := &fakeRepo{more: true, pts: []domain.HistoricSite{
-		{QID: "Q1", Name: "Castelo de São Jorge", Kind: domain.HistoricCastle, Class: "castle", ISO2: "PT", Lon: -9.133456, Lat: 38.713912, UpdatedAt: at},
+		{QID: "Q1", Name: "Castelo de São Jorge", Kind: domain.HistoricCastle, Class: "castle", ISO2: "PT", Lon: -9.133456, Lat: 38.713912, WorldHeritage: true, UpdatedAt: at},
 	}}
-	b := decode(t, get(t, repo, "/v1/historic?zoom=8&bbox=-10,38,-9,39"))
-	if b.Aggregation != "none" || !b.Truncated || b.UpdatedAt == nil || !b.UpdatedAt.Equal(at) || repo.got.BBox == nil {
+	b := decode(t, get(t, repo, "/v1/historic?zoom=8&bbox=-10,38,-9,39&worldHeritage=true"))
+	if b.Aggregation != "none" || !b.Truncated || b.UpdatedAt == nil || !b.UpdatedAt.Equal(at) || repo.got.BBox == nil || !repo.got.WorldHeritage {
 		t.Fatalf("%+v", b)
 	}
 	f := b.Features[0]
 	if f.Geometry.Coordinates != [2]float64{-9.13346, 38.71391} || f.Properties["id"] != "Q1" || f.Properties["kind"] != "castle" ||
-		f.Properties["url"] != "https://www.wikidata.org/wiki/Q1" || f.Properties["country"] != "PT" {
+		f.Properties["url"] != "https://www.wikidata.org/wiki/Q1" || f.Properties["country"] != "PT" || f.Properties["worldHeritage"] != true {
 		t.Errorf("%+v", f)
 	}
 }
@@ -115,8 +115,19 @@ func TestErrors(t *testing.T) {
 		"/v1/historic?zoom=5":              http.StatusOK,
 		"/v1/historic?zoom=7&bbox=0,0,1,1": http.StatusOK,
 		"/v1/historic?kind=palace":         http.StatusBadRequest,
+		"/v1/historic?kind=general":        http.StatusOK,
+		"/v1/historic?worldHeritage=yes":   http.StatusBadRequest,
 		"/v1/historic?bbox=1,2":            http.StatusBadRequest,
 		"/v1/historic?zoom=8&bbox=0,0,1,1": http.StatusOK,
+		// Points views are bounded: 30 by 20 degrees, across the
+		// antimeridian too; the grid is not.
+		"/v1/historic?zoom=8&bbox=-180,-90,180,90": http.StatusBadRequest,
+		"/v1/historic?zoom=8&bbox=0,40,30,60":      http.StatusOK,
+		"/v1/historic?zoom=8&bbox=0,40,31,60":      http.StatusBadRequest,
+		"/v1/historic?zoom=8&bbox=0,40,30,61":      http.StatusBadRequest,
+		"/v1/historic?zoom=9&bbox=170,0,-160,10":   http.StatusOK,
+		"/v1/historic?zoom=9&bbox=170,0,-150,10":   http.StatusBadRequest,
+		"/v1/historic?zoom=7&bbox=-180,-90,180,90": http.StatusOK,
 	} {
 		if w := get(t, &fakeRepo{}, target); w.Code != want {
 			t.Errorf("%s: %d, want %d", target, w.Code, want)
