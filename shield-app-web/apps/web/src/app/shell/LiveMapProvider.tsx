@@ -3,13 +3,12 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { View } from "@/domain/viewport.ts";
-import { useEvents } from "@/features/events/useEvents.ts";
 import { setQuery, useSavedFilters } from "@/features/filters/filterPrefs.ts";
 
 import type { LiveMap } from "./liveMapContext.ts";
 import { LiveMapContext } from "./liveMapContext.ts";
+import { useMapEvents } from "./useMapEvents.ts";
 import { useSelectedEvent } from "./useSelectedEvent.ts";
-import { useDisplayed, useShownEvents } from "./useShownEvents.ts";
 import { SourceLookupContext, useSourceHealth } from "./useSourceHealth.ts";
 import { useUrlSelection } from "./useUrlSelection.ts";
 
@@ -39,9 +38,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   const [map, setMap] = useState<MapLibreMap>();
   const now = useNow();
   const { query } = useSavedFilters();
-  const events = useEvents(view, query);
-  const { shown, status, failure } = useShownEvents(events, now);
-  const { list, clusters } = useDisplayed(shown);
+  const { events, shown, list, clusters, status, failure } = useMapEvents({ view, query, selectedId, now });
   const { selected, detail, selectedShape } = useSelectedEvent(selectedId, list, chosen);
   const { sources, staleSources, lookup } = useSourceHealth(now);
   const value = useMemo<LiveMap>(

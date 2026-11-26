@@ -422,6 +422,25 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - **Conflict rows** (W7) will need their own monthly line; a stale UCDP never marks them stale.
      - **An empty source list** reads as a failure ("Couldn’t load the sources." with Try again);
        the apps show nothing.
+   - **W6, part 1: live stream.** One `/v1/stream` per browser, shared by every tab (the server
+     allows 8 per IP): the tab holding the `shield-stream` Web Lock streams and relays over the
+     `shield-live` BroadcastChannel; when it closes the next tab takes over from the stored cursor
+     (`shield.live` v1, which only moves forward). A visible tab that hasn't heard the leader for
+     45 s asks after it and, with no answer in 5 s (a frozen background tab), takes the stream;
+     a throttled but running leader answers at once, since messages aren't throttled like timers.
+     A tab taking over isn't live until its own `ready`. Changes apply as in `LiveMapModel.apply`: patched in place from zoom 6
+     when the list isn't cut, otherwise one reload for a run of changes; more than 50 a second fold
+     into one reload; `ready` and `reset` reload. An open event outside the list refetches its
+     detail on a change, and one its source removes is shown as gone at once. Other views' cached
+     lists are marked stale on a change, so returning to one reloads it; list and detail requests
+     skip the HTTP cache (`no-cache`), so a reload the stream asks for always reaches the server. The capsule's dot fills
+     while live, and "Updated now" counts the stream's heartbeat; 45 s of silence ends live. The
+     60 s poll runs regardless, so a dead stream never freezes the map.
+   - **Deviations for the owner:**
+     - **`fetch`, not `EventSource`.** `EventSource` never surfaces the 20 s heartbeat (an `id:`-only
+       block dispatches nothing) and hides a 429/503's `Retry-After`, so the stream is read with
+       `fetch` and a port of `ServerSentEvents.swift`, as the apps do. Backoff as the apps: the
+       server's Retry-After, else 5 s doubling to 60 s, ±20 %.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

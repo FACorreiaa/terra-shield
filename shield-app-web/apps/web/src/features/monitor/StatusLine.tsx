@@ -9,6 +9,13 @@ const DOT: Readonly<Record<Tone, string>> = {
   danger: "border-danger",
   muted: "border-muted",
 };
+/** Filled while the live stream is connected. */
+const FILL: Readonly<Record<Tone, string>> = {
+  ok: "bg-ok",
+  warning: "bg-warning",
+  danger: "bg-danger",
+  muted: "bg-muted",
+};
 
 interface StatusLineProps {
   status: LiveStatus;
@@ -17,13 +24,24 @@ interface StatusLineProps {
 
 /**
  * The live dot and how fresh the map's data is (DESIGN.md §10.1 states). The dot is a ring while the
- * map only polls; it fills once the live stream arrives (W6), so shape carries it as well as colour.
+ * map only polls and fills while the live stream is connected, so shape carries it as well as colour.
  */
 function StatusLine({ status, onRetry }: StatusLineProps): ReactElement {
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full border-[1.5px]", DOT[status.dot])} />
-      <span className={cn("font-mono text-meta", status.warns ? "text-warning" : "text-muted")}>{status.text}</span>
+      <span
+        aria-hidden
+        data-live={status.live}
+        className={cn(
+          "size-1.5 shrink-0 rounded-full border-[1.5px]",
+          DOT[status.dot],
+          status.live && FILL[status.dot],
+        )}
+      />
+      <span className={cn("font-mono text-meta", status.warns ? "text-warning" : "text-muted")}>
+        {status.text}
+        {status.live ? <span className="sr-only">, live</span> : undefined}
+      </span>
       {status.retry ? (
         <button
           type="button"
