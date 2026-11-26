@@ -30,7 +30,7 @@ describe(eventType, () => {
 
 describe("hazard types", () => {
   it("are every token type, in the apps' order, and never conflict", () => {
-    expect(HAZARD_TYPES).toStrictEqual(Object.keys(hazardTypeTokens));
+    expect(HAZARD_TYPES).toStrictEqual(Object.keys(hazardTypeTokens).filter((type) => type !== "conflict"));
     expect(HAZARD_TYPES).not.toContain("conflict");
   });
 });
