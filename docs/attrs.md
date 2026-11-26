@@ -24,6 +24,18 @@ The API lifts `attrs.severityProvisional` to the top-level `severityProvisional`
 | `cdi` | number | Community decimal intensity |
 | `mmi` | number | ShakeMap maximum intensity |
 
+## EMSC (earthquakes in Europe and the Mediterranean; ADR 34)
+
+Names follow USGS's where they mean the same. No `sig`, `tsunami`, `reviewStatus` or PAGER keys.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `mag` | number, **always** | Magnitude |
+| `magType` | string, **always** | Magnitude type (`ml`, `mb`, `mw`, `m`, …) |
+| `place` | string, **always** | Flynn-Engdahl region, title case ("Dodecanese Islands, Greece") |
+| `depthKm` | number | Hypocenter depth |
+| `agency` | string | The network that located it (`INGV`, `NOA`, `AFAD`, `EMSC`, …) |
+
 ## GDACS (cyclones, floods, droughts, volcanoes, wildfires)
 
 | Key | Type | Meaning |

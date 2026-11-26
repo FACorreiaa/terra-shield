@@ -10,6 +10,7 @@ document has not been located, so neither has a `termsUrl` yet. adsb.lol (live f
 | Source | Feed used | License | Attribution | Publishes | Shield polls | Conditional GET |
 |---|---|---|---|---|---|---|
 | USGS | `earthquake.usgs.gov/.../summary/2.5_day.geojson` | Public domain (U.S. Government work) | U.S. Geological Survey | every minute | 60 s | ignored; Last-Modified compared client-side |
+| EMSC (ADR 34) | `www.seismicportal.eu/fdsnws/event/1/query?format=json` (past day, 27–72°N 32°W–48°E, M2+) | CC BY 4.0, commercial use allowed (`seismicportal.eu/terms.html`, checked 2026-11-26; may change without notice) | EMSC-CSEM SeismicPortal | within minutes | 2 min | none sent (ETags not shown to follow content) |
 | GDACS | `www.gdacs.org/xml/rss.xml` (+ `gdacsapi/api/polygons/getgeometry` for Orange/Red) | CC BY 4.0 (European Union) | GDACS (UN + European Commission) | every few minutes | 5 min | ETag → 304 |
 | NASA EONET | `eonet.gsfc.nasa.gov/api/v3/events?status=all&days=30` | Public domain (NASA) | NASA EONET | minutes to days, per upstream | 10 min | none (store skips unchanged) |
 | NASA FIRMS | `firms.modaps.eosdis.nasa.gov/data/active_fire/*-viirs-c2/csv/*_Global_24h.csv` | NASA open data, no restrictions | NASA FIRMS | per satellite pass (~3 h NRT latency) | 15 min | ignored; HEAD + ETag |

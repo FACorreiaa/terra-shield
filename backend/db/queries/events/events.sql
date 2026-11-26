@@ -255,3 +255,22 @@ WHERE source_id = @source_id AND source_event_id = ANY(@supersedes::text[]);
 UPDATE event_revisions SET event_id = @event_id
 WHERE event_id IN (SELECT p.id FROM events p WHERE p.source_id = @source_id
                    AND p.source_event_id = ANY(@supersedes::text[]) AND p.id <> @event_id);
+
+-- name: KnownQuakes :many
+-- Of the given quakes (parallel arrays), the 1-based positions of those
+-- another source already stores, active or ended, within @seconds of the
+-- origin time, @meters of the epicenter and @mag_delta of the magnitude:
+-- the same earthquake reported by two networks (ADR 34).
+SELECT q.idx::int AS idx
+FROM unnest(@times::timestamptz[]) WITH ORDINALITY AS q(t, idx)
+WHERE EXISTS (
+    SELECT 1 FROM events e
+    WHERE e.source_id = @source_id AND e.type = 'earthquake'
+      AND e.observed_at BETWEEN q.t - make_interval(secs => @seconds::float8)
+                            AND q.t + make_interval(secs => @seconds::float8)
+      AND ST_DWithin(e.centroid,
+                     ST_SetSRID(ST_MakePoint((@lons::float8[])[q.idx], (@lats::float8[])[q.idx]), 4326)::geography,
+                     @meters::float8)
+      AND abs((e.attrs ->> 'mag')::float8 - (@mags::float8[])[q.idx]) <= @mag_delta::float8
+)
+ORDER BY q.idx;

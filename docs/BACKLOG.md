@@ -67,7 +67,7 @@
 - **Backend queue (owner, 2026-11-26), in order.** Everything here needs no account, key or infrastructure until it says so. Each item: licence checked first, ADR, tests on recorded fixtures, Fable review before merge.
   1. [ ] **Official cyclone forecasts:** [x] NHC (Atlantic and East Pacific, with CPHC for the Central Pacific) forecast tracks and cones (ADR 32; clients still to draw the track from `attrs.forecast`), then [ ] JTWC for the West Pacific, Indian Ocean and Southern Hemisphere. Public domain (NOAA; JTWC licence to verify). Kind `forecast`, type `tropical_cyclone`, beside GDACS's impact events. Also Phase 5's "storm tracks".
   2. [x] **"What changed in 24h"** (ADR 33, `GET /v1/changes`; clients still to show it): one endpoint over `event_revisions` (new, escalated, ended, by country and type). Part of Phase 3, but needs no sign-in.
-  3. [ ] **EMSC earthquakes** below USGS's M2.5 cut (Europe and the Mediterranean). Licence check first.
+  3. [x] **EMSC earthquakes** for Europe and the Mediterranean (ADR 34): M2+, where USGS lists only from about M4; USGS keeps the quakes it lists.
   4. [ ] **Volcano advisories:** Smithsonian GVP weekly reports and the aviation ash centres (VAACs). Licence check first.
   5. [ ] **Phase 5 extras:** timeline replay over revisions; cross-source merging (one hazard, several sources, ADR 5); vector tiles only if a measured payload needs them.
   6. [ ] **Small items:** clip GeoJSON shapes to the view at zoom 10+ (dense coast is 337–378 KB); NWS known limits (latest segment per zone decides; a shrink guard), if seen live (ADR 31).
