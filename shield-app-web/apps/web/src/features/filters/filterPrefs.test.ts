@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { DEFAULT_QUERY } from "@/domain/filters.ts";
 
-import { resetFilterPrefsForTests, savedFilters, setQuery } from "./filterPrefs.ts";
+import { resetFilterPrefsForTests, resetFilters, savedFilters, setQuery, setShowsDetections } from "./filterPrefs.ts";
 
 const KEY = "shield.filters";
 
@@ -54,5 +54,17 @@ describe("filter prefs", () => {
       showsDetections: true,
       includeResolved: true,
     });
+  });
+
+  it("keeps the heat switch and the query apart, and Reset turns the heat layer off", () => {
+    setQuery({ ...DEFAULT_QUERY, minimumSeverity: "severe" });
+    setShowsDetections(true);
+    resetFilterPrefsForTests();
+    expect(savedFilters().showsDetections).toBe(true);
+    expect(savedFilters().query.minimumSeverity).toBe("severe");
+
+    resetFilters(DEFAULT_QUERY);
+    expect(savedFilters()).toStrictEqual({ query: DEFAULT_QUERY, showsDetections: false });
+    expect(stored()).toMatchObject({ showsDetections: false, minimumSeverity: "minor" });
   });
 });

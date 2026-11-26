@@ -27,7 +27,7 @@ async function stubTileHost(target: Routable): Promise<void> {
 }
 
 /**
- * The API calls a test doesn't route itself: no sources yet, an event's detail and a country's
+ * The API calls a test doesn't route itself: no sources yet, no heat detections, an event's detail and a country's
  * summary unavailable, and the live stream refusing for an hour (the page polls, as whenever the
  * stream is down). Nothing reaches the preview's proxy; a test's own route is registered later and wins.
  */
@@ -36,6 +36,11 @@ async function stubApiDefaults(target: Routable): Promise<void> {
     route.fulfill({ status: 503, headers: { "Retry-After": "3600" }, json: { error: "unavailable" } }),
   );
   await target.route("**/v1/sources", (route) => route.fulfill({ json: { sources: [] } }));
+  await target.route("**/v1/fires?**", (route) =>
+    route.fulfill({
+      json: { type: "FeatureCollection", aggregation: "grid", cellDegrees: 1, features: [], truncated: false },
+    }),
+  );
   await target.route("**/v1/events/*", (route) => route.fulfill({ status: 503, json: { error: "unavailable" } }));
   await target.route("**/v1/countries/*/summary", (route) =>
     route.fulfill({ status: 503, json: { error: "unavailable" } }),

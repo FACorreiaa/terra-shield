@@ -96,8 +96,13 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
     }
     return map !== undefined;
   },
+  detections: ({ live }) => {
+    live.detections.toggle();
+    return true;
+  },
   refresh: ({ live }) => {
     void live.events.refetch();
+    live.detections.refetch();
     return true;
   },
   search: ({ search }) => search.focus(),

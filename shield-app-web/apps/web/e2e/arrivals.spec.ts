@@ -58,6 +58,8 @@ liveTest.describe("arrivals", () => {
     server.send(created(served, { cursor: 47, title: "M 6.1 - Arrived" }));
     const toast = page.getByRole("button", { name: TOAST_LINE });
     await expect(toast).toBeVisible();
+    // Pointed at, it waits: a busy machine can take longer than its 6 s to finish the hand-over.
+    await toast.hover();
     await expect(page.getByRole("status").filter({ hasText: TOAST_LINE })).toBeAttached();
     // The DOM copy animates in over the map, then hands over to the marker.
     await copied;

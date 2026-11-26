@@ -8,8 +8,8 @@ import { readRawStored, subscribeStored, writeRawStored } from "@/lib/storage.ts
 
 /**
  * The filters a person chose (DESIGN.md §10.6, persisted locally), shared between tabs. Stored under
- * `shield.filters` as the apps' own versioned blob, so its `showsDetections` survives until the heat
- * layer (W7) reads it.
+ * `shield.filters` as the apps' own versioned blob, with the heat layer's switch beside the query
+ * (FilterStore.swift).
  */
 const KEY = "shield.filters";
 
@@ -28,11 +28,32 @@ function notify(): void {
   }
 }
 
+function save(saved: SavedFilters): void {
+  cache.saved = saved;
+  writeRawStored(KEY, encodeFilters(saved));
+  notify();
+}
+
 /** Applies `query` at once: the map reloads behind the sheet (FilterSheet.swift). */
 function setQuery(query: EventQuery): void {
-  cache.saved = { ...savedFilters(), query };
-  writeRawStored(KEY, encodeFilters(cache.saved));
-  notify();
+  save({ ...savedFilters(), query });
+}
+
+/** Shows or hides satellite heat detections: one switch for the map control, the sheet and `h`. */
+function setShowsDetections(showsDetections: boolean): void {
+  if (savedFilters().showsDetections !== showsDetections) {
+    save({ ...savedFilters(), showsDetections });
+  }
+}
+
+/** Flips the heat layer from what is stored now, so no caller acts on a stale value. */
+function toggleShowsDetections(): void {
+  setShowsDetections(!savedFilters().showsDetections);
+}
+
+/** The sheet's Reset: default filters and the heat layer off (FilterSheet.swift). */
+function resetFilters(query: EventQuery): void {
+  save({ query, showsDetections: false });
 }
 
 /** Calls `listener` when the filters change here or in another tab. */
@@ -57,4 +78,13 @@ function resetFilterPrefsForTests(): void {
   cache.saved = undefined;
 }
 
-export { resetFilterPrefsForTests, savedFilters, setQuery, subscribeFilters, useSavedFilters };
+export {
+  resetFilterPrefsForTests,
+  resetFilters,
+  savedFilters,
+  setQuery,
+  setShowsDetections,
+  subscribeFilters,
+  toggleShowsDetections,
+  useSavedFilters,
+};

@@ -100,8 +100,8 @@ function LayersPanel({ id, projection, onProjectionChange }: LayersMenuProps & {
 }
 
 /**
- * The layers button and its panel. W2 holds the map's projection; the hazard layers (heat,
- * flights, conflicts) join it in W7.
+ * The layers button and its panel: the map's projection. The data layers (heat, flights,
+ * conflicts) are one-press switches in the controls column, as in the apps.
  */
 function LayersMenu({ projection, onProjectionChange }: LayersMenuProps): ReactElement {
   const [open, setOpen] = useState(false);
