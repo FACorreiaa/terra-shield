@@ -106,6 +106,20 @@ final class MarkerActivationTests: XCTestCase {
         XCTAssertEqual(view.displayPriority, event.severity.displayPriority)
     }
 
+    /// Nor the selected aircraft: aircraft give way to everything (50), so the one in the sheet
+    /// would hide behind the first marker it crosses.
+    func testTheSelectedAircraftIsNeverHidden() {
+        let plane = Aircraft(hex: "4ca7b5", callsign: "TAP215", registration: nil, typeCode: nil,
+                             coordinate: Coordinate(latitude: 38.7, longitude: -9.1), altitudeFeet: 38_000,
+                             onGround: false, groundSpeedKnots: 417, trackDegrees: 275, verticalRateFpm: nil,
+                             squawk: nil, emergency: nil, military: false, positionAt: .now)
+        let view = AircraftMarkerView(annotation: AircraftAnnotation(plane), reuseIdentifier: nil)
+        view.configure(plane, isSelected: true)
+        XCTAssertEqual(view.displayPriority, .required)
+        view.configure(plane, isSelected: false)
+        XCTAssertEqual(view.displayPriority, MKFeatureDisplayPriority(rawValue: 50))
+    }
+
     /// MapKit hides a marker beaten in a collision (or a member of a cluster it draws) with
     /// `isHidden` and leaves it in its container, which still offers it to accessibility; seen
     /// in the app on 2026-11-26, an event under a cluster read as a button at the cluster.

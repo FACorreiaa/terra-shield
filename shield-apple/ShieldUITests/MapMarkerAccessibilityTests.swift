@@ -3,8 +3,8 @@ import XCTest
 /// What VoiceOver gets from every kind of map marker on iOS, read through the accessibility tree:
 /// one button per marker with a spoken label, a frame of at least 44 pt, and the selected state
 /// after a selection. The 44 pt frame is VoiceOver's only: which marker a finger tap selects is
-/// MapKit's own choice (it pads taps itself, so a tap up to about 24 pt from a 22 pt chip can select
-/// it, depending on the markers around it), and this suite doesn't test MapKit.
+/// MapKit's own choice (it pads taps itself: taps 14 and 24 pt below a 22 pt chip's centre selected
+/// it), and this suite doesn't test MapKit.
 ///
 /// Not covered here (an XCUITest tap is a touch, not VoiceOver): the double-tap activation, which
 /// `ShieldTests/MarkerActivationTests` calls directly, and VoiceOver's touch exploration, which

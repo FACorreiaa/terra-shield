@@ -34,8 +34,9 @@ final class AircraftMarkerView: SwiftUIAnnotationView {
 
     func configure(_ aircraft: Aircraft, isSelected: Bool) {
         // Set on every use, like the event markers, so a reused view can't keep another's.
-        // Below every event marker, resolved ones (100) included: aircraft give way on collision.
-        displayPriority = MKFeatureDisplayPriority(rawValue: 50)
+        // Below every event marker, resolved ones (100) included: aircraft give way on collision,
+        // except the one in the sheet, which never hides (from the map or VoiceOver).
+        displayPriority = isSelected ? .required : MKFeatureDisplayPriority(rawValue: 50)
         zPriority = .min
         collisionMode = .circle
         clusteringIdentifier = nil
