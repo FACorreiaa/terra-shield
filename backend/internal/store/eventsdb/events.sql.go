@@ -409,7 +409,11 @@ WHERE EXISTS (
       AND ST_DWithin(e.centroid,
                      ST_SetSRID(ST_MakePoint(($4::float8[])[q.idx], ($5::float8[])[q.idx]), 4326)::geography,
                      $6::float8)
-      AND abs((e.attrs ->> 'mag')::float8 - ($7::float8[])[q.idx]) <= $8::float8
+      -- A row whose mag is not a number matches nothing, rather than
+      -- failing the cast and the poll.
+      AND CASE WHEN jsonb_typeof(e.attrs -> 'mag') = 'number'
+               THEN abs((e.attrs ->> 'mag')::float8 - ($7::float8[])[q.idx]) <= $8::float8
+               ELSE false END
 )
 ORDER BY q.idx
 `

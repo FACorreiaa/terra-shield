@@ -23,7 +23,7 @@ func TestPollAgainstUSGS(t *testing.T) {
 	pool := testutil.DB(t)
 	ctx := context.Background()
 	sources := store.NewSourceRepository(pool)
-	for _, info := range []domain.SourceInfo{New(nil, nil).Info(), usgs.New(nil, nil).Info()} {
+	for _, info := range []domain.SourceInfo{New(nil, nil, nil).Info(), usgs.New(nil, nil).Info()} {
 		if err := sources.Register(ctx, info); err != nil {
 			t.Fatal(err)
 		}
@@ -95,5 +95,18 @@ func TestPollAgainstUSGS(t *testing.T) {
 	poll()
 	if got := stored(); !slices.Equal(got, want) {
 		t.Fatalf("after USGS ended them, M3.8+ %v, want %v", got, want)
+	}
+	// Each copy removed left a tombstone, so clients drop it.
+	var tombs int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM event_tombstones`).Scan(&tombs); err != nil || tombs != len(u.Events) {
+		t.Fatalf("%d tombstones, want %d, %v", tombs, len(u.Events), err)
+	}
+	// USGS retracts them: EMSC's come back.
+	if _, err := events.Delete(ctx, usgs.ID, ids); err != nil {
+		t.Fatal(err)
+	}
+	poll()
+	if n := count(); n != 51 {
+		t.Fatalf("after USGS deleted its own, %d stored, want 51", n)
 	}
 }

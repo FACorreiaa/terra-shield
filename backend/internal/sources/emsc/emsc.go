@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"slices"
 	"strconv"
@@ -59,20 +60,28 @@ const (
 // Iceland and the Azores.
 var Region = struct{ MinLat, MaxLat, MinLon, MaxLon float64 }{27, 72, -32, 48}
 
-// Coverage is the countries in the region: at least 90% of their area
-// inside it, plus France, Norway and Morocco, whose shortfall is overseas
-// territory, Svalbard and Western Sahara.
+// Coverage is the countries with at least a fifth of their area in the
+// region, so a country whose quakes EMSC stores names it (Algeria, Egypt,
+// Libya, Azerbaijan, Kuwait and Saudi Arabia only partly). Iran (12%) and
+// Russia (15%) are left out: most of either lies beyond it.
 var Coverage = []string{
-	"AD", "AL", "AM", "AT", "AX", "BA", "BE", "BG", "BY", "CH", "CY", "CZ", "DE", "DK", "EE", "ES",
-	"FI", "FO", "FR", "GB", "GE", "GG", "GR", "HR", "HU", "IE", "IL", "IM", "IQ", "IS", "IT", "JE",
-	"JO", "LB", "LI", "LT", "LU", "LV", "MA", "MC", "MD", "ME", "MK", "MT", "NL", "NO", "PL", "PS",
-	"PT", "RO", "RS", "SE", "SI", "SK", "SM", "SY", "TN", "TR", "UA", "VA", "XK",
+	"AD", "AL", "AM", "AT", "AX", "AZ", "BA", "BE", "BG", "BY", "CH", "CY", "CZ", "DE", "DK", "DZ",
+	"EE", "EG", "ES", "FI", "FO", "FR", "GB", "GE", "GG", "GR", "HR", "HU", "IE", "IL", "IM", "IQ",
+	"IS", "IT", "JE", "JO", "KW", "LB", "LI", "LT", "LU", "LV", "LY", "MA", "MC", "MD", "ME", "MK",
+	"MT", "NL", "NO", "PL", "PS", "PT", "RO", "RS", "SA", "SE", "SI", "SK", "SM", "SY", "TN", "TR",
+	"UA", "VA", "XK",
 }
 
-// SameQuake is how close a USGS report must be to be the same earthquake.
-// The week sampled on 2026-11-26 paired within 4 s, 20 km and 0.2 of
-// magnitude; 30 s keeps an aftershock minutes later its own event.
+// SameQuake is how close a USGS report must be for a stored EMSC quake to
+// be removed as the same earthquake. The week sampled on 2026-11-26 paired
+// within 4 s, 20 km and 0.2 of magnitude; 30 s keeps an aftershock minutes
+// later its own event.
 var SameQuake = domain.QuakeMatch{Within: 30 * time.Second, Meters: 100_000, MagDelta: 0.8}
+
+// StillSameQuake is looser, for a quake not stored: once removed, a copy
+// stays out while either network revises its solution a little, instead
+// of coming back under a new id (a "new" quake) and going again.
+var StillSameQuake = domain.QuakeMatch{Within: 45 * time.Second, Meters: 150_000, MagDelta: 1.5}
 
 // Store is what the adapter writes: events, the active set it compares
 // the window with, and the quakes USGS already stores.
@@ -88,12 +97,16 @@ type Source struct {
 	url    string
 	client *fetch.Client
 	store  Store
+	logger *slog.Logger
 	now    func() time.Time
 }
 
 // New builds the adapter on the production service.
-func New(client *fetch.Client, store Store) *Source {
-	return &Source{url: QueryURL, client: client, store: store, now: time.Now}
+func New(client *fetch.Client, store Store, logger *slog.Logger) *Source {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Source{url: QueryURL, client: client, store: store, logger: logger, now: time.Now}
 }
 
 // Info implements ingest.Source.
@@ -139,46 +152,92 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	known, err := s.store.KnownQuakes(ctx, usgs.ID, f.origins, SameQuake)
+	if f.Unreadable > 0 {
+		s.logger.Warn("emsc quakes unreadable", "count", f.Unreadable)
+	}
+	active, err := s.store.ActiveIDs(ctx, ID)
+	if err != nil {
+		return ingest.Result{}, err
+	}
+	dup, err := s.knownToUSGS(ctx, &f, active)
 	if err != nil {
 		return ingest.Result{}, err
 	}
 	var keep []domain.Event
-	var dup []string
 	for i := range f.Events {
-		if known[i] {
-			dup = append(dup, f.Events[i].SourceEventID)
-			continue
+		if !dup[i] {
+			keep = append(keep, f.Events[i])
 		}
-		keep = append(keep, f.Events[i])
 	}
 	n, err := s.store.Upsert(ctx, ID, keep)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	// USGS has them now: an EMSC copy stored earlier goes.
-	d, err := s.store.Delete(ctx, ID, dup)
+	// USGS has them now, or EMSC no longer calls them earthquakes: a copy
+	// stored earlier goes.
+	gone := slices.Clone(f.NotQuakes)
+	for i := range f.Events {
+		if dup[i] {
+			gone = append(gone, f.Events[i].SourceEventID)
+		}
+	}
+	d, err := s.store.Delete(ctx, ID, gone)
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	r, err := s.resolveUnlisted(ctx, f.Listed, now)
+	r, err := s.resolveUnlisted(ctx, f.Listed, active, now)
 	if err != nil {
 		return ingest.Result{}, err
 	}
 	return ingest.Result{Upserted: n + d + r}, nil
 }
 
+// knownToUSGS marks the quakes USGS also stores: a stored EMSC copy by
+// SameQuake, one not stored by the looser StillSameQuake, so a pair near
+// a threshold does not come and go as the networks revise.
+func (s *Source) knownToUSGS(ctx context.Context, f *Feed, active []string) ([]bool, error) {
+	stored := make(map[string]bool, len(active))
+	for _, id := range active {
+		stored[id] = true
+	}
+	var in, out []int // positions of stored and unstored quakes
+	for i := range f.Events {
+		if stored[f.Events[i].SourceEventID] {
+			in = append(in, i)
+		} else {
+			out = append(out, i)
+		}
+	}
+	dup := make([]bool, len(f.Events))
+	for _, part := range []struct {
+		at []int
+		m  domain.QuakeMatch
+	}{{in, SameQuake}, {out, StillSameQuake}} {
+		if len(part.at) == 0 {
+			continue
+		}
+		origins := make([]domain.QuakeOrigin, len(part.at))
+		for j, i := range part.at {
+			origins[j] = f.origins[i]
+		}
+		known, err := s.store.KnownQuakes(ctx, usgs.ID, origins, part.m)
+		if err != nil {
+			return nil, err
+		}
+		for j, i := range part.at {
+			dup[i] = known[j]
+		}
+	}
+	return dup, nil
+}
+
 // resolveUnlisted ends the active quakes the window no longer lists. A
 // window listing nothing resolves nothing: the region has dozens of M2+
 // quakes a day (328 in the week to 2026-11-26), so an empty one is far
 // likelier a fault than a quiet day.
-func (s *Source) resolveUnlisted(ctx context.Context, listed []string, now time.Time) (int, error) {
+func (s *Source) resolveUnlisted(ctx context.Context, listed, active []string, now time.Time) (int, error) {
 	if len(listed) == 0 {
 		return 0, nil
-	}
-	active, err := s.store.ActiveIDs(ctx, ID)
-	if err != nil {
-		return 0, err
 	}
 	listed = slices.Clone(listed)
 	slices.Sort(listed)
@@ -219,6 +278,12 @@ type Feed struct {
 	// Listed is every id the window carries, stored or not, so only a
 	// quake that left the window is resolved.
 	Listed []string
+	// NotQuakes are listed records EMSC does not call earthquakes (a quake
+	// retyped a blast is deleted, not left on the map as ended).
+	NotQuakes []string
+	// Unreadable counts quakes listed without a usable time, magnitude or
+	// position, which are not stored.
+	Unreadable int
 }
 
 // Parse normalizes an FDSN event GeoJSON answer; an empty body (204) is
@@ -241,12 +306,17 @@ func Parse(body []byte) (Feed, error) {
 	for i := range f.Features {
 		ft := &f.Features[i]
 		p := &ft.Properties
-		if ft.ID == "" || !strings.HasSuffix(p.EvType, "e") {
+		if ft.ID == "" {
+			continue
+		}
+		if !strings.HasSuffix(p.EvType, "e") {
+			out.NotQuakes = append(out.NotQuakes, ft.ID)
 			continue
 		}
 		out.Listed = append(out.Listed, ft.ID)
 		origin, err := time.Parse(time.RFC3339, p.Time)
 		if err != nil || p.Mag == nil || p.Lat == nil || p.Lon == nil {
+			out.Unreadable++
 			continue
 		}
 		origin = origin.UTC()
@@ -262,7 +332,9 @@ func Parse(body []byte) (Feed, error) {
 			"place":   place,
 		}
 		if p.Depth != nil {
-			attrs["depthKm"] = *p.Depth
+			// A depth above the datum (a negative one, as for a shallow
+			// volcanic quake) reads as at the surface.
+			attrs["depthKm"] = max(*p.Depth, 0)
 		}
 		if p.Auth != "" {
 			attrs["agency"] = p.Auth

@@ -40,7 +40,7 @@ func (c *container) sources() []ingest.Source {
 
 	return []ingest.Source{
 		usgs.New(feeds, c.repos.Events),
-		emsc.New(feeds, c.repos.Events),
+		emsc.New(feeds, c.repos.Events, c.logger),
 		gdacs.New(feeds, c.repos.Events, c.logger),
 		eonet.New(feeds, c.repos.Events),
 		firms.New(bulk, c.repos.Fires),

@@ -110,6 +110,8 @@ func TestRegionName(t *testing.T) {
 
 type fakeStore struct {
 	known    []time.Time // origins USGS has
+	loose    []time.Time // origins USGS has only by StillSameQuake
+	matches  []domain.QuakeMatch
 	active   []string
 	upserted []domain.Event
 	deleted  []string
@@ -132,18 +134,21 @@ func (f *fakeStore) Delete(_ context.Context, _ string, ids []string) (int, erro
 func (f *fakeStore) ActiveIDs(context.Context, string) ([]string, error) { return f.active, nil }
 
 func (f *fakeStore) Resolve(_ context.Context, _ string, ids []string, _ time.Time) (int, error) {
+	f.order = append(f.order, "resolve")
 	f.resolved = append(f.resolved, ids...)
 	return len(ids), nil
 }
 
 // KnownQuakes answers by origin time: the test names the quakes USGS has.
 func (f *fakeStore) KnownQuakes(_ context.Context, source string, qs []domain.QuakeOrigin, m domain.QuakeMatch) ([]bool, error) {
-	if source != usgs.ID || m != SameQuake {
+	if source != usgs.ID {
 		return nil, nil
 	}
+	f.matches = append(f.matches, m)
 	out := make([]bool, len(qs))
 	for i, q := range qs {
-		out[i] = slices.ContainsFunc(f.known, q.At.Equal)
+		out[i] = slices.ContainsFunc(f.known, q.At.Equal) ||
+			(m == StillSameQuake && slices.ContainsFunc(f.loose, q.At.Equal))
 	}
 	return out, nil
 }
@@ -159,7 +164,7 @@ func newSource(t *testing.T, h http.HandlerFunc, st Store) (*Source, *[]*url.URL
 		h(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), st)
+	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), st, nil)
 	s.url = srv.URL + "/fdsnws/event/1/query"
 	s.now = func() time.Time { return time.Date(2026, 11, 26, 19, 0, 0, 0, time.UTC) }
 	return s, &seen
@@ -195,8 +200,12 @@ func TestPoll(t *testing.T) {
 	if !slices.Equal(st.resolved, []string{"gone-from-window"}) || res.Upserted != 50+1+1 || res.NotModified {
 		t.Fatalf("resolved %v, result %+v", st.resolved, res)
 	}
-	if got := strings.Join(st.order, ","); got != "upsert,delete" {
+	if got := strings.Join(st.order, ","); got != "upsert,delete,resolve" {
 		t.Fatalf("store calls %s", got)
+	}
+	// The stored copy is checked strictly, the rest loosely.
+	if !slices.Equal(st.matches, []domain.QuakeMatch{SameQuake, StillSameQuake}) {
+		t.Fatalf("matched with %v", st.matches)
 	}
 	q := (*seen)[0].Query()
 	if q.Get("format") != "json" || q.Get("starttime") != "2026-11-25T19:00:00" || q.Get("minmagnitude") != "2" ||
@@ -220,5 +229,68 @@ func TestPollFails(t *testing.T) {
 	s, _ := newSource(t, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) }, &fakeStore{})
 	if _, err := s.Poll(t.Context(), domain.Validators{}); err == nil {
 		t.Fatal("a 503 must fail the poll")
+	}
+}
+
+// Near a threshold, a removed copy stays out: a quake not stored is
+// matched by the looser StillSameQuake, a stored one by SameQuake only.
+func TestPollHysteresis(t *testing.T) {
+	body := read(t, "emsc-week-m3.json")
+	f, err := Parse(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var at time.Time
+	for i := range f.Events {
+		if f.Events[i].SourceEventID == "20261125_0000295" {
+			at = f.origins[i].At
+		}
+	}
+	serve := func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(body) }
+	// Not stored, close only by the loose match: kept out.
+	out := &fakeStore{loose: []time.Time{at}}
+	s, _ := newSource(t, serve, out)
+	if _, err := s.Poll(t.Context(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if slices.ContainsFunc(out.upserted, func(e domain.Event) bool { return e.SourceEventID == "20261125_0000295" }) {
+		t.Fatal("a removed copy came back on a revision within the loose match")
+	}
+	// Stored, close only by the loose match: kept.
+	in := &fakeStore{loose: []time.Time{at}, active: []string{"20261125_0000295"}}
+	s, _ = newSource(t, serve, in)
+	if _, err := s.Poll(t.Context(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(in.deleted, "20261125_0000295") {
+		t.Fatal("a stored quake was removed by the loose match")
+	}
+}
+
+// A quake EMSC retypes as a blast is deleted; a depth above the datum
+// reads as the surface; an unreadable quake is counted.
+func TestParseRetypedAndDepth(t *testing.T) {
+	body := `{"features": [
+	 {"id": "blast", "properties": {"evtype": "kx", "time": "2026-11-26T10:00:00Z", "lat": 40, "lon": 20, "mag": 2.1}},
+	 {"id": "up", "properties": {"evtype": "ke", "time": "2026-11-26T10:00:00Z", "lat": 40, "lon": 20, "mag": 2.1, "depth": -1.2}},
+	 {"id": "bad", "properties": {"evtype": "ke", "time": "yesterday", "lat": 40, "lon": 20, "mag": 2.1}}
+	]}`
+	f, err := Parse([]byte(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(f.NotQuakes, []string{"blast"}) || f.Unreadable != 1 || !slices.Equal(f.Listed, []string{"up", "bad"}) {
+		t.Fatalf("not quakes %v, unreadable %d, listed %v", f.NotQuakes, f.Unreadable, f.Listed)
+	}
+	if d := f.Events[0].Attrs["depthKm"]; d != 0.0 {
+		t.Fatalf("depth %v, want 0", d)
+	}
+	st := &fakeStore{}
+	s, _ := newSource(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(body)) }, st)
+	if _, err := s.Poll(t.Context(), domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(st.deleted, "blast") {
+		t.Fatalf("deleted %v, want the retyped blast", st.deleted)
 	}
 }
