@@ -495,7 +495,7 @@ export interface components {
         Revision: {
             /** Format: date-time */
             at: string;
-            /** @description Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined. */
+            /** @description Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined. A severity change across versions of a warning (MeteoAlarm, ADR 33) also carries "supersedes", the replaced ids as an array of strings; skip values that are not objects. */
             changes: {
                 [key: string]: unknown;
             };
@@ -1170,7 +1170,7 @@ export interface operations {
     listChanges: {
         parameters: {
             query?: {
-                /** @description Window start, RFC 3339, within the last 7 days. Default: 24 hours ago. */
+                /** @description Window start, RFC 3339, within the last 7 days; up to a minute past either bound is clamped to it. Default: 24 hours ago. */
                 since?: string;
                 /** @description Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for. */
                 category?: components["parameters"]["Category"];

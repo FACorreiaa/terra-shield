@@ -10,6 +10,7 @@ import (
 	"shield/internal/domain"
 	"shield/internal/store/eventsdb"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -64,6 +65,28 @@ func (r *EventRepository) Upsert(ctx context.Context, sourceID string, events []
 	return changed, nil
 }
 
+// adoptSuperseded carries a new version's history on from the warnings it
+// replaces (MeteoAlarm): their revisions move onto it, and a severity
+// change across versions is recorded as one of its own.
+func adoptSuperseded(ctx context.Context, q *eventsdb.Queries, sourceID string, id uuid.UUID, e *domain.Event, from string) error {
+	if err := q.AdoptSupersededRevisions(ctx, eventsdb.AdoptSupersededRevisionsParams{
+		EventID: id, SourceID: sourceID, Supersedes: e.Supersedes,
+	}); err != nil {
+		return err
+	}
+	if from == "" || from == e.Severity || e.Status != domain.StatusActive {
+		return nil
+	}
+	body, err := json.Marshal(map[string]any{
+		"severity":   map[string]any{"from": from, "to": e.Severity},
+		"supersedes": e.Supersedes,
+	})
+	if err != nil {
+		return err
+	}
+	return q.InsertEventRevision(ctx, eventsdb.InsertEventRevisionParams{EventID: id, Changes: body})
+}
+
 // upsertOne writes one event. A new event already past retention (a
 // resolved event a feed still lists long after it ended) is not inserted:
 // the purge would delete it again within the hour, under a new id.
@@ -85,8 +108,8 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	if !existed && domain.PastRetention(e, horizon) {
 		return false, nil
 	}
-	// A new version of warnings it replaces: the severity they had, to
-	// record the change across versions.
+	// A new version of warnings it replaces: the highest severity they
+	// had, to record the change across versions.
 	var supersededSeverity string
 	if !existed && len(e.Supersedes) > 0 {
 		supersededSeverity, err = q.SupersededSeverity(ctx, eventsdb.SupersededSeverityParams{SourceID: sourceID, Supersedes: e.Supersedes})
@@ -126,15 +149,8 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 		if err := recordRevision(ctx, q, key, &before); err != nil {
 			return false, fmt.Errorf("revision %s/%s: %w", sourceID, e.SourceEventID, err)
 		}
-	} else if supersededSeverity != "" && supersededSeverity != e.Severity && e.Status == domain.StatusActive {
-		body, err := json.Marshal(map[string]any{
-			"severity":   map[string]any{"from": supersededSeverity, "to": e.Severity},
-			"supersedes": e.Supersedes,
-		})
-		if err != nil {
-			return false, err
-		}
-		if err := q.InsertEventRevision(ctx, eventsdb.InsertEventRevisionParams{EventID: id, Changes: body}); err != nil {
+	} else if len(e.Supersedes) > 0 {
+		if err := adoptSuperseded(ctx, q, sourceID, id, e, supersededSeverity); err != nil {
 			return false, fmt.Errorf("revision %s/%s: %w", sourceID, e.SourceEventID, err)
 		}
 	}

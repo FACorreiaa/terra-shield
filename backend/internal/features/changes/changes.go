@@ -37,6 +37,9 @@ const (
 	// maxAge stays below the shortest poll interval (ADR 16).
 	maxAge   = 15 * time.Second
 	mimeJSON = "application/json"
+	// skew is how far a client's clock may be off: a "since" up to a
+	// minute past either bound is clamped to it, not refused.
+	skew = time.Minute
 )
 
 // Feature mounts the route.
@@ -104,10 +107,16 @@ func (f *Feature) list(c *echo.Context) error {
 		return err
 	}
 	if since != nil {
-		if since.After(now) || since.Before(now.Add(-MaxWindow)) {
+		if since.After(now.Add(skew)) || since.Before(now.Add(-MaxWindow-skew)) {
 			return httpx.BadRequest("since must be within the last 7 days")
 		}
 		q.Since = *since
+		if lo := now.Add(-MaxWindow); q.Since.Before(lo) {
+			q.Since = lo
+		}
+		if q.Since.After(now) {
+			q.Since = now
+		}
 	}
 	if q.Types, err = params.Types(v); err != nil {
 		return err
@@ -131,11 +140,23 @@ func (f *Feature) list(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	body, err := json.Marshal(answer(rows, q.Since, now, limit))
+	a := answer(rows, q.Since, now, limit)
+	body, err := json.Marshal(a)
 	if err != nil {
 		return err
 	}
-	return httpx.Cached(c, mimeJSON, body, httpx.ETag(body), maxAge)
+	// The ETag covers the changes only: generatedAt, and the default
+	// since, move with every request.
+	etagSource, err := json.Marshal(struct {
+		Counts    map[string]int `json:"counts"`
+		ByType    []TypeCounts   `json:"byType"`
+		Changes   []Item         `json:"changes"`
+		Truncated bool           `json:"truncated"`
+	}{a.Counts, a.ByType, a.Changes, a.Truncated})
+	if err != nil {
+		return err
+	}
+	return httpx.Cached(c, mimeJSON, body, httpx.ETag(etagSource), maxAge)
 }
 
 // answer counts every change, then lists the most severe first, newest

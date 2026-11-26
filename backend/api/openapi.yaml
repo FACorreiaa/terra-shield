@@ -227,7 +227,7 @@ paths:
         the first after an outage, reports what it lists as new (compare
         `startedAt`). Conflicts only when named, as in /v1/events.
       parameters:
-        - { name: since, in: query, description: "Window start, RFC 3339, within the last 7 days. Default: 24 hours ago.", schema: { type: string, format: date-time } }
+        - { name: since, in: query, description: "Window start, RFC 3339, within the last 7 days; up to a minute past either bound is clamped to it. Default: 24 hours ago.", schema: { type: string, format: date-time } }
         - $ref: "#/components/parameters/Category"
         - { name: type, in: query, description: "Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both.", schema: { type: string } }
         - { name: severity, in: query, description: "Comma-separated severities, matched against the severity now.", schema: { type: string }, examples: { serious: { value: "severe,extreme" } } }
@@ -763,7 +763,7 @@ components:
         at: { type: string, format: date-time }
         changes:
           type: object
-          description: 'Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined.'
+          description: 'Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined. A severity change across versions of a warning (MeteoAlarm, ADR 33) also carries "supersedes", the replaced ids as an array of strings; skip values that are not objects.'
           additionalProperties: true
     EventDetail:
       allOf:

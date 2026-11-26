@@ -239,9 +239,19 @@ ORDER BY at DESC, id DESC
 LIMIT @max_rows;
 
 -- name: SupersededSeverity :one
--- The severity of the latest active warning a new version supersedes, to
--- record the change across versions as a revision of the new one.
+-- The highest severity among the warnings a new version supersedes,
+-- active or ended, to record the change across versions as a revision of
+-- the new one.
 SELECT severity FROM events
-WHERE source_id = @source_id AND source_event_id = ANY(@supersedes::text[]) AND status = 'active'
-ORDER BY updated_at DESC, id
+WHERE source_id = @source_id AND source_event_id = ANY(@supersedes::text[])
+ORDER BY array_position(ARRAY['minor','moderate','severe','extreme'], severity) DESC NULLS LAST,
+         updated_at DESC, id
 LIMIT 1;
+
+-- name: AdoptSupersededRevisions :exec
+-- Moves the revisions of the warnings a new version supersedes onto it
+-- before they are deleted, so a chain of versions keeps one history: the
+-- severity at the window's start survives v1 -> v2 -> v3.
+UPDATE event_revisions SET event_id = @event_id
+WHERE event_id IN (SELECT p.id FROM events p WHERE p.source_id = @source_id
+                   AND p.source_event_id = ANY(@supersedes::text[]) AND p.id <> @event_id);

@@ -40,6 +40,15 @@ func TestChanges(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// before moves an event's revisions so far written to two days ago,
+	// before the window.
+	before := func(id string) {
+		t.Helper()
+		if _, err := pool.Exec(ctx, `UPDATE event_revisions SET at = now() - interval '2 days'
+			WHERE event_id = (SELECT id FROM events WHERE source_event_id = $1)`, id); err != nil {
+			t.Fatal(err)
+		}
+	}
 	// age makes an event look first seen two days ago, before the window.
 	age := func(ids ...string) {
 		t.Helper()
@@ -69,10 +78,12 @@ func TestChanges(t *testing.T) {
 		ev("round-trip", domain.TypeFlood, "minor", domain.StatusActive),
 		ev("reshaped", domain.TypeFlood, "minor", domain.StatusActive),
 		ev("back", domain.TypeFlood, "minor", domain.StatusActive),
+		ev("flap", domain.TypeFlood, "minor", domain.StatusActive),
+		ev("relapse", domain.TypeFlood, "minor", domain.StatusActive),
 		ev("quake", domain.TypeEarthquake, "minor", domain.StatusActive),
 		ev("war", domain.TypeConflict, "severe", domain.StatusActive),
 	)
-	age("rising", "falling", "round-trip", "reshaped", "back", "quake", "war")
+	age("rising", "falling", "round-trip", "reshaped", "back", "flap", "relapse", "quake", "war")
 	rising := ev("rising", domain.TypeFlood, "moderate", domain.StatusActive)
 	upsert(rising)
 	rising.Severity = "severe"
@@ -86,11 +97,25 @@ func TestChanges(t *testing.T) {
 	reshaped := ev("reshaped", domain.TypeFlood, "minor", domain.StatusActive)
 	reshaped.Geometry = square(-7)
 	upsert(reshaped)
-	// Ended, then listed again: new.
-	if _, err := events.Resolve(ctx, "test", []string{"back"}, at); err != nil {
+	// Ended before the window, listed again in it: new.
+	if _, err := events.Resolve(ctx, "test", []string{"back", "relapse"}, at); err != nil {
 		t.Fatal(err)
 	}
+	before("back")
+	before("relapse")
 	upsert(ev("back", domain.TypeFlood, "minor", domain.StatusActive))
+	// Ended before the window, listed again and ended again in it: ended
+	// at both ends, no change.
+	upsert(ev("relapse", domain.TypeFlood, "minor", domain.StatusActive))
+	if _, err := events.Resolve(ctx, "test", []string{"relapse"}, at); err != nil {
+		t.Fatal(err)
+	}
+	// Active before the window, ended by a feed blip and listed again
+	// higher: not new, escalated.
+	if _, err := events.Resolve(ctx, "test", []string{"flap"}, at); err != nil {
+		t.Fatal(err)
+	}
+	upsert(ev("flap", domain.TypeFlood, "severe", domain.StatusActive))
 	quake := ev("quake", domain.TypeEarthquake, "severe", domain.StatusActive)
 	quake.Geometry = square(2) // Spain, not Portugal
 	upsert(quake)
@@ -124,6 +149,7 @@ func TestChanges(t *testing.T) {
 		"rising":  domain.ChangeEscalated,
 		"falling": domain.ChangeDowngraded,
 		"back":    domain.ChangeNew,
+		"flap":    domain.ChangeEscalated,
 		"quake":   domain.ChangeEscalated,
 	}
 	for title, kind := range want {
@@ -139,6 +165,9 @@ func TestChanges(t *testing.T) {
 	if r := got["rising"]; r.FromSeverity != "minor" || r.Severity != "severe" {
 		t.Errorf("rising from %q to %q, want minor to severe", r.FromSeverity, r.Severity)
 	}
+	if r := got["flap"]; r.FromSeverity != "minor" {
+		t.Errorf("flap from %q", r.FromSeverity)
+	}
 	if r := got["falling"]; r.FromSeverity != "extreme" {
 		t.Errorf("falling from %q", r.FromSeverity)
 	}
@@ -153,7 +182,7 @@ func TestChanges(t *testing.T) {
 	if got := list(domain.ChangeQuery{Types: []domain.EventType{domain.TypeWind}}); len(got) != 1 || got["brief"].Change != domain.ChangeEnded {
 		t.Errorf("type wind: %v", slices.Collect(maps.Keys(got)))
 	}
-	if got := list(domain.ChangeQuery{Severities: []string{"severe"}}); len(got) != 2 {
+	if got := list(domain.ChangeQuery{Severities: []string{"severe"}}); len(got) != 3 {
 		t.Errorf("severity severe: %v", slices.Collect(maps.Keys(got)))
 	}
 	if got := list(domain.ChangeQuery{Types: []domain.EventType{domain.TypeConflict}}); got["war"].Change != domain.ChangeEscalated {
@@ -187,23 +216,69 @@ func TestChangesAcrossVersions(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	upsert(ev("v1", "moderate"), ev("w1", "moderate"), ev("x1", "moderate"))
-	if _, err := pool.Exec(ctx, `UPDATE events SET first_seen_at = now() - interval '2 days' WHERE source_event_id IN ('v1', 'w1')`); err != nil {
+	// replace stores new versions, then deletes the ones they name, as
+	// the source does.
+	replace := func(es ...domain.Event) {
+		t.Helper()
+		upsert(es...)
+		var gone []string
+		for i := range es {
+			gone = append(gone, es[i].Supersedes...)
+		}
+		if _, err := events.Delete(ctx, "test", gone); err != nil {
+			t.Fatal(err)
+		}
+	}
+	upsert(
+		ev("v1", "moderate"), ev("w1", "moderate"), ev("x1", "moderate"), ev("y1", "moderate"),
+		ev("c1", "moderate"), ev("d1", "moderate"), ev("r1", "moderate"),
+		ev("m1a", "moderate"), ev("m1b", "severe"),
+	)
+	if _, err := pool.Exec(ctx, `UPDATE events SET first_seen_at = now() - interval '2 days'
+		WHERE source_event_id IN ('v1', 'w1', 'c1', 'd1', 'r1', 'm1a', 'm1b')`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE events SET first_seen_at = NULL WHERE source_event_id = 'x1'`); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE events SET first_seen_at = NULL WHERE source_event_id IN ('x1', 'y1')`); err != nil {
 		t.Fatal(err)
 	}
-	// The source stores the new versions, then deletes the old.
-	upsert(ev("v2", "severe", "v1"), ev("w2", "moderate", "w1"), ev("x2", "moderate", "x1"))
-	if _, err := events.Delete(ctx, "test", []string{"v1", "w1", "x1"}); err != nil {
+	// r1 ended (the expiry sweep) before its next version arrived.
+	if _, err := events.Resolve(ctx, "test", []string{"r1"}, at); err != nil {
 		t.Fatal(err)
 	}
+	replace(
+		ev("v2", "severe", "v1"),         // escalated
+		ev("w2", "moderate", "w1"),       // same level: no change
+		ev("x2", "moderate", "x1"),       // first seen unknown: never new
+		ev("y2", "severe", "y1"),         // first seen unknown, escalated
+		ev("c2", "severe", "c1"),         // c1 -> c2 -> c3, severe twice
+		ev("d2", "severe", "d1"),         // d1 -> d2 -> d3, back to moderate
+		ev("r2", "severe", "r1"),         // a resolved predecessor
+		ev("m2", "severe", "m1a", "m1b"), // the highest it replaced
+		ev("u2", "minor", "not-stored"),  // nothing stored to carry on
+	)
+	replace(ev("c3", "severe", "c2"), ev("d3", "moderate", "d2"))
 	rows, err := store.NewChangeRepository(pool).List(ctx, domain.ChangeQuery{Since: time.Now().Add(-time.Hour), Types: domain.HazardTypes()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || rows[0].Title != "v2" || rows[0].Change != domain.ChangeEscalated || rows[0].FromSeverity != "moderate" {
-		t.Fatalf("changes %+v, want only v2 escalated from moderate", rows)
+	got := map[string]string{}
+	for _, r := range rows {
+		got[r.Title] = string(r.Change) + " " + r.FromSeverity
+	}
+	want := map[string]string{
+		"v2": "escalated moderate",
+		"y2": "escalated moderate",
+		"c3": "escalated moderate",
+		"r2": "escalated moderate",
+		"u2": "new ",
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("changes %v\nwant %v", got, want)
+	}
+	// The chain keeps one history: c3 holds c2's revision and its own none.
+	var n int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM event_revisions r JOIN events e ON e.id = r.event_id
+		WHERE e.source_event_id = 'c3'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("c3 has %d revisions, %v", n, err)
 	}
 }

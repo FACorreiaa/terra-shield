@@ -1248,7 +1248,7 @@ public enum Components {
         public struct Revision: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/Revision/at`.
             public var at: Foundation.Date
-            /// Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined.
+            /// Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined. A severity change across versions of a warning (MeteoAlarm, ADR 33) also carries "supersedes", the replaced ids as an array of strings; skip values that are not objects.
             ///
             /// - Remark: Generated from `#/components/schemas/Revision/changes`.
             public struct ChangesPayload: Codable, Hashable, Sendable {
@@ -1268,7 +1268,7 @@ public enum Components {
                     try encoder.encodeAdditionalProperties(additionalProperties)
                 }
             }
-            /// Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined.
+            /// Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined. A severity change across versions of a warning (MeteoAlarm, ADR 33) also carries "supersedes", the replaced ids as an array of strings; skip values that are not objects.
             ///
             /// - Remark: Generated from `#/components/schemas/Revision/changes`.
             public var changes: Components.Schemas.Revision.ChangesPayload
@@ -1276,7 +1276,7 @@ public enum Components {
             ///
             /// - Parameters:
             ///   - at:
-            ///   - changes: Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined.
+            ///   - changes: Changed fields, each as {"from": ..., "to": ...}; geometry changes are flagged, not inlined. A severity change across versions of a warning (MeteoAlarm, ADR 33) also carries "supersedes", the replaced ids as an array of strings; skip values that are not objects.
             public init(
                 at: Foundation.Date,
                 changes: Components.Schemas.Revision.ChangesPayload
@@ -4898,7 +4898,7 @@ public enum Operations {
         public struct Input: Sendable, Hashable {
             /// - Remark: Generated from `#/paths/v1/changes/GET/query`.
             public struct Query: Sendable, Hashable {
-                /// Window start, RFC 3339, within the last 7 days. Default: 24 hours ago.
+                /// Window start, RFC 3339, within the last 7 days; up to a minute past either bound is clamped to it. Default: 24 hours ago.
                 ///
                 /// - Remark: Generated from `#/paths/v1/changes/GET/query/since`.
                 public var since: Foundation.Date?
@@ -4926,7 +4926,7 @@ public enum Operations {
                 /// Creates a new `Query`.
                 ///
                 /// - Parameters:
-                ///   - since: Window start, RFC 3339, within the last 7 days. Default: 24 hours ago.
+                ///   - since: Window start, RFC 3339, within the last 7 days; up to a minute past either bound is clamped to it. Default: 24 hours ago.
                 ///   - category: Comma-separated categories (menus), each standing for its types (see Category). `category=conflicts` is how conflicts are asked for.
                 ///   - _type: Comma-separated event types. With neither type nor category, every hazard type: conflicts only when named (ADR 27). With both, the types in both.
                 ///   - severity: Comma-separated severities, matched against the severity now.

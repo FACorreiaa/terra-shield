@@ -212,8 +212,13 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 			continue
 		}
 		replaced := map[string]bool{}
+		refs := map[string][]string{} // what each listed warning replaces
 		for i := range feed.Warnings {
-			for _, id := range feed.Warnings[i].Supersedes {
+			w := &feed.Warnings[i]
+			if w.SourceEventID != "" {
+				refs[w.SourceEventID] = w.Supersedes
+			}
+			for _, id := range w.Supersedes {
 				replaced[id] = true
 				superseded = append(superseded, id)
 			}
@@ -236,7 +241,7 @@ func (s *Source) Poll(ctx context.Context, _ domain.Validators) (ingest.Result, 
 			w.Geometry = geom
 			// The versions it replaces are deleted below; it carries on
 			// their first-seen time and records a severity change.
-			w.Event.Supersedes = w.Supersedes
+			w.Event.Supersedes = supersededBy(w.Supersedes, refs)
 			events = append(events, w.Event)
 		}
 		n, err := s.store.Upsert(ctx, ID, events)
@@ -322,6 +327,30 @@ func (s *Source) country(ctx context.Context, c Country, now time.Time) (Parsed,
 }
 
 // Warning is one parsed alert. Geometry is left empty for Poll to resolve
+// supersededBy is every version direct replaces, following the feed's
+// own chain: when v2 and v3 are both listed and v3 names only v2, the
+// stored v1 that v2 replaced is replaced by v3 too, so v3 carries on v1's
+// history rather than arriving as a new warning.
+func supersededBy(direct []string, refs map[string][]string) []string {
+	if len(direct) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []string
+	queue := append([]string(nil), direct...)
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+		queue = append(queue, refs[id]...)
+	}
+	return out
+}
+
 // from Areas.
 type Warning struct {
 	domain.Event

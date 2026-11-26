@@ -30,16 +30,44 @@ func (f *fakeRepo) List(_ context.Context, q domain.ChangeQuery) ([]domain.Chang
 
 func get(t *testing.T, r Repository, target string) *httptest.ResponseRecorder {
 	t.Helper()
+	return getAt(t, r, target, now, "")
+}
+
+// getAt asks at a given time, with an If-None-Match when etag is set.
+func getAt(t *testing.T, r Repository, target string, at time.Time, etag string) *httptest.ResponseRecorder {
+	t.Helper()
 	d := &server.Deps{Config: config.Base{}, Logger: slog.New(slog.DiscardHandler), Health: server.NewHealth()}
 	f := New(r)
-	f.now = func() time.Time { return now }
+	f.now = func() time.Time { return at }
 	srv, err := server.New(d, []server.Feature{f})
 	if err != nil {
 		t.Fatal(err)
 	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
+	if etag != "" {
+		req.Header.Set("If-None-Match", etag)
+	}
 	w := httptest.NewRecorder()
-	srv.Handler.ServeHTTP(w, httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil))
+	srv.Handler.ServeHTTP(w, req)
 	return w
+}
+
+// The same changes asked a few seconds later keep their ETag, so a
+// client polling the default window gets a 304.
+func TestETag(t *testing.T) {
+	repo := &fakeRepo{rows: []domain.Change{{EventID: "a", Change: domain.ChangeNew, Type: domain.TypeFlood, Severity: "minor", At: now}}}
+	first := get(t, repo, "/v1/changes")
+	tag := first.Header().Get("ETag")
+	if first.Code != http.StatusOK || tag == "" {
+		t.Fatalf("first: %d, etag %q", first.Code, tag)
+	}
+	if w := getAt(t, repo, "/v1/changes", now.Add(5*time.Second), tag); w.Code != http.StatusNotModified {
+		t.Fatalf("same changes later: %d, want 304", w.Code)
+	}
+	repo.rows[0].Severity = "severe"
+	if w := getAt(t, repo, "/v1/changes", now.Add(5*time.Second), tag); w.Code != http.StatusOK {
+		t.Fatalf("changed: %d, want 200", w.Code)
+	}
 }
 
 func TestParams(t *testing.T) {
@@ -57,9 +85,18 @@ func TestParams(t *testing.T) {
 		!slices.Equal(repo.q.Types, []domain.EventType{domain.TypeFlood}) || !repo.q.Since.Equal(now.Add(-6*24*time.Hour)) {
 		t.Fatalf("filtered query %+v", repo.q)
 	}
+	// A client clock a little off is clamped to the bound.
+	for target, want := range map[string]time.Time{
+		"since=2026-11-19T11:59:30Z": now.Add(-MaxWindow),
+		"since=2026-11-26T12:00:30Z": now,
+	} {
+		if w := get(t, repo, "/v1/changes?"+target); w.Code != http.StatusOK || !repo.q.Since.Equal(want) {
+			t.Errorf("%s: %d, since %v, want %v", target, w.Code, repo.q.Since, want)
+		}
+	}
 	for _, bad := range []string{
-		"since=2026-11-18T11:59:59Z", // more than 7 days ago
-		"since=2026-11-26T12:00:01Z", // in the future
+		"since=2026-11-19T11:58:59Z", // more than 7 days and a minute ago
+		"since=2026-11-26T12:01:01Z", // more than a minute ahead
 		"since=yesterday",
 		"limit=0", "limit=501", "limit=x",
 		"severity=bad", "country=PRT", "type=nope",

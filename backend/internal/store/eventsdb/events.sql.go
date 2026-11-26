@@ -105,6 +105,26 @@ func (q *Queries) ActiveEventStarts(ctx context.Context, sourceID string) ([]Act
 	return items, nil
 }
 
+const adoptSupersededRevisions = `-- name: AdoptSupersededRevisions :exec
+UPDATE event_revisions SET event_id = $1
+WHERE event_id IN (SELECT p.id FROM events p WHERE p.source_id = $2
+                   AND p.source_event_id = ANY($3::text[]) AND p.id <> $1)
+`
+
+type AdoptSupersededRevisionsParams struct {
+	EventID    uuid.UUID
+	SourceID   string
+	Supersedes []string
+}
+
+// Moves the revisions of the warnings a new version supersedes onto it
+// before they are deleted, so a chain of versions keeps one history: the
+// severity at the window's start survives v1 -> v2 -> v3.
+func (q *Queries) AdoptSupersededRevisions(ctx context.Context, arg AdoptSupersededRevisionsParams) error {
+	_, err := q.db.Exec(ctx, adoptSupersededRevisions, arg.EventID, arg.SourceID, arg.Supersedes)
+	return err
+}
+
 const assignEventCountries = `-- name: AssignEventCountries :exec
 WITH e AS (
     SELECT geom AS geog, geom::geometry AS g, ST_Area(geom) AS m2,
@@ -524,8 +544,9 @@ func (q *Queries) StreamFloor(ctx context.Context) (int64, error) {
 
 const supersededSeverity = `-- name: SupersededSeverity :one
 SELECT severity FROM events
-WHERE source_id = $1 AND source_event_id = ANY($2::text[]) AND status = 'active'
-ORDER BY updated_at DESC, id
+WHERE source_id = $1 AND source_event_id = ANY($2::text[])
+ORDER BY array_position(ARRAY['minor','moderate','severe','extreme'], severity) DESC NULLS LAST,
+         updated_at DESC, id
 LIMIT 1
 `
 
@@ -534,8 +555,9 @@ type SupersededSeverityParams struct {
 	Supersedes []string
 }
 
-// The severity of the latest active warning a new version supersedes, to
-// record the change across versions as a revision of the new one.
+// The highest severity among the warnings a new version supersedes,
+// active or ended, to record the change across versions as a revision of
+// the new one.
 func (q *Queries) SupersededSeverity(ctx context.Context, arg SupersededSeverityParams) (string, error) {
 	row := q.db.QueryRow(ctx, supersededSeverity, arg.SourceID, arg.Supersedes)
 	var severity string
