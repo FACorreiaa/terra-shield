@@ -38,6 +38,11 @@ const (
 	// gridBBoxFromZoom: from it the grid also needs a bbox. The whole world
 	// is 17,471 cells (122 KB gzipped) at zoom 5.
 	gridBBoxFromZoom = 6
+	// maxPointsSpan bounds a points view, in degrees: ranking by notability
+	// sorts every site in the box, so the whole world at zoom 8 took 700 ms
+	// against 120 ms for 30 by 20 degrees (2026-11-26). A zoom-8 map is
+	// about 14 degrees wide on a 5K screen.
+	maxPointsLon, maxPointsLat = 30, 20
 	// maxPoints bounds a site view; a busier view is marked truncated.
 	maxPoints = 10_000
 	// maxAge: the layer is refreshed weekly.
@@ -116,6 +121,9 @@ func (f *Feature) list(c *echo.Context) error {
 	} else {
 		if bbox == nil {
 			return httpx.BadRequest("bbox is required from zoom 8, where sites are single points")
+		}
+		if lonSpan(bbox) > maxPointsLon || bbox.MaxLat-bbox.MinLat > maxPointsLat {
+			return httpx.BadRequest("from zoom 8 the bbox may span at most 30 degrees of longitude and 20 of latitude")
 		}
 		pts, truncated, err := f.sites.Points(ctx, q, maxPoints)
 		if err != nil {
@@ -197,4 +205,12 @@ func round5(v float64) float64 { return math.Round(v*1e5) / 1e5 }
 
 func at(lon, lat float64) point {
 	return point{Type: "Point", Coordinates: [2]float64{round5(lon), round5(lat)}}
+}
+
+// lonSpan is the bbox's width in degrees, across the antimeridian too.
+func lonSpan(b *domain.BBox) float64 {
+	if b.MinLon > b.MaxLon {
+		return 360 - (b.MinLon - b.MaxLon)
+	}
+	return b.MaxLon - b.MinLon
 }

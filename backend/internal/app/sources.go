@@ -28,7 +28,7 @@ func (c *container) sources() []ingest.Source {
 
 	bases := wikidata.New(sparql, c.repos.Bases)
 	historic := wikidata.NewHistoric(sparql, c.repos.Historic, c.repos.Bases)
-	if u := c.cfg.WikidataEndpoint; u != "" {
+	if u := c.cfg.WikidataEndpoint; u != "" && !c.cfg.IsProduction() {
 		bases.UseEndpoint(u)
 		historic.UseEndpoint(u)
 	}

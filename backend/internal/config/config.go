@@ -47,7 +47,7 @@ type Base struct {
 	AircraftFeedURL string `env:"AIRCRAFT_FEED_URL"`
 	// WikidataEndpoint overrides the Wikidata Query Service for the bases
 	// and historic layers, so local work can load from a mirror while the
-	// service is rate-limiting. Empty in production.
+	// service is rate-limiting. Ignored in production.
 	WikidataEndpoint string `env:"WIKIDATA_ENDPOINT"`
 }
 

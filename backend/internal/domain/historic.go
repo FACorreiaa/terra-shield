@@ -53,6 +53,13 @@ type HistoricSite struct {
 	UpdatedAt time.Time
 }
 
+// HistoricCounts is what the layer holds, for the shrink guard.
+type HistoricCounts struct {
+	Kinds         map[HistoricKind]int
+	Classes       map[string]int // by class label
+	WorldHeritage int
+}
+
 // HistoricQuery filters the layer. Empty Kinds means all of them.
 type HistoricQuery struct {
 	BBox          *BBox

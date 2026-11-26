@@ -33,8 +33,9 @@ func TestHistoricReplaceGridAndPoints(t *testing.T) {
 	if err != nil || n != 5 {
 		t.Fatalf("replace %d %v", n, err)
 	}
-	counts, err := repo.CountByKind(ctx)
-	if err != nil || counts[domain.HistoricCastle] != 2 || counts[domain.HistoricMilitary] != 2 || counts[domain.HistoricMemorial] != 1 {
+	counts, err := repo.Counts(ctx)
+	if err != nil || counts.Kinds[domain.HistoricCastle] != 2 || counts.Kinds[domain.HistoricMilitary] != 2 || counts.Kinds[domain.HistoricMemorial] != 1 ||
+		counts.Classes["castle"] != 2 || counts.Classes["war cemetery"] != 1 || counts.WorldHeritage != 1 {
 		t.Fatalf("counts %v %v", counts, err)
 	}
 
@@ -87,15 +88,43 @@ func TestHistoricReplaceGridAndPoints(t *testing.T) {
 		t.Fatalf("World Heritage only: %+v %v", whs, err)
 	}
 
-	// Next week: Q1 has not moved and keeps its country without a hint;
-	// Q2 moved and takes its new hint (the template has no country shapes).
-	sites[0].WorldHeritage = false
-	sites[1].Lon, sites[1].Lat = 10.31, 50.31
-	if _, err := repo.Replace(ctx, sites, map[string]string{"Q2": "FR"}, at.Add(time.Hour)); err != nil {
+	// Next week a country shape covers both castles. Q1 has not moved and
+	// has the same hint: it keeps DE without a lookup. Q2 moved: the shape
+	// places it, over its new hint.
+	if _, err := pool.Exec(ctx, `INSERT INTO countries (iso2, iso3, name, geom) VALUES
+		('XA', 'XAA', 'Shapeland', ST_Multi('POLYGON((10 50,11 50,11 51,10 51,10 50))'::geometry)::geography)`); err != nil {
 		t.Fatal(err)
 	}
-	again, _, err := repo.Points(ctx, domain.HistoricQuery{Kinds: []domain.HistoricKind{domain.HistoricCastle}}, 10)
-	if err != nil || len(again) != 2 || again[1].ISO2 != "DE" || again[0].ISO2 != "FR" || again[1].WorldHeritage {
-		t.Fatalf("countries carried forward: %+v %v", again, err)
+	sites[0].WorldHeritage = false
+	sites[1].Lon, sites[1].Lat = 10.31, 50.31
+	castles := func(hints map[string]string, at time.Time) (q1, q2 domain.HistoricSite) {
+		t.Helper()
+		if _, err := repo.Replace(ctx, sites, hints, at); err != nil {
+			t.Fatal(err)
+		}
+		got, _, err := repo.Points(ctx, domain.HistoricQuery{Kinds: []domain.HistoricKind{domain.HistoricCastle}}, 10)
+		if err != nil || len(got) != 2 {
+			t.Fatalf("castles %+v %v", got, err)
+		}
+		return got[1], got[0] // Q2 has more sitelinks
+	}
+	q1, q2 := castles(map[string]string{"Q1": "DE", "Q2": "FR"}, at.Add(time.Hour))
+	if q1.ISO2 != "DE" || q2.ISO2 != "XA" || q1.WorldHeritage || !q1.UpdatedAt.Equal(at.Add(time.Hour)) {
+		t.Fatalf("unmoved Q1 keeps DE, moved Q2 is placed: %+v %+v", q1, q2)
+	}
+	// Wikidata changes Q1's country: it is placed again.
+	if q1, _ = castles(map[string]string{"Q1": "AT"}, at.Add(2*time.Hour)); q1.ISO2 != "XA" {
+		t.Fatalf("Q1 with a new hint: %+v", q1)
+	}
+	// Reseeded borders clear every country; the next poll places them.
+	if _, err := store.NewCountryRepository(pool).Load(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	var placed int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM historic_sites WHERE iso2 IS NOT NULL`).Scan(&placed); err != nil || placed != 0 {
+		t.Fatalf("after a reseed %d sites keep a country (%v)", placed, err)
+	}
+	if q1, _ = castles(map[string]string{"Q1": "AT"}, at.Add(3*time.Hour)); q1.ISO2 != "XA" {
+		t.Fatalf("Q1 after a reseed: %+v", q1)
 	}
 }

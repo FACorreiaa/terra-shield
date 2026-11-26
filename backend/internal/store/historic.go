@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 	"time"
 
 	"shield/internal/domain"
@@ -52,9 +53,14 @@ func (r *HistoricRepository) Replace(ctx context.Context, sites []domain.Histori
 		return 0, fmt.Errorf("copy historic sites: %w", err)
 	}
 	for _, stmt := range []string{
+		// A site that has not moved, with the same Wikidata country, keeps
+		// its country: the geometry lookup costs about 1.3 ms a site.
+		// Reseeding countries clears them (CountryRepository.Load).
 		`UPDATE historic_stage s SET iso2 = h.iso2
 		 FROM historic_sites h
-		 WHERE h.qid = s.qid AND h.lat = s.lat AND h.lon = s.lon AND h.iso2 IS NOT NULL`,
+		 WHERE h.qid = s.qid AND h.lat = s.lat AND h.lon = s.lon AND h.iso2 IS NOT NULL
+		   AND h.country_hint IS NOT DISTINCT FROM s.country_hint`,
+		`ANALYZE historic_stage`,
 		`UPDATE historic_stage s SET iso2 = COALESCE(
 		    (SELECT c.iso2 FROM countries c
 		     WHERE ST_Intersects(c.geom, ST_SetSRID(ST_MakePoint(s.lon, s.lat), 4326)::geography)
@@ -62,7 +68,8 @@ func (r *HistoricRepository) Replace(ctx context.Context, sites []domain.Histori
 		    s.country_hint)
 		 WHERE s.iso2 IS NULL`,
 		`DELETE FROM historic_sites`,
-		`INSERT INTO historic_sites SELECT * FROM historic_stage`,
+		`INSERT INTO historic_sites (` + strings.Join(historicColumns, ", ") + `, iso2)
+		 SELECT ` + strings.Join(historicColumns, ", ") + `, iso2 FROM historic_stage`,
 	} {
 		if _, err := tx.Exec(ctx, stmt); err != nil {
 			return 0, fmt.Errorf("replace historic sites: %w", err)
@@ -71,15 +78,18 @@ func (r *HistoricRepository) Replace(ctx context.Context, sites []domain.Histori
 	return int(n), tx.Commit(ctx)
 }
 
-// CountByKind returns how many sites of each kind are stored.
-func (r *HistoricRepository) CountByKind(ctx context.Context) (map[domain.HistoricKind]int, error) {
-	rows, err := r.q.CountHistoricSitesByKind(ctx)
+// Counts returns how many sites are stored per kind and per class, and how
+// many are World Heritage.
+func (r *HistoricRepository) Counts(ctx context.Context) (domain.HistoricCounts, error) {
+	rows, err := r.q.CountHistoricSites(ctx)
 	if err != nil {
-		return nil, err
+		return domain.HistoricCounts{}, err
 	}
-	out := make(map[domain.HistoricKind]int, len(rows))
+	out := domain.HistoricCounts{Kinds: map[domain.HistoricKind]int{}, Classes: map[string]int{}}
 	for _, row := range rows {
-		out[domain.HistoricKind(row.Kind)] = int(row.N)
+		out.Kinds[domain.HistoricKind(row.Kind)] += int(row.N)
+		out.Classes[row.Class] += int(row.N)
+		out.WorldHeritage += int(row.WorldHeritage)
 	}
 	return out, nil
 }
@@ -166,7 +176,8 @@ GROUP BY gy, gx, h.kind`, b.args...)
 	return out, nil
 }
 
-// Points returns up to limit sites, by QID, and whether more matched.
+// Points returns up to limit sites, most notable (sitelinks) first, and
+// whether more matched.
 func (r *HistoricRepository) Points(ctx context.Context, q domain.HistoricQuery, limit int) ([]domain.HistoricSite, bool, error) {
 	if limit <= 0 {
 		return nil, false, fmt.Errorf("historic points: limit must be positive")

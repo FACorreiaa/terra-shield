@@ -94,26 +94,26 @@ var HistoricClasses = func() []HistoricClass {
 		// (few heritage-listed): plain church buildings, mosques, Spanish
 		// casas consistoriales, sector lights, dovecotes, water towers,
 		// gurdwaras; and excavation sites (Q839954, 62k), the owner's call.
-		HistoricClass{"Q16560", "palace", domain.HistoricGeneral, false},
 		HistoricClass{"Q2651004", "palazzo", domain.HistoricGeneral, false},
 		HistoricClass{"Q15848826", "city palace", domain.HistoricGeneral, false},
 		HistoricClass{"Q53536964", "royal palace", domain.HistoricGeneral, false},
 		HistoricClass{"Q5383482", "episcopal palace", domain.HistoricGeneral, false},
+		HistoricClass{"Q16560", "palace", domain.HistoricGeneral, false},
 		HistoricClass{"Q751876", "château", domain.HistoricGeneral, false},
 		HistoricClass{"Q16823155", "Schloss", domain.HistoricGeneral, false},
 		HistoricClass{"Q1424449", "hunting lodge", domain.HistoricGeneral, false},
-		HistoricClass{"Q2977", "cathedral", domain.HistoricGeneral, false},
 		HistoricClass{"Q56242215", "Catholic cathedral", domain.HistoricGeneral, false},
 		HistoricClass{"Q56242225", "Eastern Orthodox cathedral", domain.HistoricGeneral, false},
 		HistoricClass{"Q2577114", "co-cathedral", domain.HistoricGeneral, false},
 		HistoricClass{"Q56242250", "Anglican cathedral", domain.HistoricGeneral, false},
+		HistoricClass{"Q2977", "cathedral", domain.HistoricGeneral, false},
 		HistoricClass{"Q124936", "major basilica", domain.HistoricGeneral, false},
 		HistoricClass{"Q2713379", "papal basilica", domain.HistoricGeneral, false},
 		HistoricClass{"Q120560", "minor basilica", domain.HistoricGeneral, false},
 		HistoricClass{"Q163687", "basilica", domain.HistoricGeneral, false},
-		HistoricClass{"Q160742", "abbey", domain.HistoricGeneral, false},
 		HistoricClass{"Q334383", "abbey church", domain.HistoricGeneral, false},
 		HistoricClass{"Q817056", "Benedictine abbey", domain.HistoricGeneral, false},
+		HistoricClass{"Q160742", "abbey", domain.HistoricGeneral, false},
 		HistoricClass{"Q91315817", "Cistercian monastery", domain.HistoricGeneral, false},
 		HistoricClass{"Q2750108", "priory", domain.HistoricGeneral, false},
 		HistoricClass{"Q20672229", "friary", domain.HistoricGeneral, false},
@@ -194,7 +194,7 @@ var naturalCriteria = map[string]bool{"Q23038981": true, "Q23038983": true, "Q23
 
 // HistoricQuery is the SPARQL for one class: every named item with
 // coordinates, closed or not. Castles, the largest class (20,622 items),
-// take 10-25 s this way. The name is English, else Wikidata's default
+// took 29 s on the Query Service (2026-11-26). The name is English, else Wikidata's default
 // ("mul", one name for every language: 2% of castles have only that).
 // Sitelinks (how many Wikipedias and other wikis cover the item) rank the
 // sites when a view holds more than it can show.
@@ -210,7 +210,7 @@ func HistoricQuery(classQID string) string {
 // HistoricStore is where the layer is written.
 type HistoricStore interface {
 	Replace(ctx context.Context, sites []domain.HistoricSite, hints map[string]string, at time.Time) (int, error)
-	CountByKind(ctx context.Context) (map[domain.HistoricKind]int, error)
+	Counts(ctx context.Context) (domain.HistoricCounts, error)
 }
 
 // BaseCounter reports whether the bases layer is loaded.
@@ -343,21 +343,44 @@ func (h *Historic) Poll(ctx context.Context, _ domain.Validators) (ingest.Result
 // waits for that one to load (a cold bases poll took 7 to 21 minutes).
 var errNoBases = &ingest.NotReady{After: 5 * time.Minute, Reason: "bases layer not loaded yet: historic sites wait for it"}
 
+// minGuardedClass: a class holding fewer sites is not guarded on its own;
+// its kind still is. Every class held at least 3 on 2026-11-26.
+const minGuardedClass = 100
+
 // checkShrink refuses a poll that would drop more than maxShrink of any
-// kind: a class missing from an answer is a failure, not deletions.
+// kind, of any class of minGuardedClass sites or more, or of the World
+// Heritage flags: a class or the World Heritage query answering short (a
+// merged class item, a partial mirror) is a failure, not deletions. Per
+// kind alone would miss it: general holds 150k sites, its largest class 16k.
 func (h *Historic) checkShrink(ctx context.Context, sites []domain.HistoricSite) error {
-	held, err := h.store.CountByKind(ctx)
+	held, err := h.store.Counts(ctx)
 	if err != nil {
 		return err
 	}
-	got := map[domain.HistoricKind]int{}
+	kinds, classes, wh := map[domain.HistoricKind]int{}, map[string]int{}, 0
 	for i := range sites {
-		got[sites[i].Kind]++
+		kinds[sites[i].Kind]++
+		classes[sites[i].Class]++
+		if sites[i].WorldHeritage {
+			wh++
+		}
+	}
+	shrinks := func(got, had int) bool { return had > 0 && float64(got) < float64(had)*(1-maxShrink) }
+	refuse := func(got int, what string, had int) error {
+		return fmt.Errorf("%d %s against %d stored: refusing to drop more than %.0f%% in one poll", got, what, had, maxShrink*100)
 	}
 	for _, k := range domain.HistoricKinds {
-		if held[k] > 0 && float64(got[k]) < float64(held[k])*(1-maxShrink) {
-			return fmt.Errorf("%d %s sites against %d stored: refusing to drop more than %.0f%% in one poll", got[k], k, held[k], maxShrink*100)
+		if shrinks(kinds[k], held.Kinds[k]) {
+			return refuse(kinds[k], string(k)+" sites", held.Kinds[k])
 		}
+	}
+	for c, had := range held.Classes {
+		if had >= minGuardedClass && shrinks(classes[c], had) {
+			return refuse(classes[c], c+" sites", had)
+		}
+	}
+	if shrinks(wh, held.WorldHeritage) {
+		return refuse(wh, "World Heritage sites", held.WorldHeritage)
 	}
 	return nil
 }

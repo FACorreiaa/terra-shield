@@ -68,21 +68,25 @@ func TestParseHistoric(t *testing.T) {
 type fakeHistoricStore struct {
 	mu    sync.Mutex
 	sites []domain.HistoricSite
-	held  map[domain.HistoricKind]int
+	held  domain.HistoricCounts
 }
 
 func (f *fakeHistoricStore) Replace(_ context.Context, s []domain.HistoricSite, _ map[string]string, _ time.Time) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.sites = s
-	f.held = map[domain.HistoricKind]int{}
+	f.held = domain.HistoricCounts{Kinds: map[domain.HistoricKind]int{}, Classes: map[string]int{}}
 	for i := range s {
-		f.held[s[i].Kind]++
+		f.held.Kinds[s[i].Kind]++
+		f.held.Classes[s[i].Class]++
+		if s[i].WorldHeritage {
+			f.held.WorldHeritage++
+		}
 	}
 	return len(s), nil
 }
 
-func (f *fakeHistoricStore) CountByKind(context.Context) (map[domain.HistoricKind]int, error) {
+func (f *fakeHistoricStore) Counts(context.Context) (domain.HistoricCounts, error) {
 	return f.held, nil
 }
 
@@ -187,7 +191,7 @@ func TestHistoricRefusesToShrinkAKind(t *testing.T) {
 	srv := historicStub(t, asked, &mu)
 	defer srv.Close()
 	// Plenty stored overall, but the castles would drop from 10 to 1.
-	store := &fakeHistoricStore{held: map[domain.HistoricKind]int{domain.HistoricCastle: 10, domain.HistoricMilitary: 2}}
+	store := &fakeHistoricStore{held: domain.HistoricCounts{Kinds: map[domain.HistoricKind]int{domain.HistoricCastle: 10, domain.HistoricMilitary: 2}}}
 	h := newTestHistoric(srv.URL, store, baseCount(3000))
 	for range 2 {
 		if _, err := h.Poll(context.Background(), domain.Validators{}); err == nil || store.sites != nil {
@@ -267,5 +271,28 @@ func TestParseHistoricNamesAndSitelinks(t *testing.T) {
 	}
 	if len(sites) != 2 || sites[0].Name != "Mul Castle" || sites[0].Sitelinks != 12 || sites[1].Name != "Château Seul" || sites[1].Sitelinks != 0 {
 		t.Fatalf("%+v", sites)
+	}
+}
+
+// A class or the World Heritage flags answering short is refused even
+// when every kind holds up: general is too big for its guard to notice.
+func TestHistoricPollGuardsClassesAndWorldHeritage(t *testing.T) {
+	var mu sync.Mutex
+	srv := historicStub(t, map[string]int{}, &mu)
+	defer srv.Close()
+	for name, tc := range map[string]struct {
+		held   domain.HistoricCounts
+		refuse bool
+	}{
+		"a big class vanishes":    {domain.HistoricCounts{Classes: map[string]int{"palace": minGuardedClass}}, true},
+		"a small class vanishes":  {domain.HistoricCounts{Classes: map[string]int{"palace": minGuardedClass - 1}}, false},
+		"World Heritage shrinks":  {domain.HistoricCounts{WorldHeritage: 50}, true},
+		"World Heritage holds up": {domain.HistoricCounts{WorldHeritage: 3}, false},
+	} {
+		store := &fakeHistoricStore{held: tc.held}
+		_, err := newTestHistoric(srv.URL, store, baseCount(3000)).Poll(context.Background(), domain.Validators{})
+		if refused := err != nil; refused != tc.refuse {
+			t.Errorf("%s: refused=%v (%v), want %v", name, refused, err, tc.refuse)
+		}
 	}
 }

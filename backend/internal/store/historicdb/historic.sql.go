@@ -9,25 +9,35 @@ import (
 	"context"
 )
 
-const countHistoricSitesByKind = `-- name: CountHistoricSitesByKind :many
-SELECT kind, count(*)::integer AS n FROM historic_sites GROUP BY kind
+const countHistoricSites = `-- name: CountHistoricSites :many
+SELECT kind, class, count(*)::integer AS n,
+       (count(*) FILTER (WHERE world_heritage))::integer AS world_heritage
+FROM historic_sites GROUP BY kind, class
 `
 
-type CountHistoricSitesByKindRow struct {
-	Kind string
-	N    int32
+type CountHistoricSitesRow struct {
+	Kind          string
+	Class         string
+	N             int32
+	WorldHeritage int32
 }
 
-func (q *Queries) CountHistoricSitesByKind(ctx context.Context) ([]CountHistoricSitesByKindRow, error) {
-	rows, err := q.db.Query(ctx, countHistoricSitesByKind)
+// Per kind and class, for the shrink guard, with the World Heritage flags.
+func (q *Queries) CountHistoricSites(ctx context.Context) ([]CountHistoricSitesRow, error) {
+	rows, err := q.db.Query(ctx, countHistoricSites)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []CountHistoricSitesByKindRow
+	var items []CountHistoricSitesRow
 	for rows.Next() {
-		var i CountHistoricSitesByKindRow
-		if err := rows.Scan(&i.Kind, &i.N); err != nil {
+		var i CountHistoricSitesRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.Class,
+			&i.N,
+			&i.WorldHeritage,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
