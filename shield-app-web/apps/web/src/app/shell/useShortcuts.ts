@@ -19,6 +19,8 @@ import { useCloseCountry, usePage } from "./usePage.ts";
 interface ShortcutTargets {
   toggleInspector: () => void;
   help: RefObject<HTMLDialogElement | null>;
+  /** The live flights layer: `a` turns it on or off. Refresh leaves it to its minute (Flights.swift). */
+  flights: { toggle: () => void };
 }
 
 interface Context extends ShortcutTargets {
@@ -77,6 +79,10 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
       live.select(undefined);
       return true;
     }
+    if (live.aircraftHex !== undefined) {
+      live.selectAircraft(undefined);
+      return true;
+    }
     return closeCountry();
   },
   source: ({ live: { selected, sources, detail } }) => {
@@ -103,6 +109,10 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
   },
   conflicts: ({ live }) => {
     live.conflicts.toggle();
+    return true;
+  },
+  flights: ({ flights }) => {
+    flights.toggle();
     return true;
   },
   refresh: ({ live }) => {

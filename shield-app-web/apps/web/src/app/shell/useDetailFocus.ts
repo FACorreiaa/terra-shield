@@ -43,10 +43,28 @@ function useFocusReturn(selectedId: string | undefined): void {
   }, [selectedId]);
 }
 
+/**
+ * Closing an aircraft's report where focus went with it returns focus to the flights switch: the
+ * aircraft itself is drawn on the canvas, with nothing to focus.
+ */
+function useAircraftFocusReturn(aircraftHex: string | undefined): void {
+  const previous = useRef(aircraftHex);
+  useEffect(() => {
+    const closed = previous.current;
+    previous.current = aircraftHex;
+    if (aircraftHex === undefined && closed !== undefined && focusLost()) {
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>("button[aria-label='Live flights']")?.focus();
+      });
+    }
+  }, [aircraftHex]);
+}
+
 /** What the frame does as the selection comes and goes: frames an arrival, gives focus back on close. */
-function useSelectionUpkeep(selectedId: string | undefined): void {
+function useSelectionUpkeep(selectedId: string | undefined, aircraftHex: string | undefined): void {
   useShowOnArrival();
   useFocusReturn(selectedId);
+  useAircraftFocusReturn(aircraftHex);
 }
 
 export { DETAIL_HEADING, focusLost, focusRow, useFocusOnOpen, useSelectionUpkeep };

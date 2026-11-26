@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { View } from "@/domain/viewport.ts";
+import { FlightsProvider } from "@/features/flights/FlightsProvider.tsx";
 
 import { useLayerSelection } from "./layerEvents.ts";
 import type { LiveMap } from "./liveMapContext.ts";
@@ -9,8 +10,8 @@ import { LiveMapContext } from "./liveMapContext.ts";
 import { useArrivals } from "./useArrivals.ts";
 import { useMapEvents } from "./useMapEvents.ts";
 import { useMapFilters } from "./useMapFilters.ts";
+import { useSelection } from "./useSelection.ts";
 import { SourceLookupContext, useSourceHealth } from "./useSourceHealth.ts";
-import { useUrlSelection } from "./useUrlSelection.ts";
 
 /**
  * The view before the map reports one: the world as the opening globe shows it (MapLibre zoom 1–2,
@@ -38,7 +39,8 @@ function useNow(): Date {
  */
 function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   const [view, setView] = useState<View>(WHOLE_WORLD);
-  const { selectedId, select, chosen, choose } = useUrlSelection();
+  const selection = useSelection();
+  const { selectedId, chosen, aircraftHex, selectAircraft } = selection;
   const [map, setMap] = useState<LiveMap["map"]>();
   const now = useNow();
   const { query, setQuery, detections, conflicts } = useMapFilters(view);
@@ -58,9 +60,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       setView,
       map,
       setMap,
-      selectedId,
-      select,
-      choose,
+      ...selection,
       selected,
       detail,
       selectedShape,
@@ -84,9 +84,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
     [
       view,
       map,
-      selectedId,
-      select,
-      choose,
+      selection,
       selected,
       detail,
       selectedShape,
@@ -110,7 +108,11 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   );
   return (
     <LiveMapContext value={value}>
-      <SourceLookupContext value={lookup}>{children}</SourceLookupContext>
+      <SourceLookupContext value={lookup}>
+        <FlightsProvider view={view} aircraftHex={aircraftHex} selectAircraft={selectAircraft}>
+          {children}
+        </FlightsProvider>
+      </SourceLookupContext>
     </LiveMapContext>
   );
 }

@@ -1,6 +1,6 @@
 import type { EventCluster, HazardEvent } from "@shield/api-client";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef } from "react";
 
 import type { EventShape } from "@/domain/geo.ts";
@@ -34,6 +34,8 @@ interface HazardMapProps {
   arrival?: ArrivalCallbacks | undefined;
   /** Satellite heat detections (W7); none while the layer is off. */
   detections?: HazardLayerData["detections"];
+  /** More canvas layers drawn with the map once it exists (live flights), given the style's epoch. */
+  layers?: ((map: MapLibreMap, styleEpoch: number) => ReactNode) | undefined;
 }
 
 const NO_ARRIVALS: ReadonlySet<string> = new Set();
@@ -45,7 +47,7 @@ const NO_CLUSTERS: readonly EventCluster[] = [];
  */
 function HazardMap(props: HazardMapProps): ReactElement {
   const { events, clusters, staleSources, projection, onViewChange, onMap, arrivals = NO_ARRIVALS, arrival } = props;
-  const { conflictClusters = NO_CLUSTERS } = props;
+  const { conflictClusters = NO_CLUSTERS, layers } = props;
   const container = useRef<HTMLDivElement>(null);
   const { map, styleEpoch } = useHazardMap(container, { projection, onViewChange });
   const mapChanged = useEffectEvent((next: MapLibreMap | undefined) => onMap?.(next));
@@ -70,6 +72,7 @@ function HazardMap(props: HazardMapProps): ReactElement {
           arrival={arrival}
         />
       )}
+      {map && layers?.(map, styleEpoch)}
     </div>
   );
 }

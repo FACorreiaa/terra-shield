@@ -7,6 +7,9 @@ type Schemas = components["schemas"];
 type HazardEvent = Schemas["Event"];
 type EventList = Schemas["EventList"];
 type EventCluster = Schemas["Cluster"];
+/** One aircraft position from adsb.lol (ADR 28): a separate layer, never an event. */
+type Aircraft = Schemas["Aircraft"];
+type AircraftList = Schemas["AircraftList"];
 type Source = Schemas["Source"];
 type Severity = Schemas["Severity"];
 type EventKind = Schemas["EventKind"];
@@ -50,6 +53,8 @@ function createShieldClient(baseUrl = "", fetchImpl?: typeof globalThis.fetch): 
 }
 
 export type {
+  Aircraft,
+  AircraftList,
   components,
   EventCluster,
   EventKind,

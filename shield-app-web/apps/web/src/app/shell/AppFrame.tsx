@@ -6,9 +6,9 @@ import { LiveMap } from "@/features/map/LiveMap.tsx";
 
 import { DesktopChrome } from "./DesktopChrome.tsx";
 import { MAP_LEFT_CLASS, useInsets } from "./insets.ts";
+import { KeyboardShortcuts } from "./KeyboardShortcuts.tsx";
 import { useLiveMap } from "./liveMapContext.ts";
 import { MobileChrome } from "./MobileChrome.tsx";
-import { Shortcuts } from "./Shortcuts.tsx";
 import { useIsWide } from "./useBreakpoint.ts";
 import { useSelectionUpkeep } from "./useDetailFocus.ts";
 
@@ -19,17 +19,18 @@ import { useSelectionUpkeep } from "./useDetailFocus.ts";
 function AppFrame({ children }: { children: ReactNode }): ReactElement {
   const wide = useIsWide();
   const { drawn, clusters, selectedId, selectedShape, staleSources, setView, select, setMap } = useLiveMap();
+  const { aircraftHex, selectAircraft, inspecting } = useLiveMap();
   const { arrivals, started, arrived, detections, conflicts } = useLiveMap();
   const arrival = useMemo(() => ({ onStarted: started, onArrived: arrived }), [started, arrived]);
   const frame = useRef<HTMLDivElement>(null);
   const applyInsets = useInsets(frame);
-  useSelectionUpkeep(selectedId);
+  useSelectionUpkeep(selectedId, aircraftHex);
   const [inspectorWanted, setInspectorWanted] = useState(true);
   const toggleInspector = useCallback(() => {
     setInspectorWanted((was) => !was);
   }, []);
   // The inspector shows the selection; `i` hides it for those who want the map wide.
-  const inspectorOpen = wide && inspectorWanted && selectedId !== undefined;
+  const inspectorOpen = wide && inspectorWanted && inspecting;
 
   return (
     <div className="flex h-full flex-col bg-canvas">
@@ -44,6 +45,8 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
             selectedShape={selectedShape}
             onViewChange={setView}
             onSelect={select}
+            aircraftHex={aircraftHex}
+            onSelectAircraft={selectAircraft}
             onMap={setMap}
             arrivals={arrivals}
             arrival={arrival}
@@ -63,7 +66,7 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
           <DisclaimerBanner variant="footer" />
         </footer>
       ) : undefined}
-      <Shortcuts toggleInspector={toggleInspector} />
+      <KeyboardShortcuts toggleInspector={toggleInspector} />
     </div>
   );
 }

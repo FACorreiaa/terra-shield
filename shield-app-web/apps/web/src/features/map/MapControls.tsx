@@ -1,11 +1,12 @@
-import { Crosshair, Earth, Minus, Plus, Thermometer } from "lucide-react";
+import { Earth, Minus, Plus } from "lucide-react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement } from "react";
-import { useCallback } from "react";
+import { Fragment, useCallback } from "react";
 
 import type { Projection } from "./basemapStyle.ts";
 import { controlButton } from "./controlStyles.ts";
 import { LayersMenu } from "./LayersMenu.tsx";
+import type { LayerSwitch } from "./LayerToggle.tsx";
 import { LayerToggle } from "./LayerToggle.tsx";
 import { fitWorld } from "./useHazardMap.ts";
 
@@ -14,12 +15,8 @@ interface MapControlsProps {
   map: MapLibreMap | undefined;
   projection: Projection;
   onProjectionChange: (projection: Projection) => void;
-  /** The heat layer's switch, shared with the filter sheet and `h`. */
-  showsDetections: boolean;
-  onDetectionsToggle: () => void;
-  /** The armed-conflicts layer's switch, shared with `c` (ADR 27). */
-  showsConflicts: boolean;
-  onConflictsToggle: () => void;
+  /** The layers' switches, top to bottom, in the apps' order. */
+  layers: readonly LayerSwitch[];
 }
 
 const ICON = "size-4";
@@ -35,8 +32,7 @@ function Divider(): ReactElement {
  * control stack (layers are one-press toggles there too).
  */
 function MapControls(props: MapControlsProps): ReactElement {
-  const { map, projection, onProjectionChange, showsDetections, onDetectionsToggle } = props;
-  const { showsConflicts, onConflictsToggle } = props;
+  const { map, projection, onProjectionChange, layers } = props;
   const world = useCallback(() => {
     if (map !== undefined) {
       fitWorld(map, projection);
@@ -54,24 +50,12 @@ function MapControls(props: MapControlsProps): ReactElement {
     <div className="flex w-11 flex-col rounded-md border border-hairline-strong shadow-floating material-floating contrast-more:bg-panel contrast-more:backdrop-filter-none">
       <LayersMenu projection={projection} onProjectionChange={onProjectionChange} />
       <Divider />
-      {/* Armed conflicts (ADR 27): a layer beside hazards, off by default, above heat as in the apps. */}
-      <LayerToggle
-        label="Armed conflicts"
-        icon={Crosshair}
-        pressed={showsConflicts}
-        pressedClass="bg-accent/14 text-accent hover:bg-accent/20"
-        onToggle={onConflictsToggle}
-      />
-      <Divider />
-      {/* Off by default (DESIGN.md §5). The word is "heat detections", never "fires". */}
-      <LayerToggle
-        label="Satellite heat detections"
-        icon={Thermometer}
-        pressed={showsDetections}
-        pressedClass="bg-kind-detection/14 text-kind-detection hover:bg-kind-detection/20"
-        onToggle={onDetectionsToggle}
-      />
-      <Divider />
+      {layers.map(({ id, label, icon, pressed, pressedClass, onToggle }) => (
+        <Fragment key={id}>
+          <LayerToggle label={label} icon={icon} pressed={pressed} pressedClass={pressedClass} onToggle={onToggle} />
+          <Divider />
+        </Fragment>
+      ))}
       <button
         type="button"
         className={controlButton}
