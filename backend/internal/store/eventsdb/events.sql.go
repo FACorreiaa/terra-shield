@@ -542,27 +542,32 @@ func (q *Queries) StreamFloor(ctx context.Context) (int64, error) {
 	return seq, err
 }
 
-const supersededSeverity = `-- name: SupersededSeverity :one
-SELECT severity FROM events
+const superseded = `-- name: Superseded :one
+SELECT COALESCE((array_agg(severity ORDER BY array_position(ARRAY['minor','moderate','severe','extreme'], severity) DESC NULLS LAST,
+                                             updated_at DESC, id))[1], '')::text AS severity,
+       COALESCE(bool_or(status = 'active'), false)::bool AS any_active
+FROM events
 WHERE source_id = $1 AND source_event_id = ANY($2::text[])
-ORDER BY array_position(ARRAY['minor','moderate','severe','extreme'], severity) DESC NULLS LAST,
-         updated_at DESC, id
-LIMIT 1
 `
 
-type SupersededSeverityParams struct {
+type SupersededParams struct {
 	SourceID   string
 	Supersedes []string
 }
 
-// The highest severity among the warnings a new version supersedes,
-// active or ended, to record the change across versions as a revision of
-// the new one.
-func (q *Queries) SupersededSeverity(ctx context.Context, arg SupersededSeverityParams) (string, error) {
-	row := q.db.QueryRow(ctx, supersededSeverity, arg.SourceID, arg.Supersedes)
-	var severity string
-	err := row.Scan(&severity)
-	return severity, err
+type SupersededRow struct {
+	Severity  string
+	AnyActive bool
+}
+
+// The warnings a new version supersedes, to record the change across
+// versions as a revision of the new one: their highest severity, active
+// or ended (” when none is stored), and whether any is still active.
+func (q *Queries) Superseded(ctx context.Context, arg SupersededParams) (SupersededRow, error) {
+	row := q.db.QueryRow(ctx, superseded, arg.SourceID, arg.Supersedes)
+	var i SupersededRow
+	err := row.Scan(&i.Severity, &i.AnyActive)
+	return i, err
 }
 
 const upsertEvent = `-- name: UpsertEvent :one

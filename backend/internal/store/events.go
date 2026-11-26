@@ -66,21 +66,30 @@ func (r *EventRepository) Upsert(ctx context.Context, sourceID string, events []
 }
 
 // adoptSuperseded carries a new version's history on from the warnings it
-// replaces (MeteoAlarm): their revisions move onto it, and a severity
-// change across versions is recorded as one of its own.
-func adoptSuperseded(ctx context.Context, q *eventsdb.Queries, sourceID string, id uuid.UUID, e *domain.Event, from string) error {
+// replaces (MeteoAlarm): their revisions move onto it, and the change
+// across versions is recorded as one of its own: a severity change, and,
+// when every one it replaces had ended, that it is active again.
+func adoptSuperseded(ctx context.Context, q *eventsdb.Queries, sourceID string, id uuid.UUID, e *domain.Event, prior eventsdb.SupersededRow) error {
 	if err := q.AdoptSupersededRevisions(ctx, eventsdb.AdoptSupersededRevisionsParams{
 		EventID: id, SourceID: sourceID, Supersedes: e.Supersedes,
 	}); err != nil {
 		return err
 	}
-	if from == "" || from == e.Severity || e.Status != domain.StatusActive {
+	if prior.Severity == "" || e.Status != domain.StatusActive {
+		return nil // nothing stored to carry on, or arrived ended
+	}
+	changes := map[string]any{}
+	if prior.Severity != e.Severity {
+		changes["severity"] = map[string]any{"from": prior.Severity, "to": e.Severity}
+	}
+	if !prior.AnyActive {
+		changes["status"] = map[string]any{"from": string(domain.StatusResolved), "to": string(domain.StatusActive)}
+	}
+	if len(changes) == 0 {
 		return nil
 	}
-	body, err := json.Marshal(map[string]any{
-		"severity":   map[string]any{"from": from, "to": e.Severity},
-		"supersedes": e.Supersedes,
-	})
+	changes["supersedes"] = e.Supersedes
+	body, err := json.Marshal(changes)
 	if err != nil {
 		return err
 	}
@@ -108,13 +117,13 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	if !existed && domain.PastRetention(e, horizon) {
 		return false, nil
 	}
-	// A new version of warnings it replaces: the highest severity they
-	// had, to record the change across versions.
-	var supersededSeverity string
+	// A new version of warnings it replaces: what they were, read before
+	// it is written, to record the change across versions.
+	var prior eventsdb.SupersededRow
 	if !existed && len(e.Supersedes) > 0 {
-		supersededSeverity, err = q.SupersededSeverity(ctx, eventsdb.SupersededSeverityParams{SourceID: sourceID, Supersedes: e.Supersedes})
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return false, fmt.Errorf("superseded severity %s/%s: %w", sourceID, e.SourceEventID, err)
+		prior, err = q.Superseded(ctx, eventsdb.SupersededParams{SourceID: sourceID, Supersedes: e.Supersedes})
+		if err != nil {
+			return false, fmt.Errorf("superseded %s/%s: %w", sourceID, e.SourceEventID, err)
 		}
 	}
 
@@ -150,7 +159,7 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 			return false, fmt.Errorf("revision %s/%s: %w", sourceID, e.SourceEventID, err)
 		}
 	} else if len(e.Supersedes) > 0 {
-		if err := adoptSuperseded(ctx, q, sourceID, id, e, supersededSeverity); err != nil {
+		if err := adoptSuperseded(ctx, q, sourceID, id, e, prior); err != nil {
 			return false, fmt.Errorf("revision %s/%s: %w", sourceID, e.SourceEventID, err)
 		}
 	}

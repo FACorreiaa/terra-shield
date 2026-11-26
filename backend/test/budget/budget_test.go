@@ -54,7 +54,7 @@ func TestBudget(t *testing.T) {
 		{"countries", "/v1/countries", ""},
 		{"sources", "/v1/sources", ""},
 		{"changes, 24 h, at most 500", "/v1/changes?limit=500", ""},
-		{"changes, 7 days, at most 500", "/v1/changes?limit=500&since=" + time.Now().Add(-7*24*time.Hour+time.Minute).UTC().Format(time.RFC3339), ""},
+		{"changes, 7 days, at most 500", "/v1/changes?limit=500&since=" + time.Now().Add(-(6*24+23)*time.Hour).UTC().Format(time.RFC3339), ""},
 	}
 	probes = append(probes, discovered(t, client, base)...)
 

@@ -232,17 +232,22 @@ func TestChangesAcrossVersions(t *testing.T) {
 	upsert(
 		ev("v1", "moderate"), ev("w1", "moderate"), ev("x1", "moderate"), ev("y1", "moderate"),
 		ev("c1", "moderate"), ev("d1", "moderate"), ev("r1", "moderate"),
-		ev("m1a", "moderate"), ev("m1b", "severe"),
+		ev("m1a", "moderate"), ev("m1b", "severe"), ev("o1", "moderate"),
 	)
 	if _, err := pool.Exec(ctx, `UPDATE events SET first_seen_at = now() - interval '2 days'
-		WHERE source_event_id IN ('v1', 'w1', 'c1', 'd1', 'r1', 'm1a', 'm1b')`); err != nil {
+		WHERE source_event_id IN ('v1', 'w1', 'c1', 'd1', 'r1', 'm1a', 'm1b', 'o1')`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := pool.Exec(ctx, `UPDATE events SET first_seen_at = NULL WHERE source_event_id IN ('x1', 'y1')`); err != nil {
 		t.Fatal(err)
 	}
-	// r1 ended (the expiry sweep) before its next version arrived.
-	if _, err := events.Resolve(ctx, "test", []string{"r1"}, at); err != nil {
+	// r1 ended (the expiry sweep) before its next version arrived; o1
+	// ended before the window, so its next version is active again.
+	if _, err := events.Resolve(ctx, "test", []string{"r1", "o1"}, at); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE event_revisions SET at = now() - interval '2 days'
+		WHERE event_id = (SELECT id FROM events WHERE source_event_id = 'o1')`); err != nil {
 		t.Fatal(err)
 	}
 	replace(
@@ -252,9 +257,10 @@ func TestChangesAcrossVersions(t *testing.T) {
 		ev("y2", "severe", "y1"),         // first seen unknown, escalated
 		ev("c2", "severe", "c1"),         // c1 -> c2 -> c3, severe twice
 		ev("d2", "severe", "d1"),         // d1 -> d2 -> d3, back to moderate
-		ev("r2", "severe", "r1"),         // a resolved predecessor
+		ev("r2", "severe", "r1"),         // ended in the window: escalated
 		ev("m2", "severe", "m1a", "m1b"), // the highest it replaced
 		ev("u2", "minor", "not-stored"),  // nothing stored to carry on
+		ev("o2", "moderate", "o1"),       // ended before the window: new
 	)
 	replace(ev("c3", "severe", "c2"), ev("d3", "moderate", "d2"))
 	rows, err := store.NewChangeRepository(pool).List(ctx, domain.ChangeQuery{Since: time.Now().Add(-time.Hour), Types: domain.HazardTypes()})
@@ -271,6 +277,7 @@ func TestChangesAcrossVersions(t *testing.T) {
 		"c3": "escalated moderate",
 		"r2": "escalated moderate",
 		"u2": "new ",
+		"o2": "new ",
 	}
 	if !maps.Equal(got, want) {
 		t.Fatalf("changes %v\nwant %v", got, want)
