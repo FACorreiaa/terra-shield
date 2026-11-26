@@ -1,7 +1,8 @@
 // Package nhc adapts the official tropical cyclone forecasts of NOAA's
 // National Hurricane Center and Central Pacific Hurricane Center: each
-// storm's forecast cone and track for the Atlantic and the eastern and
-// central North Pacific. Public domain, no key (ADR 32).
+// storm's forecast cone and track for the Atlantic and the eastern North
+// Pacific, and CPHC's central North Pacific storms when NHC's list
+// carries them. Public domain, no key (ADR 32).
 //
 // CurrentStorms.json lists every storm advised on, with the latest public
 // advisory's position and intensity and a link to the latest forecast's
@@ -82,7 +83,7 @@ func (s *Source) Info() domain.SourceInfo {
 		License:      "Public domain (US government work)",
 		Attribution:  "NOAA National Hurricane Center and Central Pacific Hurricane Center",
 		TermsURL:     "https://www.weather.gov/disclaimer",
-		Scope:        "Official tropical cyclone forecasts (cone and track) for the Atlantic and the eastern and central North Pacific",
+		Scope:        "Official tropical cyclone forecasts (cone and track) for the Atlantic and the eastern North Pacific, and the central North Pacific when NHC lists it",
 		Cadence:      "every 6 hours per storm; every 3 hours under watches or warnings",
 		PollInterval: PollInterval,
 		Enabled:      true,
