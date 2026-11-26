@@ -110,3 +110,40 @@ func TestPollAgainstUSGS(t *testing.T) {
 		t.Fatalf("after USGS deleted its own, %d stored, want 51", n)
 	}
 }
+
+// USGS stored first (a deploy, a restart): every EMSC quake is unstored,
+// so the looser match decides, and it keeps the same three as the strict
+// one on the recorded week.
+func TestPollAfterUSGS(t *testing.T) {
+	pool := testutil.DB(t)
+	ctx := context.Background()
+	sources := store.NewSourceRepository(pool)
+	for _, info := range []domain.SourceInfo{New(nil, nil, nil).Info(), usgs.New(nil, nil).Info()} {
+		if err := sources.Register(ctx, info); err != nil {
+			t.Fatal(err)
+		}
+	}
+	events := store.NewEventRepository(pool)
+	u, err := usgs.Parse(read(t, "usgs-week-euromed.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := events.Upsert(ctx, usgs.ID, u.Events); err != nil {
+		t.Fatal(err)
+	}
+	body := read(t, "emsc-week-m3.json")
+	s, _ := newSource(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(body) }, events)
+	if _, err := s.Poll(ctx, domain.Validators{}); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	var big []string
+	if err := pool.QueryRow(ctx, `SELECT count(*), coalesce(array_agg(source_event_id ORDER BY source_event_id)
+			FILTER (WHERE (attrs ->> 'mag')::float8 >= 3.8), '{}') FROM events WHERE source_id = $1`, ID).Scan(&n, &big); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"20261121_0000279", "20261125_0000105", "20261125_0000288"}
+	if n != 51-len(u.Events) || !slices.Equal(big, want) {
+		t.Fatalf("%d stored, M3.8+ %v; want %d and %v", n, big, 51-len(u.Events), want)
+	}
+}

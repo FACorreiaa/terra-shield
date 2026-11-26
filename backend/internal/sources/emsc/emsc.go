@@ -309,11 +309,17 @@ func Parse(body []byte) (Feed, error) {
 		if ft.ID == "" {
 			continue
 		}
-		if !strings.HasSuffix(p.EvType, "e") {
+		// Only a named non-earthquake code deletes: a missing one (the
+		// field renamed or dropped) must not empty the map.
+		if p.EvType != "" && !strings.HasSuffix(p.EvType, "e") {
 			out.NotQuakes = append(out.NotQuakes, ft.ID)
 			continue
 		}
 		out.Listed = append(out.Listed, ft.ID)
+		if p.EvType == "" {
+			out.Unreadable++
+			continue
+		}
 		origin, err := time.Parse(time.RFC3339, p.Time)
 		if err != nil || p.Mag == nil || p.Lat == nil || p.Lon == nil {
 			out.Unreadable++

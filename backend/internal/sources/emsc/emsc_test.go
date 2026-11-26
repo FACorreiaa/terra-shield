@@ -273,13 +273,16 @@ func TestParseRetypedAndDepth(t *testing.T) {
 	body := `{"features": [
 	 {"id": "blast", "properties": {"evtype": "kx", "time": "2026-11-26T10:00:00Z", "lat": 40, "lon": 20, "mag": 2.1}},
 	 {"id": "up", "properties": {"evtype": "ke", "time": "2026-11-26T10:00:00Z", "lat": 40, "lon": 20, "mag": 2.1, "depth": -1.2}},
-	 {"id": "bad", "properties": {"evtype": "ke", "time": "yesterday", "lat": 40, "lon": 20, "mag": 2.1}}
+	 {"id": "bad", "properties": {"evtype": "ke", "time": "yesterday", "lat": 40, "lon": 20, "mag": 2.1}},
+	 {"id": "untyped", "properties": {"time": "2026-11-26T10:00:00Z", "lat": 40, "lon": 20, "mag": 2.1}}
 	]}`
 	f, err := Parse([]byte(body))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(f.NotQuakes, []string{"blast"}) || f.Unreadable != 1 || !slices.Equal(f.Listed, []string{"up", "bad"}) {
+	// A record without a type is listed (not resolved) but neither stored
+	// nor deleted.
+	if !slices.Equal(f.NotQuakes, []string{"blast"}) || f.Unreadable != 2 || !slices.Equal(f.Listed, []string{"up", "bad", "untyped"}) {
 		t.Fatalf("not quakes %v, unreadable %d, listed %v", f.NotQuakes, f.Unreadable, f.Listed)
 	}
 	if d := f.Events[0].Attrs["depthKm"]; d != 0.0 {
