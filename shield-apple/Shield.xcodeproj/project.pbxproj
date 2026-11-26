@@ -11,6 +11,23 @@
 		5A1E1D0000000000000A0017 /* ShieldAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 5A1E1D0000000000000A0018 /* ShieldAPI */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		5A1E1D0000000000000A0047 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1E1D0000000000000A0001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A1E1D0000000000000A0010;
+			remoteInfo = Shield;
+		};
+		5A1E1D0000000000000A0057 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1E1D0000000000000A0001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A1E1D0000000000000A0010;
+			remoteInfo = Shield;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		5A1E1D0000000000000A0006 /* Shield.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Shield.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A1E1D0000000000000A0007 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
@@ -18,12 +35,24 @@
 		5A1E1D0000000000000A0009 /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
 		5A1E1D0000000000000A000A /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		5A1E1D0000000000000A000B /* Shield-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Shield-Info.plist"; sourceTree = "<group>"; };
+		5A1E1D0000000000000A0040 /* ShieldTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShieldTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A1E1D0000000000000A0050 /* ShieldUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShieldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5A1E1D0000000000000A0005 /* Shield */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Shield;
+			sourceTree = "<group>";
+		};
+		5A1E1D0000000000000A0041 /* ShieldTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ShieldTests;
+			sourceTree = "<group>";
+		};
+		5A1E1D0000000000000A0051 /* ShieldUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ShieldUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -38,6 +67,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A1E1D0000000000000A0044 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A1E1D0000000000000A0054 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -45,6 +88,8 @@
 			isa = PBXGroup;
 			children = (
 				5A1E1D0000000000000A0005 /* Shield */,
+				5A1E1D0000000000000A0041 /* ShieldTests */,
+				5A1E1D0000000000000A0051 /* ShieldUITests */,
 				5A1E1D0000000000000A0003 /* Config */,
 				5A1E1D0000000000000A0004 /* Products */,
 			);
@@ -66,6 +111,8 @@
 			isa = PBXGroup;
 			children = (
 				5A1E1D0000000000000A0006 /* Shield.app */,
+				5A1E1D0000000000000A0040 /* ShieldTests.xctest */,
+				5A1E1D0000000000000A0050 /* ShieldUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -97,6 +144,48 @@
 			productReference = 5A1E1D0000000000000A0006 /* Shield.app */;
 			productType = "com.apple.product-type.application";
 		};
+		5A1E1D0000000000000A0042 /* ShieldTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A1E1D0000000000000A0048 /* Build configuration list for PBXNativeTarget "ShieldTests" */;
+			buildPhases = (
+				5A1E1D0000000000000A0043 /* Sources */,
+				5A1E1D0000000000000A0044 /* Frameworks */,
+				5A1E1D0000000000000A0045 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5A1E1D0000000000000A0046 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5A1E1D0000000000000A0041 /* ShieldTests */,
+			);
+			name = ShieldTests;
+			productName = ShieldTests;
+			productReference = 5A1E1D0000000000000A0040 /* ShieldTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		5A1E1D0000000000000A0052 /* ShieldUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A1E1D0000000000000A0058 /* Build configuration list for PBXNativeTarget "ShieldUITests" */;
+			buildPhases = (
+				5A1E1D0000000000000A0053 /* Sources */,
+				5A1E1D0000000000000A0054 /* Frameworks */,
+				5A1E1D0000000000000A0055 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5A1E1D0000000000000A0056 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5A1E1D0000000000000A0051 /* ShieldUITests */,
+			);
+			name = ShieldUITests;
+			productName = ShieldUITests;
+			productReference = 5A1E1D0000000000000A0050 /* ShieldUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -109,6 +198,14 @@
 				TargetAttributes = {
 					5A1E1D0000000000000A0010 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					5A1E1D0000000000000A0042 = {
+						CreatedOnToolsVersion = 27.2;
+						TestTargetID = 5A1E1D0000000000000A0010;
+					};
+					5A1E1D0000000000000A0052 = {
+						CreatedOnToolsVersion = 27.2;
+						TestTargetID = 5A1E1D0000000000000A0010;
 					};
 				};
 			};
@@ -131,12 +228,28 @@
 			projectRoot = "";
 			targets = (
 				5A1E1D0000000000000A0010 /* Shield */,
+				5A1E1D0000000000000A0042 /* ShieldTests */,
+				5A1E1D0000000000000A0052 /* ShieldUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		5A1E1D0000000000000A0013 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A1E1D0000000000000A0045 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A1E1D0000000000000A0055 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -153,7 +266,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A1E1D0000000000000A0043 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A1E1D0000000000000A0053 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5A1E1D0000000000000A0046 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A1E1D0000000000000A0010 /* Shield */;
+			targetProxy = 5A1E1D0000000000000A0047 /* PBXContainerItemProxy */;
+		};
+		5A1E1D0000000000000A0056 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A1E1D0000000000000A0010 /* Shield */;
+			targetProxy = 5A1E1D0000000000000A0057 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		5A1E1D0000000000000A0021 /* Debug */ = {
@@ -375,6 +515,111 @@
 			};
 			name = Release;
 		};
+		5A1E1D0000000000000A0049 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fernandocorreia.shield.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Shield.app/Shield";
+			};
+			name = Debug;
+		};
+		5A1E1D0000000000000A004A /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fernandocorreia.shield.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Shield.app/Shield";
+			};
+			name = Beta;
+		};
+		5A1E1D0000000000000A004B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fernandocorreia.shield.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Shield.app/Shield";
+			};
+			name = Release;
+		};
+		5A1E1D0000000000000A0059 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fernandocorreia.shield.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Shield;
+			};
+			name = Debug;
+		};
+		5A1E1D0000000000000A005A /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fernandocorreia.shield.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Shield;
+			};
+			name = Beta;
+		};
+		5A1E1D0000000000000A005B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fernandocorreia.shield.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Shield;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -397,6 +642,26 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
+		};
+		5A1E1D0000000000000A0048 /* Build configuration list for PBXNativeTarget "ShieldTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A1E1D0000000000000A0049 /* Debug */,
+				5A1E1D0000000000000A004A /* Beta */,
+				5A1E1D0000000000000A004B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5A1E1D0000000000000A0058 /* Build configuration list for PBXNativeTarget "ShieldUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A1E1D0000000000000A0059 /* Debug */,
+				5A1E1D0000000000000A005A /* Beta */,
+				5A1E1D0000000000000A005B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 

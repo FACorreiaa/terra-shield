@@ -28,6 +28,26 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5A1E1D0000000000000A0042"
+               BuildableName = "ShieldTests.xctest"
+               BlueprintName = "ShieldTests"
+               ReferencedContainer = "container:Shield.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5A1E1D0000000000000A0052"
+               BuildableName = "ShieldUITests.xctest"
+               BlueprintName = "ShieldUITests"
+               ReferencedContainer = "container:Shield.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

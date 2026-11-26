@@ -50,8 +50,22 @@ class MarkerView: MKAnnotationView {
     }
 
     #if os(iOS)
+    /// A marker MapKit hides (a member of a cluster it draws, or one beaten in a collision) keeps
+    /// its view in the map's container, which still hands it to accessibility: without this,
+    /// VoiceOver finds a "Moderate wind…" button where the map shows only the cluster.
+    override var isAccessibilityElement: Bool {
+        get { !isHidden && super.isAccessibilityElement }
+        set { super.isAccessibilityElement = newValue }
+    }
+
+    override var accessibilityElementsHidden: Bool {
+        get { isHidden || super.accessibilityElementsHidden }
+        set { super.accessibilityElementsHidden = newValue }
+    }
+
     override var accessibilityFrame: CGRect {
         get {
+            if isHidden { return .zero }
             let grow = CGSize(width: max(0, 44 - bounds.width) / 2, height: max(0, 44 - bounds.height) / 2)
             return UIAccessibility.convertToScreenCoordinates(bounds.insetBy(dx: -grow.width, dy: -grow.height), in: self)
         }
@@ -146,7 +160,10 @@ final class EventMarkerView: SwiftUIAnnotationView {
             ? (isConflict ? Self.conflictClusteringID : Self.clusteringID) : nil
         collisionMode = .circle
         // Hazards first (ADR 27): a conflict gives way to any active hazard it collides with.
-        displayPriority = event.isResolved ? MKFeatureDisplayPriority(rawValue: 100)
+        // The selected event never gives way: hidden, it would leave the map (and VoiceOver)
+        // while its detail is open.
+        displayPriority = isSelected ? .required
+            : event.isResolved ? MKFeatureDisplayPriority(rawValue: 100)
             : isConflict ? MKFeatureDisplayPriority(rawValue: 150 + Float(event.severity.rank) * 20)
             : event.severity.displayPriority
         zPriority = isSelected ? .max
