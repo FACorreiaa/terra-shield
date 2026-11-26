@@ -26,7 +26,7 @@ function EventRow({ event, selected, onSelect, now }: EventRowProps): ReactEleme
     onSelect(event.id);
   }, [onSelect, event.id]);
   return (
-    <li>
+    <li data-event-id={event.id}>
       <button
         type="button"
         onClick={select}
@@ -71,4 +71,4 @@ function EventList({ events, selectedId, onSelect, now }: EventListProps): React
   );
 }
 
-export { EventList };
+export { EventList, EventRow };

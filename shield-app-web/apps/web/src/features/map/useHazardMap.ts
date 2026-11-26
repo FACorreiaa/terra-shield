@@ -9,6 +9,7 @@ import { flatWorldZoom, globeZoom, viewOf } from "@/domain/viewport.ts";
 import { basemapStyle } from "./basemapStyle.ts";
 import type { Projection } from "./basemapStyle.ts";
 import { fallbackStyle } from "./fallbackStyle.ts";
+import { mapInsets } from "./mapInsets.ts";
 import { registerBundledWorker } from "./maplibreWorker.ts";
 
 registerBundledWorker();
@@ -95,7 +96,9 @@ function watchView(map: MapLibreMap, report: (view: View) => void): () => void {
 
 /** The zoom that shows the whole world in `element`: the globe fitted to it, or the flat map's width. */
 function worldZoom(element: HTMLElement, projection: Projection): number {
-  const size = { width: element.clientWidth, height: element.clientHeight };
+  const { top, right, bottom, left } = mapInsets();
+  // The part of the map the shell's chrome leaves visible.
+  const size = { width: element.clientWidth - left - right, height: element.clientHeight - top - bottom };
   return projection === "globe" ? globeZoom(size, WORLD_CENTER.latitude) : flatWorldZoom(size.width);
 }
 
@@ -104,6 +107,7 @@ function fitWorld(map: MapLibreMap, projection: Projection): void {
   map.flyTo({
     center: [WORLD_CENTER.longitude, WORLD_CENTER.latitude],
     zoom: worldZoom(map.getContainer(), projection),
+    padding: mapInsets(),
   });
 }
 
@@ -118,6 +122,8 @@ function createMap(element: HTMLElement, projection: Projection): MapLibreMap {
     pitchWithRotate: false,
   });
   map.touchZoomRotate.disableRotation();
+  // Before the first frame, so the first view is already centred in the visible part.
+  map.setPadding(mapInsets());
   return map;
 }
 

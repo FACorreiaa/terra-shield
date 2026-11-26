@@ -257,6 +257,34 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      The 4647 pt width no longer reproduces from a clean state (fresh bundle id, no saved frame).
    - DEBUG: `SHIELD_SECTION=2` selects a section at launch (screenshots on iPad).
 9. **Web (launches first, ADR 22).** The same catalog in React + TypeScript (ADR 19), plus the MapLibre style (DESIGN §9). Plan and slices W1–W9: `shield-app-web/docs/PLAN.md`.
+   - **W3 shells.** The split is at 1024 px. At 1024 px and wider the web uses the Mac layout: a 248 px
+     sidebar, the map, and a 352 px inspector that floats over the map's right edge while something is
+     selected. Below 1024 px it uses the phone layout: status capsule and a bottom sheet with detents
+     at peek, 50% and 92%. The sheet is dragged by its header. A release is thrown to the detent its
+     velocity projects to, on a 0.35 s / 0.86 spring. A tap or Enter on the handle cycles peek → half
+     → full → peek; ↑/↓ step one detent. The map stays mounted across both layouts, and the camera
+     and attribution keep clear of the chrome.
+   - **Deviations for the owner:**
+     - **Single-key shortcuts.** The browser owns ⌘1–5, ⌘L, ⌘R and ⌘F, so the web uses single keys,
+       live only outside text fields, the map canvas and dialogs: `1`–`5` sections, `↑`/`↓` list,
+       `Esc` clear selection, `o` official source, `i` inspector, `0` whole world, `r` refresh, and
+       `?` for a sheet that lists them all.
+     - **Search and filter keys wait.** `/` and `h` arrive with search and the heat layer (W4, W7).
+     - **Sidebar nav lists built sections only.** It shows only the sections that exist, so Monitor
+       alone for now.
+     - **No locate button yet.** Locate needs the user-location layer and a permission prompt, and
+       lands with W4's map notices.
+     - **Deferred to W4:** `StatStrip` and `FilterChips` over the map, the compact strip at peek,
+       and the rule that focusing search opens the sheet at full height.
+     - **Deferred to W5:** Sources pinned at the foot of the sidebar with the health dot, and the
+       sheet header's Sources button.
+     - **Deferred to W9:** the sheet header's Saved, Alerts and Settings buttons, and the sidebar's
+       Countries, Saved regions and Alerts entries.
+     - **Owner call:** `i` hides the inspector until `i` is pressed again, across new selections, and
+       nothing on screen brings it back. Options: show it again on the next selection, or add a
+       visible toggle.
+     - **Tap target:** a tap anywhere on the sheet's header, not only on the grabber, steps the
+       detent, so the target is far larger than 44 px.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 
