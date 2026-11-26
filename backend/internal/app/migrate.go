@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"shield/internal/config"
@@ -52,11 +54,14 @@ func migrateCmd(ctx context.Context, cfg config.Base, logger *slog.Logger, o opt
 			logger.Warn("meteoalarm areas not seeded; code-only warnings are skipped until they are", "error", err)
 		}
 	}
-	// NWS zones likewise: without them, a US tsunami warning falls back to
-	// its epicenter until the next migrate loads them.
-	if v, err := c.repos.WarningAreas.DatasetVersion(ctx, nwszones.Zones.Name); err != nil || v != nwszones.Version(nwszones.Zones) {
-		if err := seedNWSZones(ctx, c.repos.NWSZones, logger, ""); err != nil {
-			logger.Warn("nws zones not seeded; US tsunami warnings draw at the epicenter until they are", "error", err)
+	// NWS zone sets likewise: without them, a US tsunami or weather
+	// warning that names zones falls back to its epicenter or is skipped
+	// until the next migrate loads them.
+	for _, set := range nwszones.Sets {
+		if v, err := c.repos.WarningAreas.DatasetVersion(ctx, set.Pin.Name); err != nil || v != nwszones.Version(set.Pin) {
+			if err := seedNWSZoneSet(ctx, c.repos.NWSZones, logger, set, ""); err != nil {
+				logger.Warn("nws zones not seeded; warnings naming them are not drawn until they are", "set", set.Kind, "error", err)
+			}
 		}
 	}
 	return nil
@@ -68,25 +73,42 @@ func seedNWSZonesCmd(ctx context.Context, cfg config.Base, logger *slog.Logger, 
 		return err
 	}
 	defer c.Close()
-	return seedNWSZones(ctx, c.repos.NWSZones, logger, file)
+	// --file names one shapefile: the forecast zones' (the tsunami
+	// warnings' set) unless its name says fire zones or counties.
+	if file != "" {
+		set := nwszones.ForecastSet
+		switch base := filepath.Base(file); {
+		case strings.HasPrefix(base, "fz"):
+			set = nwszones.FireSet
+		case strings.HasPrefix(base, "c_"):
+			set = nwszones.CountySet
+		}
+		return seedNWSZoneSet(ctx, c.repos.NWSZones, logger, set, file)
+	}
+	for _, set := range nwszones.Sets {
+		if err := seedNWSZoneSet(ctx, c.repos.NWSZones, logger, set, ""); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// seedNWSZones loads the pinned NWS zone shapefile, from file when given,
-// else downloaded; both verify the SHA-256.
-func seedNWSZones(ctx context.Context, repo *store.NWSZoneRepository, logger *slog.Logger, file string) error {
-	b, err := nwszones.Zones.Read(ctx, &http.Client{Timeout: 3 * time.Minute}, file)
+// seedNWSZoneSet loads one pinned NWS zone shapefile, from file when
+// given, else downloaded; both verify the SHA-256.
+func seedNWSZoneSet(ctx context.Context, repo *store.NWSZoneRepository, logger *slog.Logger, set nwszones.Set, file string) error {
+	b, err := set.Pin.Read(ctx, &http.Client{Timeout: 3 * time.Minute}, file)
 	if err != nil {
 		return err
 	}
-	zones, err := nwszones.Parse(b)
+	zones, err := set.Parse(b)
 	if err != nil {
 		return err
 	}
 	start := time.Now()
-	if err := repo.Load(ctx, zones, nwszones.SimplifyDegrees, nwszones.Zones.Name, nwszones.Version(nwszones.Zones)); err != nil {
+	if err := repo.Load(ctx, set.Kind, zones, nwszones.SimplifyDegrees, set.Pin.Name, nwszones.Version(set.Pin)); err != nil {
 		return err
 	}
-	logger.Info("nws zones seeded", "zones", len(zones), "duration", time.Since(start))
+	logger.Info("nws zones seeded", "set", set.Kind, "zones", len(zones), "duration", time.Since(start))
 	return nil
 }
 

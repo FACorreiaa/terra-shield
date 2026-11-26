@@ -10,11 +10,11 @@ import (
 )
 
 const countNWSZones = `-- name: CountNWSZones :one
-SELECT count(*) FROM nws_zones
+SELECT count(*) FROM nws_zones WHERE zone_set = $1::text
 `
 
-func (q *Queries) CountNWSZones(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countNWSZones)
+func (q *Queries) CountNWSZones(ctx context.Context, zoneSet string) (int64, error) {
+	row := q.db.QueryRow(ctx, countNWSZones, zoneSet)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -23,7 +23,7 @@ func (q *Queries) CountNWSZones(ctx context.Context) (int64, error) {
 const unionNWSZones = `-- name: UnionNWSZones :one
 SELECT COALESCE(ST_AsGeoJSON(ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_Union(geom ORDER BY ugc)), 3)), 6), '')::text AS geometry,
        COALESCE(array_agg(ugc ORDER BY ugc), '{}')::text[] AS found
-FROM nws_zones WHERE ugc = ANY($1::text[])
+FROM nws_zones WHERE zone_set = 'forecast' AND ugc = ANY($1::text[])
 `
 
 type UnionNWSZonesRow struct {
@@ -31,9 +31,10 @@ type UnionNWSZonesRow struct {
 	Found    []string
 }
 
-// The shape of the zones a product names, dissolved into one MultiPolygon
-// in a fixed order so an unchanged warning yields the same geometry every
-// poll, and the codes we hold among those asked for. 6 decimals ≈ 0.1 m.
+// The shape of the forecast zones a product names, dissolved into one
+// MultiPolygon in a fixed order so an unchanged warning yields the same
+// geometry every poll, and the codes we hold among those asked for.
+// 6 decimals ≈ 0.1 m.
 func (q *Queries) UnionNWSZones(ctx context.Context, ugcs []string) (UnionNWSZonesRow, error) {
 	row := q.db.QueryRow(ctx, unionNWSZones, ugcs)
 	var i UnionNWSZonesRow

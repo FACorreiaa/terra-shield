@@ -1,7 +1,9 @@
-// Package nwszones reads the National Weather Service's public forecast
-// zones: the shapes behind the UGC zone codes (HIZ001, GUZ001, …) that NWS
-// products such as tsunami warnings name instead of drawing. NWS publishes
-// them as a dated shapefile, public domain, pinned here.
+// Package nwszones reads the National Weather Service's zone shapefiles:
+// the shapes behind the UGC codes that NWS products name instead of
+// drawing. Public forecast zones (HIZ001, GUZ001, …) serve tsunami and
+// weather warnings, fire weather zones (WAZ658) Red Flag Warnings, and
+// counties (NCC037) watches and storm-based warnings. NWS publishes each
+// as a dated shapefile, public domain, pinned here.
 //
 // Only what Shield needs of the format is read: polygon shapes (type 5)
 // and the dBASE attribute table. The rings are handed to PostGIS as a
@@ -39,6 +41,43 @@ var Zones = dataset.Pin{
 	MaxBytes: 96 << 20, // 26.5 MB today
 }
 
+// FireZones is the fire weather zones of the same release (fz16ap26):
+// 3,683 records. Their codes look like forecast zone codes but number a
+// different map, so they are a set of their own.
+var FireZones = dataset.Pin{
+	Name:     "nws_fire_zones",
+	URL:      "https://www.weather.gov/source/gis/Shapefiles/WSOM/fz16ap26.zip",
+	SHA256:   "daeb5cf94f8cd9ee850d6d142f1d98c77e6a7234f021a6b4c7aeba5763fd7486",
+	MaxBytes: 96 << 20, // 23.0 MB today
+}
+
+// Counties is the counties and equivalents of the same release (c_16ap26):
+// 3,352 records. A county's UGC code is its state, "C" and the last three
+// digits of its FIPS code.
+var Counties = dataset.Pin{
+	Name:     "nws_counties",
+	URL:      "https://www.weather.gov/source/gis/Shapefiles/County/c_16ap26.zip",
+	SHA256:   "503f9d697a97bdbfd8a7cfe6b3b666801f43392fa220294987a68cac0bd3f03b",
+	MaxBytes: 96 << 20, // 18.9 MB today
+}
+
+// Set is one zone shapefile and how its records become UGC codes.
+type Set struct {
+	Kind      string // nws_zones.zone_set
+	Pin       dataset.Pin
+	letter    string // "Z" for zones, "C" for counties
+	codeField string // the record's number: ZONE, or FIPS for counties
+	nameField string
+}
+
+// The three sets an alert can name.
+var (
+	ForecastSet = Set{Kind: "forecast", Pin: Zones, letter: "Z", codeField: "ZONE", nameField: "NAME"}
+	FireSet     = Set{Kind: "fire", Pin: FireZones, letter: "Z", codeField: "ZONE", nameField: "NAME"}
+	CountySet   = Set{Kind: "county", Pin: Counties, letter: "C", codeField: "FIPS", nameField: "COUNTYNAME"}
+	Sets        = []Set{ForecastSet, FireSet, CountySet}
+)
+
 // Processing is how zones are prepared on load, recorded with the pin so
 // a change reloads them. 0.001° is about 100 m, as for MeteoAlarm areas.
 const Processing = "simplify-0.001"
@@ -52,13 +91,34 @@ func Version(p dataset.Pin) string { return p.SHA256 + "+" + Processing }
 var (
 	stateRe = regexp.MustCompile(`^[A-Z]{2}$`)
 	zoneRe  = regexp.MustCompile(`^[0-9]{3}$`)
+	fipsRe  = regexp.MustCompile(`^[0-9]{5}$`)
 )
 
-// Parse reads the zipped shapefile. A zone spread over several records
-// (77 in the 2026 file) becomes one zone with all their rings. Any
-// malformed record fails the whole file: a half-loaded zone table would
-// draw warnings smaller than they are.
-func Parse(zipped []byte) ([]domain.ForecastZone, error) {
+// Parse reads the zipped forecast zone shapefile.
+func Parse(zipped []byte) ([]domain.ForecastZone, error) { return ForecastSet.Parse(zipped) }
+
+// code turns a record's state and number into its UGC code.
+func (s Set) code(state, num string) (string, bool) {
+	if !stateRe.MatchString(state) {
+		return "", false
+	}
+	if s.letter == "C" {
+		if !fipsRe.MatchString(num) {
+			return "", false
+		}
+		return state + "C" + num[2:], true
+	}
+	if !zoneRe.MatchString(num) {
+		return "", false
+	}
+	return state + "Z" + num, true
+}
+
+// Parse reads the set's zipped shapefile. A zone spread over several
+// records (77 in the 2026 forecast file) becomes one zone with all their
+// rings. Any malformed record fails the whole file: a half-loaded zone
+// table would draw warnings smaller than they are.
+func (s Set) Parse(zipped []byte) ([]domain.ForecastZone, error) {
 	zr, err := zip.NewReader(bytes.NewReader(zipped), int64(len(zipped)))
 	if err != nil {
 		return nil, fmt.Errorf("nws zones: %w", err)
@@ -75,7 +135,7 @@ func Parse(zipped []byte) ([]domain.ForecastZone, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := readDBF(dbf, "STATE", "ZONE", "NAME")
+	rows, err := readDBF(dbf, "STATE", s.codeField, s.nameField)
 	if err != nil {
 		return nil, err
 	}
@@ -92,14 +152,14 @@ func Parse(zipped []byte) ([]domain.ForecastZone, error) {
 		if row == nil {
 			continue // deleted in the attribute table
 		}
-		state, zone, name := row["STATE"], row["ZONE"], row["NAME"]
-		if !stateRe.MatchString(state) || !zoneRe.MatchString(zone) {
-			return nil, fmt.Errorf("nws zones: record %d: bad code %q/%q", i+1, state, zone)
+		state, num, name := row["STATE"], row[s.codeField], row[s.nameField]
+		ugc, ok := s.code(state, num)
+		if !ok {
+			return nil, fmt.Errorf("nws zones: record %d: bad code %q/%q", i+1, state, num)
 		}
 		if len(shapes[i]) == 0 {
 			continue // a null shape draws nothing
 		}
-		ugc := state + "Z" + zone
 		a := byUGC[ugc]
 		if a == nil {
 			a = &acc{state: state, name: name}

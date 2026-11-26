@@ -180,3 +180,44 @@ func TestParsePinnedFile(t *testing.T) {
 	}
 	t.Logf("%d zones, %d in Alaska", len(zones), alaska)
 }
+
+// TestParsePinnedSets reads the real fire zone and county releases when at
+// hand (NWS_FIRE_ZONES_FILE, NWS_COUNTIES_FILE); CI skips it.
+func TestParsePinnedSets(t *testing.T) {
+	for _, tc := range []struct {
+		set   Set
+		env   string
+		codes []string
+		min   int
+	}{
+		{FireSet, "NWS_FIRE_ZONES_FILE", []string{"WAZ658", "WAZ656"}, 3000},
+		{CountySet, "NWS_COUNTIES_FILE", []string{"NCC037", "OKC109", "PRC127", "ASC040"}, 3000},
+	} {
+		path := os.Getenv(tc.env)
+		if path == "" {
+			t.Logf("%s not set", tc.env)
+			continue
+		}
+		b, err := tc.set.Pin.Read(t.Context(), nil, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		zones, err := tc.set.Parse(b)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.set.Kind, err)
+		}
+		have := map[string]bool{}
+		for _, z := range zones {
+			have[z.UGC] = true
+		}
+		for _, c := range tc.codes {
+			if !have[c] {
+				t.Errorf("%s: no %s", tc.set.Kind, c)
+			}
+		}
+		if len(zones) < tc.min {
+			t.Errorf("%s: %d zones", tc.set.Kind, len(zones))
+		}
+		t.Logf("%s: %d zones", tc.set.Kind, len(zones))
+	}
+}
