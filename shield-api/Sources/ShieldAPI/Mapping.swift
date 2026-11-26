@@ -312,6 +312,7 @@ extension HistoricSite {
         guard let s = f.properties.value1, let at = f.geometry.point, let url = URL(string: s.url) else { return nil }
         let kindName = s.kind.value1?.rawValue ?? s.kind.value2 ?? ""
         self.init(id: s.id, name: s.name, description: s.description, kind: HistoricKind(rawValue: kindName),
-                  kindName: kindName, className: s._class, country: s.country, coordinate: at, url: url)
+                  kindName: kindName, className: s._class, country: s.country, coordinate: at, url: url,
+                  worldHeritage: s.worldHeritage, sitelinks: s.sitelinks)
     }
 }

@@ -1,9 +1,12 @@
 import Foundation
 
-/// A filter group of historic sites (ADR 30). The server may add groups (general historic
-/// buildings next); a site of a group this version doesn't know has `kind == nil`.
+/// A filter group of historic sites (ADR 30). The server may add groups; a site of a group this
+/// version doesn't know has `kind == nil`.
 public enum HistoricKind: String, Sendable, Hashable, CaseIterable, Comparable {
     case castle, military, memorial
+    /// Landmarks: palaces, cathedrals, temples, shrines, manor houses, towers, windmills and
+    /// cultural World Heritage Sites not in another group (since 2026-11-26).
+    case general
 
     public static func < (a: Self, b: Self) -> Bool {
         allCases.firstIndex(of: a)! < allCases.firstIndex(of: b)!
@@ -15,6 +18,7 @@ public enum HistoricKind: String, Sendable, Hashable, CaseIterable, Comparable {
         case .castle: "Castles"
         case .military: "Military heritage"
         case .memorial: "Memorials"
+        case .general: "Landmarks"
         }
     }
 }
@@ -38,9 +42,14 @@ public struct HistoricSite: Sendable, Hashable, Identifiable {
     public var coordinate: Coordinate
     /// The Wikidata item: every site links to it.
     public var url: URL
+    /// A UNESCO World Heritage Site, or a listed part of one.
+    public var worldHeritage: Bool
+    /// How many Wikipedias (and other Wikimedia wikis) have a page on it: how well known it is.
+    public var sitelinks: Int
 
     public init(id: String, name: String, description: String?, kind: HistoricKind?, kindName: String,
-                className: String, country: String?, coordinate: Coordinate, url: URL) {
+                className: String, country: String?, coordinate: Coordinate, url: URL,
+                worldHeritage: Bool = false, sitelinks: Int = 0) {
         self.id = id
         self.name = name
         self.description = description
@@ -50,6 +59,8 @@ public struct HistoricSite: Sendable, Hashable, Identifiable {
         self.country = country
         self.coordinate = coordinate
         self.url = url
+        self.worldHeritage = worldHeritage
+        self.sitelinks = sitelinks
     }
 }
 
@@ -60,8 +71,17 @@ extension HistoricSite {
         case .castle: "Castle"
         case .military: "Military heritage"
         case .memorial: "Memorial"
+        case .general: "Landmark"
         case nil: kindName.prefix(1).uppercased() + kindName.dropFirst()
         }
+    }
+
+    /// How well known the site is, 0 to 14, for which chip the map keeps when two collide: the
+    /// number of Wikipedias covering it on a log scale (Neuschwanstein's ~90 rank 13), a World
+    /// Heritage Site two steps up.
+    public var prominence: Int {
+        let known = Int((log2(Double(max(0, sitelinks)) + 1) * 2).rounded(.down))
+        return min(14, known + (worldHeritage ? 2 : 0))
     }
 
     /// Lines of the site sheet; what Wikidata does not list is left out.
@@ -70,6 +90,9 @@ extension HistoricSite {
         if !className.isEmpty { out.append(.init(label: "Type", value: className.prefix(1).uppercased() + className.dropFirst())) }
         if let country, let name = Locale(identifier: "en_US").localizedString(forRegionCode: country) {
             out.append(.init(label: "Country", value: name))
+        }
+        if worldHeritage, !className.localizedCaseInsensitiveContains("world heritage") {
+            out.append(.init(label: "UNESCO", value: "World Heritage Site"))
         }
         out.append(.init(label: "Coordinates", value: coordinate.degreesText))
         out.append(.init(label: "Wikidata item", value: id))
@@ -172,6 +195,7 @@ public struct HistoricLayer: Sendable, Hashable {
     public var hint: String? {
         switch content {
         case .grid: "Zoom in to see each site."
+        case .points(_, true): "The best-known sites are shown. Zoom in for more."
         case .points: drawsChips ? nil : "Zoom in to pick a site."
         }
     }
@@ -229,7 +253,7 @@ public struct HistoricRequest: Sendable, Hashable {
     /// window already passes the server's 10,000 cap (it comes back cut short, drawn as dots).
     public init(_ viewport: MapViewport, kinds: Set<HistoricKind>) {
         let box: GeoBox? = if viewport.zoom >= HistoricLayer.pointsZoom {
-            viewport.box
+            Self.pointsBox(viewport.box)
         } else if viewport.zoom >= MapViewport.detailZoom {
             viewport.box.padded(by: 0.5)
         } else {
@@ -259,11 +283,32 @@ public struct HistoricRequest: Sendable, Hashable {
             guard isPoints, let box else { return false }
             if narrower && truncated { return false }
             // Asking again for the same view would bring the same answer.
-            if box == viewport.box { return true }
+            if box == Self.pointsBox(viewport.box) { return true }
             return !truncated && sites <= HistoricLayer.chipLimit && box.contains(viewport.box)
         }
         guard zoom == viewport.zoom else { return false }
         return box?.contains(viewport.box) ?? true
+    }
+
+    /// The most a points request may span (the server answers 400 beyond).
+    public static let maxPointsSpan = (longitude: 30.0, latitude: 20.0)
+
+    /// The view, or for one wider than the server takes (a big display, a pitched camera) as much
+    /// as it takes around the view's centre.
+    static func pointsBox(_ box: GeoBox) -> GeoBox {
+        let lonSpan = box.longitudeSpan, latSpan = box.maxLatitude - box.minLatitude
+        var out = box
+        if lonSpan > maxPointsSpan.longitude {
+            let center = box.minLongitude + lonSpan / 2
+            out.minLongitude = MapViewport.wrap(center - maxPointsSpan.longitude / 2)
+            out.maxLongitude = MapViewport.wrap(center + maxPointsSpan.longitude / 2)
+        }
+        if latSpan > maxPointsSpan.latitude {
+            let center = box.minLatitude + latSpan / 2
+            out.minLatitude = center - maxPointsSpan.latitude / 2
+            out.maxLatitude = center + maxPointsSpan.latitude / 2
+        }
+        return out
     }
 
     /// The `kind` filter sent for the groups shown: none when every group is, so groups added

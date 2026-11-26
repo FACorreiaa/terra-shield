@@ -45,6 +45,58 @@ enum HistoricFixture {
     let alps = GeoBox(minLongitude: 10, minLatitude: 47, maxLongitude: 11, maxLatitude: 48)
     let all = Set(HistoricKind.allCases)
 
+    /// From zoom 8 the server takes at most 30° of longitude and 20° of latitude (a 400 beyond):
+    /// a wider view (a big display, a pitched camera) asks for that much around its centre.
+    @Test func aPointsViewWiderThanTheServerTakesIsClampedAroundItsCentre() {
+        let wide = GeoBox(minLongitude: -10, minLatitude: 30, maxLongitude: 40, maxLatitude: 60)
+        let r = HistoricRequest(MapViewport(box: wide, zoom: 8), kinds: all)
+        #expect(r.box == GeoBox(minLongitude: 0, minLatitude: 35, maxLongitude: 30, maxLatitude: 55))
+        // The same view is served by its own answer: asking again would bring the same.
+        #expect(r.serves(MapViewport(box: wide, zoom: 8), kinds: all, truncated: false, sites: 5_000))
+        // Across the antimeridian.
+        let pacific = GeoBox(minLongitude: 160, minLatitude: -10, maxLongitude: -150, maxLatitude: 5)
+        let p = HistoricRequest(MapViewport(box: pacific, zoom: 9), kinds: all)
+        #expect(p.box == GeoBox(minLongitude: 170, minLatitude: -10, maxLongitude: -160, maxLatitude: 5))
+        // The grid is not capped.
+        #expect(HistoricRequest(MapViewport(box: wide, zoom: 7), kinds: all).box?.longitudeSpan ?? 0 > 30)
+    }
+
+    @Test func landmarksAreAKindOfTheirOwn() {
+        #expect(HistoricKind(rawValue: "general") == .general)
+        #expect(HistoricKind.general.label == "Landmarks")
+        let r = HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: [.castle, .military, .memorial])
+        #expect(r.kinds == [.castle, .military, .memorial]) // all four shown sends none
+    }
+
+    /// Notability (how many Wikipedias cover a site) orders which chip MapKit keeps when two
+    /// collide: a rank from 0 to 14, World Heritage Sites first among equals.
+    /// The sheet says World Heritage once: not again when Wikidata's class already says it.
+    @Test func aWorldHeritageSiteSaysSoOnce() {
+        var site = HistoricFixture.neuschwanstein
+        site.worldHeritage = true
+        #expect(site.figures.filter { $0.value.contains("World Heritage") }.count == 1)
+        site.className = "World Heritage Site"
+        #expect(site.figures.filter { $0.value.contains("World Heritage") }.count == 1)
+        site.worldHeritage = false
+        site.className = "castle"
+        #expect(!site.figures.contains { $0.value.contains("World Heritage") })
+    }
+
+    @Test func betterKnownSitesRankHigher() {
+        var site = HistoricFixture.neuschwanstein
+        site.sitelinks = 0
+        #expect(site.prominence == 0)
+        site.sitelinks = 3
+        let few = site.prominence
+        site.sitelinks = 120
+        #expect(site.prominence > few)
+        site.sitelinks = 100_000
+        #expect(site.prominence == 14)
+        site.sitelinks = 3
+        site.worldHeritage = true
+        #expect(site.prominence > few)
+    }
+
     @Test func theWholeWorldIsOneGridAnswerBelowZoom6() {
         let r = HistoricRequest(MapViewport(box: alps, zoom: 4), kinds: all)
         #expect(r.box == nil && r.zoom == 4 && !r.isPoints)
@@ -556,6 +608,7 @@ enum HistoricFixture {
 
         let cut = HistoricFixture.points([HistoricFixture.fortress], truncated: true)
         #expect(cut.headline(in: belgium, kinds: all) == "Historic sites · over 1 in this view")
+        #expect(cut.hint == "The best-known sites are shown. Zoom in for more.")
 
         #expect(chips.headline(in: GeoBox(minLongitude: 100, minLatitude: 0, maxLongitude: 101, maxLatitude: 1),
                                kinds: all) == "Historic sites · none in this view")

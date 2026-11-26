@@ -17,10 +17,14 @@ import ShieldCore
      "features":[
       {"type":"Feature","geometry":{"type":"Point","coordinates":[10.6761,47.5486]},
        "properties":{"id":"Q1013009","name":"Burg Loch","description":"castle ruin in Pinswang, Austria",
-                     "kind":"castle","class":"castle ruin","country":"AT","url":"https://www.wikidata.org/wiki/Q1013009"}},
+                     "kind":"castle","class":"castle ruin","country":"AT","worldHeritage":false,"sitelinks":4,
+                     "url":"https://www.wikidata.org/wiki/Q1013009"}},
       {"type":"Feature","geometry":{"type":"Point","coordinates":[10.61,47.59]},
        "properties":{"id":"Q9","name":"Old granary","kind":"building","class":"granary",
-                     "url":"https://www.wikidata.org/wiki/Q9"}}
+                     "worldHeritage":false,"sitelinks":0,"url":"https://www.wikidata.org/wiki/Q9"}},
+      {"type":"Feature","geometry":{"type":"Point","coordinates":[11.2558,43.7731]},
+       "properties":{"id":"Q2063","name":"Florence Cathedral","kind":"general","class":"cathedral",
+                     "country":"IT","worldHeritage":true,"sitelinks":120,"url":"https://www.wikidata.org/wiki/Q2063"}}
      ]}
     """
 
@@ -67,6 +71,12 @@ import ShieldCore
         let granary = layer.sites[1]
         #expect(granary.kind == nil && granary.kindName == "building") // never drawn as military
         #expect(granary.description == nil && granary.country == nil)
+        #expect(!granary.worldHeritage && granary.sitelinks == 0)
+
+        let duomo = layer.sites[2]
+        #expect(duomo.kind == .general && duomo.kindLabel == "Landmark")
+        #expect(duomo.worldHeritage && duomo.sitelinks == 120)
+        #expect(loch.sitelinks == 4 && !loch.worldHeritage)
     }
 
     @Test func aGridIsReadAsCellsWithTheirKinds() async throws {

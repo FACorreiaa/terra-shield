@@ -23,8 +23,8 @@ final class HistoricAnnotation: NSObject, MKAnnotation {
     var title: String? { site.name }
 }
 
-/// A site's chip. Thousands can be in view at zoom 8 (4,473 in the densest view of a Mac window),
-/// so each draws one image rendered once per kind. Context: under bases and every event, and
+/// A site's chip. Up to `HistoricLayer.chipLimit` are drawn (beyond it, dots), so each draws one
+/// image rendered once per kind. Context: under bases and every event, and
 /// hidden by MapKit where they crowd each other.
 final class HistoricMarkerView: MKAnnotationView {
     static let reuseID = "historic"
@@ -32,8 +32,9 @@ final class HistoricMarkerView: MKAnnotationView {
     static let height: CGFloat = 22
 
     func configure(_ site: HistoricSite, isSelected: Bool) {
-        // Above aircraft (50), below bases (75); never hidden while it is the one in the sheet.
-        displayPriority = isSelected ? .required : MKFeatureDisplayPriority(rawValue: 65)
+        // Above aircraft (50), below bases (75), the better known first where chips collide
+        // (58-72); never hidden while it is the one in the sheet.
+        displayPriority = isSelected ? .required : MKFeatureDisplayPriority(rawValue: Float(58 + site.prominence))
         zPriority = isSelected ? .max : .min
         collisionMode = .circle
         // Never clustered, and never changed while on the map (see `AnnotationSet.renewEvents`).
@@ -93,13 +94,14 @@ extension HistoricKind {
         case .castle: "crown.fill"
         case .military: "shield.lefthalf.filled"
         case .memorial: "laurel.leading"
+        case .general: "building.columns.fill"
         }
     }
 
 }
 
-/// A group this version doesn't know: a neutral building, never a military glyph (ADR 30).
-private let unknownKindSymbol = "building.columns.fill"
+/// A group this version doesn't know: a neutral pin, never a military glyph (ADR 30).
+private let unknownKindSymbol = "mappin"
 
 /// A small capsule chip, wider than tall: none of the hazards' severity shapes (circle, diamond,
 /// triangle, octagon, DESIGN.md §4) nor a base's square.
