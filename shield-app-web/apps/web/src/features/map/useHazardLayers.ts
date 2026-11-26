@@ -32,7 +32,8 @@ function addHazardLayers(map: MapLibreMap): void {
     return;
   }
   map.addSource(AREA_SOURCE, { type: "geojson", data: NO_FEATURES });
-  map.addSource(EVENTS_SOURCE, { type: "geojson", data: NO_FEATURES });
+  // `promoteId`: features keyed by event id, so a live arrival's symbol can wait (feature-state) while its copy animates.
+  map.addSource(EVENTS_SOURCE, { type: "geojson", data: NO_FEATURES, promoteId: "id" });
   for (const layer of areaLayers()) {
     map.addLayer(layer);
   }

@@ -30,12 +30,16 @@ type Schedule = (after: number, refetch: () => unknown) => void;
 interface Harness {
   client: QueryClient;
   schedule: Mock<Schedule>;
+  arrivals: Mock<(event: HazardEvent, animate: boolean) => void>;
+  stream: { ready: boolean };
   apply: (change: LiveChange, selectedId?: string) => void;
 }
 
 function harness(): Harness {
   const client = new QueryClient();
   const schedule = vi.fn<Schedule>();
+  const arrivals = vi.fn<(event: HazardEvent, animate: boolean) => void>();
+  const stream = { ready: false };
   // Only `refetch` is read, and only handed to the reloader.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a stub of the one field used
   const events = { refetch: vi.fn<() => Promise<void>>() } as unknown as UseQueryResult<EventList>;
@@ -44,7 +48,16 @@ function harness(): Harness {
       { change, cursor: "42" },
       {
         client,
-        input: { view: VIEW, query: DEFAULT_QUERY, events, selectedId, now: new Date() },
+        input: {
+          view: VIEW,
+          query: DEFAULT_QUERY,
+          events,
+          selectedId,
+          now: new Date(),
+          onArrival: (event, animate) => {
+            arrivals(event, animate);
+          },
+        },
         reload: {
           schedule: (after, refetch) => {
             schedule(after, refetch);
@@ -52,10 +65,15 @@ function harness(): Harness {
           cancel: () => undefined,
         },
         inBurst: () => false,
+        arrivalBurst: () => false,
+        isReady: () => stream.ready,
+        refetch: async () => {
+          await Promise.resolve();
+        },
       },
     );
   };
-  return { client, schedule, apply };
+  return { client, schedule, arrivals, stream, apply };
 }
 
 describe(applyUpdate, () => {
@@ -90,17 +108,57 @@ describe(applyUpdate, () => {
     expect(client.getQueryData(["event", "a", undefined])).toStrictEqual({ found: false });
   });
 
-  it("leaves a change to the load on its way when nothing is loaded, and reloads at once on ready", () => {
+  it("reloads after a change with nothing loaded (the load on its way may predate it), and at once on ready", () => {
     expect.hasAssertions();
-    const { client, schedule, apply } = harness();
+    const { client, schedule, arrivals, apply } = harness();
 
     apply({ kind: "created", event: recent("b") });
 
     expect(client.getQueryData(eventsKey(VIEW, DEFAULT_QUERY))).toBeUndefined();
-    expect(schedule).not.toHaveBeenCalled();
+    expect(schedule).toHaveBeenLastCalledWith(500, expect.any(Function));
+    // Before the stream's `ready`, a new event is backlog: no arrival.
+    expect(arrivals).not.toHaveBeenCalled();
 
     apply({ kind: "ready" });
 
-    expect(schedule).toHaveBeenCalledWith(0, expect.any(Function));
+    expect(schedule).toHaveBeenLastCalledWith(0, expect.any(Function));
+  });
+
+  it("announces a live arrival in view and matching; one already drawn is toasted, not animated", () => {
+    expect.hasAssertions();
+    const { client, arrivals, stream, apply } = harness();
+    client.setQueryData(eventsKey(VIEW, DEFAULT_QUERY), list([recent("a")]));
+    stream.ready = true;
+    const fresh = recent("b");
+    const drawn = recent("a");
+
+    apply({ kind: "created", event: fresh });
+    apply({ kind: "created", event: drawn });
+
+    expect(arrivals.mock.calls).toStrictEqual([
+      [fresh, true],
+      [drawn, false],
+    ]);
+  });
+
+  it("doesn't announce an arrival out of view, or one the filters leave out", () => {
+    expect.hasAssertions();
+    const { arrivals, stream, apply } = harness();
+    stream.ready = true;
+    const at = new Date().toISOString();
+
+    apply({ kind: "created", event: makeEvent({ id: "far", centroid: { latitude: -33, longitude: 151 } }) });
+    apply({
+      kind: "created",
+      event: makeEvent({
+        id: "detection",
+        kind: "detection",
+        centroid: { latitude: 48, longitude: 2 },
+        observedAt: at,
+        updatedAt: at,
+      }),
+    });
+
+    expect(arrivals).not.toHaveBeenCalled();
   });
 });

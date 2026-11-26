@@ -47,6 +47,17 @@ interface LiveMap {
   failure: string | undefined;
   /** Ticks every 30 s so relative times ("12 min ago") stay true. */
   now: Date;
+  /** Live arrivals in view the map hasn't animated in yet (W6). */
+  arrivals: ReadonlySet<string>;
+  /** The map has begun animating an arrival. */
+  started: (id: string) => void;
+  /** The map has animated an arrival in. */
+  arrived: (id: string) => void;
+  /** The newest severe or extreme live arrival in view, for 6 s or until dismissed. */
+  toast: HazardEvent | undefined;
+  dismissToast: () => void;
+  /** Pointer or focus on the toast stops its clock. */
+  holdToast: (held: boolean) => void;
 }
 
 const LiveMapContext = createContext<LiveMap | undefined>(undefined);

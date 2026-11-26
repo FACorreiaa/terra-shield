@@ -6,6 +6,7 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import type { EventShape } from "@/domain/geo.ts";
 import type { View } from "@/domain/viewport.ts";
 
+import type { ArrivalCallbacks } from "./ArrivalPin.tsx";
 import type { Projection } from "./basemapStyle.ts";
 import { MapOverlays } from "./MapOverlays.tsx";
 import { useHazardLayers } from "./useHazardLayers.ts";
@@ -24,14 +25,19 @@ interface HazardMapProps {
   onSelect: (id: string) => void;
   /** The live map, for controls outside it (zoom, fit world); undefined while it is loading. */
   onMap?: (map: MapLibreMap | undefined) => void;
+  /** Live arrivals to animate in (W6), and what the map reports as each plays. */
+  arrivals?: ReadonlySet<string> | undefined;
+  arrival?: ArrivalCallbacks | undefined;
 }
+
+const NO_ARRIVALS: ReadonlySet<string> = new Set();
 
 /**
  * The map canvas (DESIGN.md §9): OpenFreeMap basemap, the selected event's area, point markers
  * with the selection ring, server clusters as buttons and the extreme pulse.
  */
 function HazardMap(props: HazardMapProps): ReactElement {
-  const { events, clusters, staleSources, projection, onViewChange, onMap } = props;
+  const { events, clusters, staleSources, projection, onViewChange, onMap, arrivals = NO_ARRIVALS, arrival } = props;
   const container = useRef<HTMLDivElement>(null);
   const { map, styleEpoch } = useHazardMap(container, { projection, onViewChange });
   const mapChanged = useEffectEvent((next: MapLibreMap | undefined) => onMap?.(next));
@@ -45,7 +51,16 @@ function HazardMap(props: HazardMapProps): ReactElement {
   return (
     <div className="absolute inset-0" data-testid="hazard-map">
       <div ref={container} className="size-full" />
-      {map && <MapOverlays map={map} clusters={clusters} events={events} staleSources={staleSources} />}
+      {map && (
+        <MapOverlays
+          map={map}
+          clusters={clusters}
+          events={events}
+          staleSources={staleSources}
+          arriving={arrivals}
+          arrival={arrival}
+        />
+      )}
     </div>
   );
 }

@@ -1,11 +1,11 @@
-import type { EventList } from "@shield/api-client";
+import type { EventList, HazardEvent } from "@shield/api-client";
 import type { QueryClient, UseQueryResult } from "@tanstack/react-query";
 import { hashKey, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useMemo, useSyncExternalStore } from "react";
 
 import type { EventQuery } from "@/domain/filters.ts";
 import type { Outcome } from "@/domain/livePatch.ts";
-import { burstMeter, patchEvents } from "@/domain/livePatch.ts";
+import { burstMeter, isNews, patchEvents } from "@/domain/livePatch.ts";
 import type { View } from "@/domain/viewport.ts";
 import type { DetailAnswer } from "@/features/detail/detailState.ts";
 import { eventsKey } from "@/features/events/useEvents.ts";
@@ -25,6 +25,9 @@ interface LiveChangesInput {
   events: UseQueryResult<EventList>;
   selectedId: string | undefined;
   now: Date;
+  /** A new event while the stream is ready, in view and matching the filters: animate it in. */
+  /** A new event while the stream is ready, in view and matching; `animate` false when the map already had it. */
+  onArrival: (event: HazardEvent, animate: boolean) => void;
 }
 
 function subscribe(listener: () => void): () => void {
@@ -82,6 +85,12 @@ interface Applying {
   input: LiveChangesInput;
   reload: Reloader;
   inBurst: () => boolean;
+  /** Arrivals' own meter: past 50 a second, a burst (a source's first load) is not news. */
+  arrivalBurst: () => boolean;
+  /** Whether the stream has said `ready`: what comes before is the backlog a connection replays. */
+  isReady: () => boolean;
+  /** A reload of the current view with a request sent now (`reloadFresh`). */
+  refetch: () => Promise<unknown>;
 }
 
 /**
@@ -124,6 +133,24 @@ function markOthersStale(client: QueryClient, current: readonly unknown[]): void
   });
 }
 
+/**
+ * Reloads with a request sent now. TanStack's `refetch` joins a first load still in flight rather
+ * than replace it, and that load may have left before the change (or before the stream's `ready`).
+ */
+async function reloadFresh(
+  client: QueryClient,
+  key: readonly unknown[],
+  refetch: () => Promise<unknown>,
+): Promise<unknown> {
+  await client.cancelQueries({ queryKey: key, exact: true });
+  return refetch();
+}
+
+function reloadEverything({ client, reload, refetch }: Applying, key: readonly unknown[]): void {
+  reload.schedule(0, refetch);
+  markOthersStale(client, key);
+}
+
 interface Settling {
   client: QueryClient;
   key: readonly unknown[];
@@ -144,21 +171,38 @@ function settle(outcome: Outcome, { client, key, updatedAt, reload }: Settling):
   }
 }
 
+/** What a change means beyond the list: the open detail kept current, a live arrival announced. */
+function notice(change: LiveChange, applying: Applying, shown: EventList | undefined): void {
+  keepSelection(change, applying, shown);
+  const { input } = applying;
+  // Live arrivals only: the backlog a connection replays before `ready` is history (LiveMapModel).
+  if (change.kind !== "created" || !applying.isReady() || !isNews(change.event, { ...input, now: new Date() })) {
+    return;
+  }
+  if (!applying.arrivalBurst()) {
+    // A load or poll that beat the stream already drew it: toasted, but not animated again.
+    const drawn = shown?.events.some((each) => each.id === change.event.id) === true;
+    input.onArrival(change.event, !drawn);
+  }
+}
+
 /** One update from the feed, applied to the cache entry for the current view and filters. */
-function applyUpdate({ change }: LiveUpdate, { client, input, reload, inBurst }: Applying): void {
+function applyUpdate({ change }: LiveUpdate, applying: Applying): void {
+  const { client, input, reload, inBurst } = applying;
   if (change === undefined) {
     return;
   }
   const key = eventsKey(input.view, input.query);
   if (change.kind === "ready" || change.kind === "reset") {
-    reload.schedule(0, input.events.refetch);
-    markOthersStale(client, key);
+    // Every view may have missed changes: this one reloads now, the others when next shown.
+    reloadEverything(applying, key);
     return;
   }
   const state = client.getQueryState<EventList>(key);
-  keepSelection(change, { client, input }, state?.data);
-  // Nothing loaded for this view yet: the load on its way has the change, or the next one will.
+  notice(change, applying, state?.data);
+  // Nothing loaded for this view yet: the load on its way may have left before the change.
   if (state?.data === undefined) {
+    reload.schedule(RELOAD_AFTER_MS, applying.refetch);
     return;
   }
   const normal = change.kind === "removed" ? change : { kind: "upsert" as const, event: change.event };
@@ -168,7 +212,7 @@ function applyUpdate({ change }: LiveUpdate, { client, input, reload, inBurst }:
     key,
     updatedAt: state.dataUpdatedAt,
     reload: () => {
-      reload.schedule(RELOAD_AFTER_MS, input.events.refetch);
+      reload.schedule(RELOAD_AFTER_MS, applying.refetch);
     },
   });
 }
@@ -183,8 +227,17 @@ function useLiveChanges(input: LiveChangesInput): Date | undefined {
   const status = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const reload = useReload();
   const inBurst = useMemo(() => burstMeter(), []);
+  const arrivalBurst = useMemo(() => burstMeter(), []);
   const apply = useEffectEvent((update: LiveUpdate) => {
-    applyUpdate(update, { client, input, reload, inBurst });
+    applyUpdate(update, {
+      client,
+      input,
+      reload,
+      inBurst,
+      arrivalBurst,
+      isReady: () => liveFeed().status.ready,
+      refetch: () => reloadFresh(client, eventsKey(input.view, input.query), input.events.refetch),
+    });
   });
   useEffect(
     () =>

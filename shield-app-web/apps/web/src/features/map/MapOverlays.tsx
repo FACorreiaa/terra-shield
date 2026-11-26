@@ -5,6 +5,8 @@ import { useCallback } from "react";
 
 import { geoBox } from "@/domain/geo.ts";
 
+import type { ArrivalCallbacks } from "./ArrivalPin.tsx";
+import { ArrivalPins } from "./ArrivalPin.tsx";
 import { ClusterMarker } from "./ClusterMarker.tsx";
 import { ExtremeHalo } from "./ExtremeHalo.tsx";
 import { fitBox } from "./fitBox.ts";
@@ -37,10 +39,14 @@ interface MapOverlaysProps {
   clusters: readonly EventCluster[];
   events: readonly HazardEvent[];
   staleSources: ReadonlySet<string>;
+  /** Live arrivals not yet animated in. */
+  arriving: ReadonlySet<string>;
+  arrival: ArrivalCallbacks | undefined;
 }
 
-/** The DOM layer over the canvas: the extreme pulse under server clusters (real buttons). */
-function MapOverlays({ map, clusters, events, staleSources }: MapOverlaysProps): ReactElement {
+/** The DOM layer over the canvas: the extreme pulse and live arrivals under server clusters (real buttons). */
+function MapOverlays(props: MapOverlaysProps): ReactElement {
+  const { map, clusters, events, staleSources, arriving, arrival } = props;
   const pulsing = events.filter(
     (event) =>
       event.severity === "extreme" &&
@@ -52,9 +58,15 @@ function MapOverlays({ map, clusters, events, staleSources }: MapOverlaysProps):
     <>
       {pulsing.map((event) => (
         <MapMarker key={event.id} map={map} longitude={event.centroid.longitude} latitude={event.centroid.latitude}>
-          <ExtremeHalo size={markerSize("extreme")} />
+          {/* An arriving extreme marker's ring comes in with it, not ahead of it. */}
+          <div className={arriving.has(event.id) ? "arrive" : undefined}>
+            <ExtremeHalo size={markerSize("extreme")} />
+          </div>
         </MapMarker>
       ))}
+      {arrival === undefined ? undefined : (
+        <ArrivalPins map={map} events={events} staleSources={staleSources} arriving={arriving} arrival={arrival} />
+      )}
       {clusters.map((cluster) => (
         <ClusterPin
           key={`${cluster.centroid.longitude},${cluster.centroid.latitude},${cluster.count}`}

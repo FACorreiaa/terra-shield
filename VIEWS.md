@@ -436,6 +436,20 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      skip the HTTP cache (`no-cache`), so a reload the stream asks for always reaches the server. The capsule's dot fills
      while live, and "Updated now" counts the stream's heartbeat; 45 s of silence ends live. The
      60 s poll runs regardless, so a dead stream never freezes the map.
+   - **W6, part 2: arrivals.** A new event the stream sends once it is `ready` (not the backlog a
+     connection replays first), in view and matching the filters, fades in and grows from 0.6 over
+     `arrive` (fade only under reduced motion): a copy of its marker animates over the map while the
+     map's own symbol waits unseen (feature-state), and the symbol shows when the animation ends.
+     One a load already drew is toasted but not animated again; past 50 a second (a source's first
+     load) arrivals aren't news, and at most 20 animate at once. An arrival the map never draws (a
+     reload put it in a cluster) is forgotten after 5 s. A severe or extreme one also gets the toast
+     under the filters ("New · Severe earthquake · M6.1 · Chile", one line, as
+     `NewEventToast.swift`): it drops in (fades under reduced motion), pressing it opens the event
+     (with `choose`, so one in a cluster opens too), × dismisses it and hands focus to Filters, a
+     newer one replaces it (keeping focus if it had it), and it leaves after 6 s. Screen readers
+     hear each toast once from a polite live region, even the same words twice. No sound.
+     - **The toast waits while pointed at or focused,** then has 6 s again; the apps don't pause
+       it. A toast stays its 6 s even if the filters or the view change under it, as in the apps.
    - **Deviations for the owner:**
      - **`fetch`, not `EventSource`.** `EventSource` never surfaces the 20 s heartbeat (an `id:`-only
        block dispatches nothing) and hides a 429/503's `Retry-After`, so the stream is read with
