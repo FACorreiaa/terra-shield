@@ -15,6 +15,7 @@ import (
 	"shield/internal/sources/tsunami"
 	"shield/internal/sources/ucdp"
 	"shield/internal/sources/usgs"
+	"shield/internal/sources/usgsvolcano"
 	"shield/internal/sources/wikidata"
 )
 
@@ -48,6 +49,7 @@ func (c *container) sources() []ingest.Source {
 		tsunami.New(feeds, c.repos.Events, c.repos.NWSZones, c.logger),
 		nws.New(bulk, c.repos.Events, c.repos.NWSZones, c.logger),
 		nhc.New(feeds, c.repos.Events, c.logger),
+		usgsvolcano.New(feeds, c.repos.Events, c.logger),
 		ucdp.New(feeds, c.repos.Events),
 		bases,
 		historic,

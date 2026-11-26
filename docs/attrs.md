@@ -125,6 +125,24 @@ latest forecast cone. Winds are knots, sustained over one minute.
 | `peakWindKt` | number, **always** | Strongest wind in the forecast (rates severity) |
 | `forecast` | object[], **always** | The track: `tau` (hours after the forecast's synoptic time), `at`, `lon`, `lat`, `windKt`, `gustKt`, `pressureMb` (initial point only), `stormType` (`TD`, `TS`, `HU`, `MH` major hurricane, `LO` remnant low, …); unknown values are left out |
 
+## USGS volcano alert levels (ADR 35)
+
+One event is one US volcano while it is above normal, keyed by its GVP volcano number (`usgs:<code>` for the few GVP
+does not number). `started_at` is when the current level began; `updated_at` the latest notice.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `alertLevel` | string, **always** | Ground alert level: `ADVISORY`, `WATCH`, `WARNING`, or `UNASSIGNED` |
+| `colorCode` | string, **always** | Aviation colour code: `YELLOW`, `ORANGE`, `RED`, or `UNASSIGNED` |
+| `alertLevelPrev`, `colorCodePrev` | string | The levels before the current ones |
+| `observatory` | string, **always** | `avo` Alaska, `hvo` Hawaiian, `cvo` Cascades, `calvo` California, `yvo` Yellowstone, `nmi` Northern Mariana Islands |
+| `vnum` | string | GVP volcano number (the join key with EONET's volcanoes) |
+| `volcanoCode` | string | USGS volcano code (`hi3`) |
+| `volcanoUrl` | string | The observatory's page for the volcano |
+| `region` | string | USGS region (`Aleutians`, `Hawaii`) |
+| `noticeId` | string | The latest notice; the event's `url` opens it |
+| `threat` | string | USGS national threat ranking (`Very High Threat` … `Very Low Threat`), a standing assessment, not today's activity |
+
 ## Tsunami (NOAA warning centers; ADR 25)
 
 Two kinds of event: US alerts (`kind=warning`, id `<center>-<incident>-<product>-warning|advisory|watch`, one event
