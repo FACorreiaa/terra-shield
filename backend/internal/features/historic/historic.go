@@ -28,12 +28,15 @@ type Repository interface {
 
 const (
 	// pointsFromZoom: below it the layer is a grid, from it single sites.
-	// Measured 2026-11-25 on 53,265 sites: the densest zoom-7 view (central
-	// Europe) holds 13,334 sites, past maxPoints; the densest zoom-8 view
-	// 6,957 (230 KB gzipped).
+	// Measured 2026-11-26 on 208,118 sites: a zoom-8 view of central Europe
+	// is 5,344 sites (194 KB gzipped). The densest views, around Tokyo
+	// (temples and shrines), hold 20,008 sites at zoom 8, 13,069 at zoom 9
+	// and 7,842 at zoom 10: they truncate to the maxPoints most notable
+	// (293 KB gzipped), which keeps Sensō-ji, Meiji Jingū and the Imperial
+	// Palace. A later threshold would grey out the rest of the world.
 	pointsFromZoom = 8
 	// gridBBoxFromZoom: from it the grid also needs a bbox. The whole world
-	// is 8,238 cells (56 KB gzipped) at zoom 5 but 25,913 at zoom 7.
+	// is 17,471 cells (122 KB gzipped) at zoom 5.
 	gridBBoxFromZoom = 6
 	// maxPoints bounds a site view; a busier view is marked truncated.
 	maxPoints = 10_000

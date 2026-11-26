@@ -106,11 +106,13 @@ var HistoricClasses = func() []HistoricClass {
 		HistoricClass{"Q56242215", "Catholic cathedral", domain.HistoricGeneral, false},
 		HistoricClass{"Q56242225", "Eastern Orthodox cathedral", domain.HistoricGeneral, false},
 		HistoricClass{"Q2577114", "co-cathedral", domain.HistoricGeneral, false},
+		HistoricClass{"Q56242250", "Anglican cathedral", domain.HistoricGeneral, false},
 		HistoricClass{"Q124936", "major basilica", domain.HistoricGeneral, false},
 		HistoricClass{"Q2713379", "papal basilica", domain.HistoricGeneral, false},
 		HistoricClass{"Q120560", "minor basilica", domain.HistoricGeneral, false},
 		HistoricClass{"Q163687", "basilica", domain.HistoricGeneral, false},
 		HistoricClass{"Q160742", "abbey", domain.HistoricGeneral, false},
+		HistoricClass{"Q334383", "abbey church", domain.HistoricGeneral, false},
 		HistoricClass{"Q817056", "Benedictine abbey", domain.HistoricGeneral, false},
 		HistoricClass{"Q91315817", "Cistercian monastery", domain.HistoricGeneral, false},
 		HistoricClass{"Q2750108", "priory", domain.HistoricGeneral, false},
@@ -158,6 +160,8 @@ var HistoricClasses = func() []HistoricClass {
 		HistoricClass{"Q65177565", "former town hall", domain.HistoricGeneral, false},
 		HistoricClass{"Q25550691", "city hall", domain.HistoricGeneral, false},
 		HistoricClass{"Q39715", "lighthouse", domain.HistoricGeneral, false},
+		HistoricClass{"Q797765", "inclined tower", domain.HistoricGeneral, false},
+		HistoricClass{"Q72926449", "church tower", domain.HistoricGeneral, false},
 		HistoricClass{"Q200334", "bell tower", domain.HistoricGeneral, false},
 		HistoricClass{"Q853854", "clock tower", domain.HistoricGeneral, false},
 		HistoricClass{"Q1440300", "observation tower", domain.HistoricGeneral, false},
@@ -257,7 +261,7 @@ func (*Historic) PollAttempts() int { return pollAttempts }
 // Wikidata Query Service (a mirror, in development).
 func (h *Historic) UseEndpoint(u string) { h.q.endpoint = u }
 
-// PollTimeout implements ingest.SlowSource: 133 queries (132 classes and
+// PollTimeout implements ingest.SlowSource: 137 queries (136 classes and
 // World Heritage) of up to a minute, each preceded by a wait as long as
 // the last. 56 queries took about 12 minutes (2026-11-25); a retry
 // resumes where it failed.

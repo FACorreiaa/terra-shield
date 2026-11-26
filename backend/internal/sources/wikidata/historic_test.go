@@ -221,8 +221,8 @@ func TestHistoricClasses(t *testing.T) {
 			t.Errorf("%s is not a landmark class", wrong)
 		}
 	}
-	if len(HistoricClasses) != 132 {
-		t.Errorf("%d classes, want 132 (with World Heritage, 133 queries a poll)", len(HistoricClasses))
+	if len(HistoricClasses) != 136 {
+		t.Errorf("%d classes, want 136 (with World Heritage, 137 queries a poll)", len(HistoricClasses))
 	}
 	if bases != len(Classes) || HistoricClasses[0].Kind != domain.HistoricCastle {
 		t.Errorf("bases classes %d of %d; first %+v", bases, len(Classes), HistoricClasses[0])
