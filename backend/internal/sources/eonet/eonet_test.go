@@ -161,7 +161,7 @@ func newSource(t *testing.T, window, volcanoes []byte, store Store) *Source {
 		}
 	}))
 	t.Cleanup(srv.Close)
-	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), store)
+	s := New(fetch.New(fetch.Options{HostGap: time.Millisecond}), store, nil)
 	s.url, s.volcanoURL = srv.URL+"/all", srv.URL+"/volcanoes"
 	return s
 }
@@ -250,21 +250,45 @@ func TestPollVolcanoListFaults(t *testing.T) {
 	if _, err := newSource(t, read(t, "cases.json"), []byte(`{"events": []}`), store).Poll(t.Context(), domain.Validators{}); err != nil || len(store.resolved) != 0 {
 		t.Fatalf("empty list: resolved %v, %v", store.resolved, err)
 	}
+	// A failed list still stores the window, then reports the failure.
 	store = &fakeStore{active: []string{"EONET_980"}}
-	if _, err := newSource(t, read(t, "cases.json"), nil, store).Poll(t.Context(), domain.Validators{}); err == nil || store.got != nil || len(store.resolved) != 0 {
+	if _, err := newSource(t, read(t, "cases.json"), nil, store).Poll(t.Context(), domain.Validators{}); err == nil || len(store.got) != 5 || len(store.resolved) != 0 {
 		t.Fatalf("failed list: err %v, wrote %d, resolved %v", err, len(store.got), store.resolved)
+	}
+	// A list that would end more than a third of the stored volcanoes
+	// resolves nothing: here 3 of 4 stored are unlisted.
+	store = &fakeStore{active: []string{"EONET_980", "EONET_A", "EONET_B", "EONET_C"}}
+	if _, err := newSource(t, read(t, "cases.json"), read(t, "volcanoes-open.json"), store).Poll(t.Context(), domain.Validators{}); err != nil || len(store.resolved) != 0 {
+		t.Fatalf("shrunk list: resolved %v, %v", store.resolved, err)
+	}
+	// A volcano the window shows open is not ended for missing from the
+	// open list (cases.json carries EONET_V1, active).
+	store = &fakeStore{active: []string{"EONET_980", "EONET_V1"}}
+	if _, err := newSource(t, read(t, "cases.json"), read(t, "volcanoes-open.json"), store).Poll(t.Context(), domain.Validators{}); err != nil || len(store.resolved) != 0 {
+		t.Fatalf("window volcano: resolved %v, %v", store.resolved, err)
+	}
+}
+
+// The open list is trusted for volcanoes only.
+func TestOpenListKeepsVolcanoesOnly(t *testing.T) {
+	list := `{"events": [{"id": "EONET_F", "title": "Wildfire X", "categories": [{"id": "wildfires"}],
+	  "sources": [{"id": "IRWIN", "url": "https://irwin.doi.gov/"}],
+	  "geometry": [{"date": "2026-11-20T00:00:00Z", "type": "Point", "coordinates": [-120, 38]}]}]}`
+	store := &fakeStore{}
+	if _, err := newSource(t, []byte(`{"events": []}`), []byte(list), store).Poll(t.Context(), domain.Validators{}); err != nil || len(store.got) != 0 {
+		t.Fatalf("stored %d from the volcano list, %v", len(store.got), err)
 	}
 }
 
 // A volcano in both lists is stored once.
 func TestMerge(t *testing.T) {
-	a := []domain.Event{{SourceEventID: "x"}, {SourceEventID: "y"}}
-	got := merge(a, []domain.Event{{SourceEventID: "y"}, {SourceEventID: "z"}})
+	a := []domain.Event{{SourceEventID: "x"}, {SourceEventID: "y", Title: "window"}}
+	got := merge(a, []domain.Event{{SourceEventID: "y", Title: "open list"}, {SourceEventID: "z"}})
 	ids := make([]string, len(got))
 	for i := range got {
 		ids[i] = got[i].SourceEventID
 	}
-	if !slices.Equal(ids, []string{"x", "y", "z"}) {
-		t.Fatalf("%v", ids)
+	if !slices.Equal(ids, []string{"x", "y", "z"}) || got[1].Title != "window" {
+		t.Fatalf("%v, y from %q", ids, got[1].Title)
 	}
 }

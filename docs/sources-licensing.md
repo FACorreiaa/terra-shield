@@ -33,7 +33,9 @@ Notes:
   Upstreams Shield ingests directly are dropped (ADR 5), except volcanoes GVP also lists (Fuego names GDACS among
   seven upstreams). The 30-day window filters on observation dates, and a volcano's only observation is its
   eruption's start, so open volcanoes come from the open list (32 on 2026-11-26, about 20 KB) and resolve, at the
-  poll, once they leave it; EONET's own closed date is never in either list. GVP links are upgraded to https.
+  poll, once they leave it (EONET's closed date reaches Shield only when the eruption began inside the window). An
+  empty list, or one that would end more than a third of the stored volcanoes at once, resolves nothing. GVP links
+  are upgraded to https.
 - **FIRMS** public 24 h files need no MAP_KEY. The MAP_KEY API (area queries, archives) is not used.
   Suomi NPP's file was empty on 2026-11-16 (last modified 2026-11-12); NOAA-20 and NOAA-21 carry ~80k rows/day each.
 - **Meteoalarm** warning areas arrive as inline CAP polygons or as codes. Codes are drawn from MeteoAlarm's own

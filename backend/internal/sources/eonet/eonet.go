@@ -11,9 +11,10 @@
 // is the start of its eruption, so every continuing eruption fell outside
 // it (all 32 open on 2026-11-26, Fuego's dating from 2002). Volcanoes are
 // therefore also read from the open list (?status=open&category=volcanoes,
-// about 20 KB), and a volcano that leaves it is resolved: a closing is
-// never in the 30-day window either, since EONET's closed date is not an
-// observation. An empty or failed open list resolves nothing.
+// about 20 KB), and a volcano that leaves it is resolved. A closing
+// reaches the 30-day window only when the eruption's start is inside it;
+// otherwise the volcano ends at the poll that no longer lists it. An
+// empty, failed or sharply shrunk open list resolves nothing.
 //
 // EONET aggregates other feeds. Same-origin duplicates are dropped, per
 // ADR 5's ownership rule:
@@ -35,6 +36,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"slices"
 	"sort"
@@ -72,12 +74,16 @@ type Source struct {
 	volcanoURL string
 	client     *fetch.Client
 	store      Store
+	logger     *slog.Logger
 	now        func() time.Time
 }
 
 // New builds the adapter on the production feed.
-func New(client *fetch.Client, store Store) *Source {
-	return &Source{url: FeedURL, volcanoURL: VolcanoesURL, client: client, store: store, now: time.Now}
+func New(client *fetch.Client, store Store, logger *slog.Logger) *Source {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Source{url: FeedURL, volcanoURL: VolcanoesURL, client: client, store: store, logger: logger, now: time.Now}
 }
 
 // Info implements ingest.Source.
@@ -97,14 +103,11 @@ func (*Source) Info() domain.SourceInfo {
 }
 
 // Poll implements ingest.Source. EONET sends no validators; the event
-// store skips unchanged rows, so a quiet poll costs two downloads. Both
-// lists are read before anything is written.
+// store skips unchanged rows, so a quiet poll costs two downloads. If the
+// open-volcano list fails, the window is still stored and the poll then
+// reports the failure, so a fault on one endpoint never stops the other.
 func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, error) {
 	resp, err := s.client.Get(ctx, s.url, v)
-	if err != nil {
-		return ingest.Result{}, err
-	}
-	vresp, err := s.client.Get(ctx, s.volcanoURL, domain.Validators{})
 	if err != nil {
 		return ingest.Result{}, err
 	}
@@ -114,30 +117,61 @@ func (s *Source) Poll(ctx context.Context, v domain.Validators) (ingest.Result, 
 			return ingest.Result{}, err
 		}
 	}
-	volcanoes, err := Parse(vresp.Body)
-	if err != nil {
-		return ingest.Result{}, err
-	}
-	open, err := listed(vresp.Body)
-	if err != nil {
-		return ingest.Result{}, err
-	}
+	volcanoes, open, verr := s.openVolcanoes(ctx)
 	n, err := s.store.Upsert(ctx, ID, merge(events, volcanoes))
 	if err != nil {
 		return ingest.Result{}, err
 	}
-	r, err := s.resolveClosedVolcanoes(ctx, open)
+	if verr != nil {
+		return ingest.Result{}, verr
+	}
+	r, err := s.resolveClosedVolcanoes(ctx, open, activeVolcanoes(events))
 	if err != nil {
 		return ingest.Result{}, err
 	}
 	return ingest.Result{Validators: resp.Validators, Upserted: n + r}, nil
 }
 
+// openVolcanoes reads the open list: the volcanoes to store, and every id
+// it carries.
+func (s *Source) openVolcanoes(ctx context.Context) ([]domain.Event, []string, error) {
+	resp, err := s.client.Get(ctx, s.volcanoURL, domain.Validators{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("eonet: open volcanoes: %w", err)
+	}
+	events, err := Parse(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	ids, err := listed(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	// The list is asked for volcanoes only; anything else it carries is
+	// not trusted to be complete, so it is neither stored nor counted.
+	events = slices.DeleteFunc(events, func(e domain.Event) bool { return e.Type != domain.TypeVolcano })
+	return events, ids, nil
+}
+
+// activeVolcanoes are the ids the window itself shows erupting: the two
+// lists are separate responses, and one the window still shows open is
+// never ended for missing from the other.
+func activeVolcanoes(events []domain.Event) []string {
+	var ids []string
+	for i := range events {
+		if events[i].Type == domain.TypeVolcano && events[i].Status == domain.StatusActive {
+			ids = append(ids, events[i].SourceEventID)
+		}
+	}
+	return ids
+}
+
 // resolveClosedVolcanoes ends the stored volcanoes the open list no longer
-// carries, at the poll: EONET's own closed date (often weeks earlier) is
-// not in either list. An empty list resolves nothing: 20 to 40 volcanoes
-// are open at any time, so it is far likelier a fault than a quiet Earth.
-func (s *Source) resolveClosedVolcanoes(ctx context.Context, open []string) (int, error) {
+// carries, at the poll. 20 to 40 volcanoes are open at any time and a few
+// close in a month, so an empty list, or one that would end more than a
+// third of them at once, is far likelier a fault than a quiet Earth:
+// nothing is resolved and the shrink is logged.
+func (s *Source) resolveClosedVolcanoes(ctx context.Context, open, alsoOpen []string) (int, error) {
 	if len(open) == 0 {
 		return 0, nil
 	}
@@ -145,8 +179,8 @@ func (s *Source) resolveClosedVolcanoes(ctx context.Context, open []string) (int
 	if err != nil {
 		return 0, err
 	}
-	still := make(map[string]bool, len(open))
-	for _, id := range open {
+	still := make(map[string]bool, len(open)+len(alsoOpen))
+	for _, id := range slices.Concat(open, alsoOpen) {
 		still[id] = true
 	}
 	var gone []string
@@ -155,10 +189,15 @@ func (s *Source) resolveClosedVolcanoes(ctx context.Context, open []string) (int
 			gone = append(gone, id)
 		}
 	}
+	if len(gone) > 1 && len(gone)*3 > len(active) {
+		s.logger.Warn("eonet open volcano list shrank; resolving nothing", "stored", len(active), "unlisted", len(gone), "listed", len(open))
+		return 0, nil
+	}
 	return s.store.Resolve(ctx, ID, gone, s.now())
 }
 
-// merge adds the open volcanoes the 30-day window did not carry.
+// merge adds the open volcanoes the 30-day window did not carry; the
+// window's copy of one in both wins.
 func merge(events, volcanoes []domain.Event) []domain.Event {
 	seen := make(map[string]bool, len(events))
 	for i := range events {
