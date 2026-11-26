@@ -1,4 +1,4 @@
-import { Earth, Minus, Plus } from "lucide-react";
+import { Earth, Minus, Plus, Thermometer } from "lucide-react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ReactElement } from "react";
 import { useCallback } from "react";
@@ -6,6 +6,7 @@ import { useCallback } from "react";
 import type { Projection } from "./basemapStyle.ts";
 import { controlButton } from "./controlStyles.ts";
 import { LayersMenu } from "./LayersMenu.tsx";
+import { LayerToggle } from "./LayerToggle.tsx";
 import { fitWorld } from "./useHazardMap.ts";
 
 interface MapControlsProps {
@@ -13,6 +14,9 @@ interface MapControlsProps {
   map: MapLibreMap | undefined;
   projection: Projection;
   onProjectionChange: (projection: Projection) => void;
+  /** The heat layer's switch, shared with the filter sheet and `h`. */
+  showsDetections: boolean;
+  onDetectionsToggle: () => void;
 }
 
 const ICON = "size-4";
@@ -23,11 +27,12 @@ function Divider(): ReactElement {
 }
 
 /**
- * Floating map controls, top-right of the canvas (DESIGN.md §9): layers, the whole world and
- * zoom ±, one 44 px column on `floating` material, like the apps' control stack. Locate me
- * arrives with the shells (W3).
+ * Floating map controls, top-right of the canvas (DESIGN.md §9): the projection, a switch per
+ * layer, the whole world and zoom ±, one 44 px column on `floating` material, like the apps'
+ * control stack (layers are one-press toggles there too).
  */
-function MapControls({ map, projection, onProjectionChange }: MapControlsProps): ReactElement {
+function MapControls(props: MapControlsProps): ReactElement {
+  const { map, projection, onProjectionChange, showsDetections, onDetectionsToggle } = props;
   const world = useCallback(() => {
     if (map !== undefined) {
       fitWorld(map, projection);
@@ -44,6 +49,15 @@ function MapControls({ map, projection, onProjectionChange }: MapControlsProps):
   return (
     <div className="flex w-11 flex-col rounded-md border border-hairline-strong shadow-floating material-floating contrast-more:bg-panel contrast-more:backdrop-filter-none">
       <LayersMenu projection={projection} onProjectionChange={onProjectionChange} />
+      <Divider />
+      {/* Off by default (DESIGN.md §5). The word is "heat detections", never "fires". */}
+      <LayerToggle
+        label="Satellite heat detections"
+        icon={Thermometer}
+        pressed={showsDetections}
+        pressedClass="bg-kind-detection/14 text-kind-detection hover:bg-kind-detection/20"
+        onToggle={onDetectionsToggle}
+      />
       <Divider />
       <button
         type="button"

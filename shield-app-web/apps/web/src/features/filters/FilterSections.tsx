@@ -12,6 +12,7 @@ import type { EventType } from "@/domain/taxonomy.ts";
 import { HAZARD_TYPES, isAtLeast } from "@/domain/taxonomy.ts";
 import { cn } from "@/lib/utils.ts";
 
+import { toggleShowsDetections, useSavedFilters } from "./filterPrefs.ts";
 import { Switch } from "./Switch.tsx";
 
 interface SectionProps {
@@ -191,6 +192,20 @@ function KindRow({ kind, query, onChange }: KindRowProps): ReactElement {
   );
 }
 
+/** Satellite heat detections are the map's FIRMS layer, not events: the same switch as the map's control. */
+function DetectionRow(): ReactElement {
+  const { showsDetections } = useSavedFilters();
+  return (
+    <Switch
+      label={kindTokens.detection.label}
+      icon={KIND_ICONS.detection}
+      checked={showsDetections}
+      disabled={false}
+      onToggle={toggleShowsDetections}
+    />
+  );
+}
+
 function KindSection({ query, onChange }: SectionProps): ReactElement {
   return (
     <Section title="Kind">
@@ -198,6 +213,7 @@ function KindSection({ query, onChange }: SectionProps): ReactElement {
         {EVENT_KINDS.map((kind) => (
           <KindRow key={kind} kind={kind} query={query} onChange={onChange} />
         ))}
+        <DetectionRow />
       </div>
     </Section>
   );

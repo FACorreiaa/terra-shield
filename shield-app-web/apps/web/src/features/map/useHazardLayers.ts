@@ -3,9 +3,12 @@ import type { FeatureCollection } from "geojson";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useEffectEvent } from "react";
 
+import type { DetectionLayer } from "@/domain/detections.ts";
+import { EMPTY_DETECTIONS } from "@/domain/detections.ts";
 import type { EventShape } from "@/domain/geo.ts";
 
 import { AREA_SOURCE, areaFeatures, areaLayers } from "./areaLayer.ts";
+import { DETECTIONS_SOURCE, detectionFeatures, detectionLayers } from "./detectionLayer.ts";
 import {
   EVENTS_LAYER,
   EVENTS_SOURCE,
@@ -24,6 +27,8 @@ interface HazardLayerData {
   staleSources: ReadonlySet<string>;
   selectedId: string | undefined;
   selectedShape: EventShape | undefined;
+  /** Satellite heat detections; none while the layer is off. */
+  detections?: DetectionLayer | undefined;
 }
 
 /** Adds the hazard sources and layers to a freshly loaded style (DESIGN.md §9 order). */
@@ -32,9 +37,10 @@ function addHazardLayers(map: MapLibreMap): void {
     return;
   }
   map.addSource(AREA_SOURCE, { type: "geojson", data: NO_FEATURES });
+  map.addSource(DETECTIONS_SOURCE, { type: "geojson", data: NO_FEATURES });
   // `promoteId`: features keyed by event id, so a live arrival's symbol can wait (feature-state) while its copy animates.
   map.addSource(EVENTS_SOURCE, { type: "geojson", data: NO_FEATURES, promoteId: "id" });
-  for (const layer of areaLayers()) {
+  for (const layer of [...areaLayers(), ...detectionLayers()]) {
     map.addLayer(layer);
   }
   map.addLayer(selectionLayer(undefined));
@@ -107,7 +113,22 @@ function useSelection(map: MapLibreMap | undefined, styleEpoch: number, data: Ha
   }, [map, styleEpoch, selectedId, selectedShape, event, staleSources]);
 }
 
-/** Every canvas hazard layer: areas, selection ring, point markers, and their input. */
+/** The heat layer's cells or dots, replaced whole when a load arrives. */
+function useDetectionData(
+  map: MapLibreMap | undefined,
+  styleEpoch: number,
+  detections: DetectionLayer = EMPTY_DETECTIONS,
+): void {
+  useEffect(() => {
+    if (map === undefined || styleEpoch === 0) {
+      return;
+    }
+    addHazardLayers(map);
+    void map.getSource<GeoJSONSource>(DETECTIONS_SOURCE)?.setData(detectionFeatures(detections));
+  }, [map, styleEpoch, detections]);
+}
+
+/** Every canvas hazard layer: areas, heat detections, selection ring, point markers, and their input. */
 function useHazardLayers(
   map: MapLibreMap | undefined,
   styleEpoch: number,
@@ -116,6 +137,7 @@ function useHazardLayers(
   useMarkerInput(map, data.onSelect);
   useEventData(map, styleEpoch, data);
   useSelection(map, styleEpoch, data);
+  useDetectionData(map, styleEpoch, data.detections);
 }
 
 export type { HazardLayerData };

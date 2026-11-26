@@ -15,7 +15,7 @@ const WORLD = "-180,-85,180,85";
 describe(viewOf, () => {
   it("rounds an ordinary view to two decimals", () => {
     expect(viewOf({ west: -9.50421, south: 36.951, east: -6.18901, north: 42.15 }, 6.4)).toStrictEqual({
-      zoom: 6,
+      zoom: 7,
       bbox: "-9.5,36.95,-6.19,42.15",
     });
   });
@@ -55,8 +55,13 @@ describe(viewOf, () => {
 });
 
 describe(apiZoom, () => {
-  it("is a whole number the API accepts", () => {
-    expect(apiZoom(1.4)).toBe(1);
+  it("steps up a level on each whole MapLibre zoom", () => {
+    expect(apiZoom(4.99)).toBe(5);
+    expect(apiZoom(5)).toBe(6);
+  });
+
+  it("is the 256 px pyramid's zoom, rounded down, as the apps and the server's grid", () => {
+    expect(apiZoom(1.4)).toBe(2);
     expect(apiZoom(-2)).toBe(0);
     expect(apiZoom(25)).toBe(22);
     expect(apiZoom(Number.NaN)).toBe(0);

@@ -267,10 +267,9 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
    - **Deviations for the owner:**
      - **Single-key shortcuts.** The browser owns ⌘1–5, ⌘L, ⌘R and ⌘F, so the web uses single keys,
        live only outside text fields, the map canvas and dialogs: `1`–`5` sections, `↑`/`↓` list,
-       `Esc` clear selection, `o` official source, `i` inspector, `0` whole world, `r` refresh, and
-       `?` for a sheet that lists them all.
-     - **Search and heat keys.** `/` focuses search (W4, part 2), standing in for ⌘F; `h` waits for
-       the heat layer (W7).
+       `Esc` clear selection, `o` official source, `i` inspector, `0` whole world, `r` refresh, `h`
+       heat detections (W7, for ⌥⌘H), and `?` for a sheet that lists them all.
+     - **Search key.** `/` focuses search (W4, part 2), standing in for ⌘F.
      - **Sidebar nav lists built sections only.** It shows only the sections that exist, so Monitor
        alone for now.
      - **No locate button.** See W4.
@@ -300,8 +299,6 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
    - **Deviations for the owner:**
      - **Flat type grid.** The type grid is flat, like the apps and DESIGN §10.6, not grouped by
        category as the web plan said. Conflicts are a layer of their own (W7), never in the grid.
-     - **No heat toggle yet.** The Satellite heat detection switch arrives with the heat layer (W7).
-       The stored choice is kept untouched until then.
      - **Desktop layout.** On a wide screen the chips sit under the strip at the map's top left,
        not top centre, so they never meet the controls or the inspector at 1024 px.
      - **Phone header.** At half and full height the compact strip hides but keeps its line, so the
@@ -455,6 +452,31 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        block dispatches nothing) and hides a 429/503's `Retry-After`, so the stream is read with
        `fetch` and a port of `ServerSentEvents.swift`, as the apps do. Backoff as the apps: the
        server's Retry-After, else 5 s doubling to 60 s, ±20 %.
+   - **W7, part 1: satellite heat detections.** `GET /v1/fires` for the map's view while the layer
+     is on (off by default, saved with the filters as the apps' `showsDetections`). One switch, three
+     ways in: a thermometer toggle in the map controls (tinted `detection` while on), the filter
+     sheet's "Satellite heat detection" row, and `h`; the sheet's Reset turns it off. Below zoom 6
+     the server's grid cells draw as soft `detection` blobs the size of their cell, scaled on a log
+     scale to the busiest cell in view (`DetectionOverlay.swift`); from zoom 6 single 3–6 px dots,
+     bigger with FRP, fainter at low confidence, with a thin canvas outline. The layer sits over
+     event areas and under the selection ring and every marker, and never joins hazard clusters.
+     Under the notices a key reads "Satellite heat detections · Detected 3 h ago", "· Zoom in for
+     all" when the points were cut off, "· None in this view", or "Heat detections didn’t load"
+     (in `warning`, keeping the last layer; the events' banner stays out of it). No `since` is sent:
+     the server's 24 h, as the apps; the filters' window is for events. `r` reloads it too. Turned
+     off and on again it starts afresh (no old view's layer meanwhile), and a failed load is
+     announced once to screen readers while the key itself stays quiet as it ages.
+     - **Zoom sent to the API fixed.** The web sent MapLibre's zoom rounded; the server's grid (event
+       clusters' 64 px cells, heat cells) and the apps count 256 px tiles, rounded down, which is
+       MapLibre's zoom + 1. Every request now sends `floor(zoom) + 1`, so clusters and heat cells
+       are the screen size the server means, and points arrive from the same scale as on iPhone.
+     - **Bigger blobs.** Cells are 0.9–1.4 of their width (the apps: 0.5–1). MapLibre's blur fades
+       faster than the apps' gradient, and at 0.5 a burning region read as a lattice of dots, at
+       the corrected zoom too (checked on live FIRMS data, desktop and phone).
+     - **No "· VIIRS".** DESIGN §5's "Detected 3 h ago · VIIRS" can't come from the data (the
+       API names satellites, e.g. NOAA-20, not instruments); the key follows the apps' words.
+     - **No inspector for a detection yet.** Detections aren't selectable in the apps either; the
+       satellite, confidence and FRP inspector arrives with the flights' selection (W7, part 3).
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

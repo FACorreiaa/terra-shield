@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import type { EventQuery } from "@/domain/filters.ts";
 import { DEFAULT_QUERY, isDefault } from "@/domain/filters.ts";
 
+import { resetFilters, useSavedFilters } from "./filterPrefs.ts";
 import { KindSection, SeveritySection, StatusSection, TypeSection, WindowSection } from "./FilterSections.tsx";
 
 interface FilterSheetProps {
@@ -21,9 +22,11 @@ const HEADER_BUTTON =
  * from the default. A native modal dialog: a bottom sheet on a phone, a panel on a wide screen.
  */
 function FilterSheet({ dialog, query, onChange }: FilterSheetProps): ReactElement {
+  const { showsDetections } = useSavedFilters();
+  // As the apps: Reset also turns the heat layer off, and shows while it is on.
   const reset = useCallback(() => {
-    onChange({ ...DEFAULT_QUERY, country: query.country });
-  }, [onChange, query.country]);
+    resetFilters({ ...DEFAULT_QUERY, country: query.country });
+  }, [query.country]);
   const done = useCallback(() => {
     dialog.current?.close();
   }, [dialog]);
@@ -35,7 +38,7 @@ function FilterSheet({ dialog, query, onChange }: FilterSheetProps): ReactElemen
     >
       <div className="sticky top-0 z-10 grid grid-cols-[1fr_auto_1fr] items-center border-b border-hairline bg-panel px-2 py-1">
         <span>
-          {isDefault(query) ? undefined : (
+          {isDefault(query) && !showsDetections ? undefined : (
             <button type="button" onClick={reset} className={HEADER_BUTTON}>
               Reset
             </button>

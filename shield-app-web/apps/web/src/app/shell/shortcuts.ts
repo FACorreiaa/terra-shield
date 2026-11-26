@@ -5,7 +5,19 @@
  */
 type Shortcut =
   | { action: "section"; key: string }
-  | { action: "inspector" | "source" | "refresh" | "world" | "next" | "previous" | "clear" | "help" | "search" };
+  | {
+      action:
+        | "inspector"
+        | "source"
+        | "refresh"
+        | "world"
+        | "detections"
+        | "next"
+        | "previous"
+        | "clear"
+        | "help"
+        | "search";
+    };
 
 interface KeyPress {
   key: string;
@@ -13,6 +25,8 @@ interface KeyPress {
   metaKey: boolean;
   altKey: boolean;
   defaultPrevented: boolean;
+  /** Held down: a layer switch would flap with every repeat. */
+  repeat?: boolean;
   target: EventTarget | null;
 }
 
@@ -27,6 +41,7 @@ const SHORTCUT_HELP: readonly { keys: string; does: string }[] = [
   { keys: "o", does: "Open the selected event's official source" },
   { keys: "i", does: "Show or hide the inspector" },
   { keys: "0", does: "Show the whole world" },
+  { keys: "h", does: "Show or hide satellite heat detections" },
   { keys: "r", does: "Refresh now" },
   { keys: "?", does: "These shortcuts" },
 ];
@@ -36,6 +51,7 @@ const SINGLE = new Map<string, Shortcut>([
   ["o", { action: "source" }],
   ["r", { action: "refresh" }],
   ["0", { action: "world" }],
+  ["h", { action: "detections" }],
   ["ArrowDown", { action: "next" }],
   ["ArrowUp", { action: "previous" }],
   ["Escape", { action: "clear" }],
@@ -61,7 +77,8 @@ function shortcutFor(press: KeyPress): Shortcut | undefined {
   if (SECTION_KEYS.has(press.key)) {
     return { action: "section", key: press.key };
   }
-  return SINGLE.get(press.key);
+  const shortcut = SINGLE.get(press.key);
+  return press.repeat === true && shortcut?.action === "detections" ? undefined : shortcut;
 }
 
 /** The event after (or before) the selected one in display order; the first when nothing is selected. */

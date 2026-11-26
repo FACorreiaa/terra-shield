@@ -5,22 +5,22 @@ import { toggling } from "@/domain/filters.ts";
 import type { StatFilter } from "@/domain/statStrip.ts";
 import { liveMapCells } from "@/domain/statStrip.ts";
 import { FilterChips } from "@/features/filters/FilterChips.tsx";
-import { ErrorBanner } from "@/features/monitor/ErrorBanner.tsx";
 import { StatStrip } from "@/features/monitor/StatStrip.tsx";
 import { ProgressLine, StatusLine } from "@/features/monitor/StatusLine.tsx";
 
 import { ArrivalToast } from "./ArrivalToast.tsx";
 import { useLiveMap } from "./liveMapContext.ts";
+import { MapNotices } from "./MapNotices.tsx";
 import { useRetry } from "./useRetry.ts";
 
 /**
  * What floats over the desktop map's top-left (DESIGN.md §10 shells, macOS): the stat strip with
- * the live dot and freshness, the filter chips under it, a severe live arrival's toast, and the
- * error banner when a load fails.
+ * the live dot and freshness, the filter chips under it, a severe live arrival's toast, the
+ * error banner when a load fails, and the keys of the layers that are on.
  * The wrapper lets presses through to the map; only its parts take them.
  */
 function MonitorHud(): ReactElement {
-  const { shown, query, setQuery, status, failure, events } = useLiveMap();
+  const { shown, query, setQuery, status, events } = useLiveMap();
   const retry = useRetry();
   const toggle = useCallback(
     (filter: StatFilter) => {
@@ -42,7 +42,7 @@ function MonitorHud(): ReactElement {
         <FilterChips query={query} onChange={setQuery} />
       </div>
       <ArrivalToast />
-      {failure === undefined ? undefined : <ErrorBanner message={failure} onRetry={retry} />}
+      <MapNotices className="max-w-full" />
     </div>
   );
 }

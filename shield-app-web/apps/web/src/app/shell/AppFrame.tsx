@@ -20,7 +20,7 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
   const wide = useIsWide();
   const { list, clusters, selected, detail, selectedId, selectedShape, staleSources, setView, select, setMap } =
     useLiveMap();
-  const { arrivals, started, arrived } = useLiveMap();
+  const { arrivals, started, arrived, detections } = useLiveMap();
   const arrival = useMemo(() => ({ onStarted: started, onArrived: arrived }), [started, arrived]);
   // The selection draws even when the map's list lacks it (a shared link, a country's event), but
   // not once its source has dropped it.
@@ -55,6 +55,7 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
             onMap={setMap}
             arrivals={arrivals}
             arrival={arrival}
+            detections={detections.layer}
           />
         </div>
         {wide ? (

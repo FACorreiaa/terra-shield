@@ -9,6 +9,7 @@ import type { View } from "@/domain/viewport.ts";
 import type { ArrivalCallbacks } from "./ArrivalPin.tsx";
 import type { Projection } from "./basemapStyle.ts";
 import { MapOverlays } from "./MapOverlays.tsx";
+import type { HazardLayerData } from "./useHazardLayers.ts";
 import { useHazardLayers } from "./useHazardLayers.ts";
 import { useHazardMap } from "./useHazardMap.ts";
 
@@ -28,13 +29,15 @@ interface HazardMapProps {
   /** Live arrivals to animate in (W6), and what the map reports as each plays. */
   arrivals?: ReadonlySet<string> | undefined;
   arrival?: ArrivalCallbacks | undefined;
+  /** Satellite heat detections (W7); none while the layer is off. */
+  detections?: HazardLayerData["detections"];
 }
 
 const NO_ARRIVALS: ReadonlySet<string> = new Set();
 
 /**
- * The map canvas (DESIGN.md §9): OpenFreeMap basemap, the selected event's area, point markers
- * with the selection ring, server clusters as buttons and the extreme pulse.
+ * The map canvas (DESIGN.md §9): OpenFreeMap basemap, the selected event's area, satellite heat
+ * detections, point markers with the selection ring, server clusters as buttons and the extreme pulse.
  */
 function HazardMap(props: HazardMapProps): ReactElement {
   const { events, clusters, staleSources, projection, onViewChange, onMap, arrivals = NO_ARRIVALS, arrival } = props;

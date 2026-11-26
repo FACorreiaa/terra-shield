@@ -54,9 +54,14 @@ function clamp(value: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(value, hi));
 }
 
-/** The API's zoom for a MapLibre zoom: a whole number in 0…22, 0 when unknown. */
+/**
+ * The API's zoom for a MapLibre zoom: a whole number in 0…22, 0 when unknown. The server's pixel
+ * grid (event clusters' 64 px cells, heat detection cells) assumes 256 px tiles, as the apps'
+ * `MapViewport.zoom` does, while MapLibre's zoom counts 512 px tiles: one level less for the same
+ * scale. Rounded down, as the apps, so a server cell never covers less screen than it assumes.
+ */
 function apiZoom(zoom: number): number {
-  return Number.isFinite(zoom) ? clamp(Math.round(zoom), 0, MAX_ZOOM) : 0;
+  return Number.isFinite(zoom) ? clamp(Math.floor(zoom) + 1, 0, MAX_ZOOM) : 0;
 }
 
 /**

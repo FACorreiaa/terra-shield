@@ -8,6 +8,7 @@ import type { EventShape } from "@/domain/geo.ts";
 import type { LiveStatus } from "@/domain/liveStatus.ts";
 import type { View } from "@/domain/viewport.ts";
 import type { DetailState } from "@/features/detail/detailState.ts";
+import type { Detections } from "@/features/detections/useDetections.ts";
 
 /** What every shell and section shares: the map's view, what is selected and the events in view. */
 interface LiveMap {
@@ -47,6 +48,8 @@ interface LiveMap {
   failure: string | undefined;
   /** Ticks every 30 s so relative times ("12 min ago") stay true. */
   now: Date;
+  /** Satellite heat detections for the view, while the layer is on (W7). */
+  detections: Detections;
   /** Live arrivals in view the map hasn't animated in yet (W6). */
   arrivals: ReadonlySet<string>;
   /** The map has begun animating an arrival. */

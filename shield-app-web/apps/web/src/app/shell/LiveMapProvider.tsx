@@ -3,17 +3,21 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { View } from "@/domain/viewport.ts";
-import { setQuery, useSavedFilters } from "@/features/filters/filterPrefs.ts";
 
 import type { LiveMap } from "./liveMapContext.ts";
 import { LiveMapContext } from "./liveMapContext.ts";
 import { useArrivals } from "./useArrivals.ts";
 import { useMapEvents } from "./useMapEvents.ts";
+import { useMapFilters } from "./useMapFilters.ts";
 import { useSelectedEvent } from "./useSelectedEvent.ts";
 import { SourceLookupContext, useSourceHealth } from "./useSourceHealth.ts";
 import { useUrlSelection } from "./useUrlSelection.ts";
 
-const WHOLE_WORLD: View = { zoom: 1, bbox: "-180,-85,180,85" };
+/**
+ * The view before the map reports one: the world as the opening globe shows it (MapLibre zoom 1–2,
+ * API zoom 2 at phone and desktop sizes), so the map's first report doesn't load everything again.
+ */
+const WHOLE_WORLD: View = { zoom: 2, bbox: "-180,-85,180,85" };
 const CLOCK_TICK_MS = 30_000;
 
 function useNow(): Date {
@@ -38,7 +42,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
   const { selectedId, select, chosen, choose } = useUrlSelection();
   const [map, setMap] = useState<MapLibreMap>();
   const now = useNow();
-  const { query } = useSavedFilters();
+  const { query, setQuery, detections } = useMapFilters(view);
   const arriving = useArrivals();
   const { events, shown, list, clusters, status, failure } = useMapEvents({
     view,
@@ -72,6 +76,7 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       status,
       failure,
       now,
+      detections,
       ...arriving,
     }),
     [
@@ -90,9 +95,11 @@ function LiveMapProvider({ children }: { children: ReactNode }): ReactElement {
       list,
       clusters,
       query,
+      setQuery,
       status,
       failure,
       now,
+      detections,
       arriving,
     ],
   );
