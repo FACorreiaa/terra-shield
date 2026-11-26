@@ -209,7 +209,10 @@ final class HistoricDotsRenderer: MKOverlayRenderer, @unchecked Sendable {
             let shape = self.rect(for: rect)
             context.setAlpha(dot.alpha)
             context.fillEllipse(in: shape)
-            if !isGrid { context.strokeEllipse(in: shape) }
+            if !isGrid {
+                context.setAlpha(1) // the outline keeps its own strength
+                context.strokeEllipse(in: shape)
+            }
         }
     }
 }

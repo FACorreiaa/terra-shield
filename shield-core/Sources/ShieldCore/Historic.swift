@@ -223,10 +223,10 @@ public struct HistoricRequest: Sendable, Hashable {
         self.kinds = kinds
     }
 
-    /// The request for a view. Below zoom 6 the world's grid is one small answer (8,238 cells at
-    /// zoom 5, 56 KB gzipped); at 6 and 7 half a view is added around it, so a pan stays inside.
-    /// Points ask for the view alone: the densest view of a large window holds 9,630 sites, and
-    /// padding it would pass the server's 10,000 cap.
+    /// The request for a view. Below zoom 6 the world's grid is one answer (17,448 cells at zoom
+    /// 5, 129 KB gzipped, measured 2026-11-26 with 203,532 sites); at 6 and 7 half a view is added
+    /// around it, so a pan stays inside. Points ask for the view alone: the densest view of a large
+    /// window already passes the server's 10,000 cap (it comes back cut short, drawn as dots).
     public init(_ viewport: MapViewport, kinds: Set<HistoricKind>) {
         let box: GeoBox? = if viewport.zoom >= HistoricLayer.pointsZoom {
             viewport.box

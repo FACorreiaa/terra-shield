@@ -309,6 +309,31 @@ enum HistoricFixture {
         #expect(p.historicRequests.map(\.kinds) == [nil, [.military]])
     }
 
+    private struct SlowDown: UserFacingError {
+        var userMessage: String { "Too many requests." }
+        var isRateLimit: Bool { true }
+    }
+
+    /// A rate limit is the server asking for quiet: every request waits the minute, not only the
+    /// same one (from zoom 8 each pan is a new request).
+    @Test func aRateLimitHoldsBackEveryViewForAMinute() async {
+        let p = ScriptedProvider()
+        let clock = Clock()
+        p.historicFailure = SlowDown()
+        let m = model(p, clock: clock)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        p.historicFailure = nil
+        m.viewportDidChange(alpsWide)
+        await m.settle()
+        #expect(p.historicRequests.count == 1)
+        clock.now += 61
+        m.reload()
+        await m.settle()
+        #expect(p.historicRequests.count == 2)
+    }
+
     @Test func aFailureDoesNotHoldBackADifferentView() async {
         let p = ScriptedProvider()
         p.historicFailure = URLError(.badServerResponse)

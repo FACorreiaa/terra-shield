@@ -154,6 +154,8 @@ public final class LiveMapModel {
     private var historicFailedAt: Date?
     /// The request that failed: only asking it again waits out the minute.
     private var historicFailedRequest: HistoricRequest?
+    /// The failure was a rate limit: every request waits out the minute.
+    private var historicRateLimited = false
 
     /// The historic layer; off by default. Saved with the filters (no quota behind it).
     public var showsHistoric = false {
@@ -719,6 +721,7 @@ public final class LiveMapModel {
         historicFailed = false
         historicFailedAt = nil
         historicFailedRequest = nil
+        historicRateLimited = false
         historicAnswered = nil
         historicAsking = nil
     }
@@ -748,8 +751,8 @@ public final class LiveMapModel {
         if historicTask != nil, let historicAsking,
            historicAsking.serves(viewport, kinds: historicKinds, truncated: false) { return }
         let wanted = HistoricRequest(viewport, kinds: historicKinds)
-        if wanted == historicFailedRequest, let historicFailedAt,
-           now().timeIntervalSince(historicFailedAt) < 60 { return }
+        if let historicFailedAt, now().timeIntervalSince(historicFailedAt) < 60,
+           historicRateLimited || wanted == historicFailedRequest { return }
         historicTask?.cancel()
         historicGeneration += 1
         let generation = historicGeneration, provider = provider, askedAt = now()
@@ -775,6 +778,7 @@ public final class LiveMapModel {
                 self.historicFailed = true
                 self.historicFailedAt = askedAt
                 self.historicFailedRequest = wanted
+                self.historicRateLimited = (error as? any UserFacingError)?.isRateLimit ?? false
             }
         }
     }
@@ -901,6 +905,12 @@ public final class LiveMapModel {
 /// An error whose message was written for the person using the app.
 public protocol UserFacingError: Error {
     var userMessage: String { get }
+    /// The server asked for fewer requests (429): every request waits, not only the one refused.
+    var isRateLimit: Bool { get }
+}
+
+extension UserFacingError {
+    public var isRateLimit: Bool { false }
 }
 
 /// Why a load failed, in words for the user.

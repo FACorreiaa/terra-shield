@@ -53,7 +53,9 @@ final class ScriptedProvider: HazardEventProvider, @unchecked Sendable {
         lock.withLock { _historicRequests.append(request) }
         if let historicDelay { try await Task.sleep(for: historicDelay) }
         if let historicFailure { throw historicFailure }
-        return request.isPoints ? historicAnswer : HistoricFixture.grid(HistoricFixture.cells)
+        // As the server does: only the groups asked for.
+        let answer = request.isPoints ? historicAnswer : HistoricFixture.grid(HistoricFixture.cells)
+        return request.kinds.map { answer.filtered(to: $0) } ?? answer
     }
 
     var aircraftAnswer = AircraftFixture.layer([AircraftFixture.plane("a1"), AircraftFixture.plane("a2", lat: 39)])

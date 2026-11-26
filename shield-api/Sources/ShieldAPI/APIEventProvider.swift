@@ -288,6 +288,11 @@ public enum APIError: Error, Equatable {
 }
 
 extension APIError: UserFacingError {
+    public var isRateLimit: Bool {
+        if case .rateLimited = self { return true }
+        return false
+    }
+
     public var userMessage: String {
         switch self {
         case .server(let status, _) where status >= 500:

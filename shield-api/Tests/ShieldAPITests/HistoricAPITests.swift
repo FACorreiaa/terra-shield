@@ -102,7 +102,9 @@ import ShieldCore
         do {
             _ = try await p.historic(HistoricRequest(box: nil, zoom: 3, kinds: nil))
             Issue.record("expected a rate-limit error")
-        } catch APIError.rateLimited {
+        } catch let error as APIError {
+            guard case .rateLimited = error else { Issue.record("expected rateLimited, got \(error)"); return }
+            #expect(error.isRateLimit) // the map holds back every request for a minute
         } catch {
             Issue.record("expected rateLimited, got \(error)")
         }
