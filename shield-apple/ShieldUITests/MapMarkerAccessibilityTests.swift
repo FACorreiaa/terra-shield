@@ -10,9 +10,9 @@ import XCTest
 /// `ShieldTests/MarkerActivationTests` calls directly, and VoiceOver's touch exploration, which
 /// only VoiceOver on an iPhone shows.
 ///
-/// Needs the local API (`cd backend && make run`, or any API on `SHIELD_UITEST_API`, default
-/// http://localhost:8081, the same URL the app is built with: `API_BASE_URL=...`). Skipped when it
-/// doesn't answer. The aircraft test also needs the API on the flights replay
+/// Needs the local API the app is built for: Debug's http://localhost:8080 (`cd backend && make
+/// run`). For an app built with another `API_BASE_URL=...`, give the tests the same URL with
+/// `TEST_RUNNER_SHIELD_UITEST_API=...`. Skipped when it doesn't answer. The aircraft test also needs the API on the flights replay
 /// (`AIRCRAFT_FEED_URL`, ADR 28) and runs only with `TEST_RUNNER_SHIELD_UITEST_FLIGHTS=1`, so it
 /// never spends the live feed's quota by accident.
 @MainActor
@@ -45,8 +45,13 @@ final class MapMarkerAccessibilityTests: XCTestCase {
         let cluster = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Cluster,'")).firstMatch
         XCTAssertTrue(cluster.waitForExistence(timeout: 30), "no cluster over Europe")
         assertTarget(cluster)
-        let event = app.buttons.matching(NSPredicate(format: "label CONTAINS ', updated '")).firstMatch
-        if event.waitForExistence(timeout: 5) { assertTarget(event) }
+        let window = app.windows.firstMatch.frame
+        // Whatever single events show at this zoom (live data: some days none do; the tap test
+        // below zooms in until one does, and fails without one). Hidden ones have no frame.
+        for event in singleEvents(app).allElementsBoundByIndex
+        where event.frame.width > 0 && window.contains(event.frame) && event.isHittable {
+            assertTarget(event)
+        }
     }
 
     func testAnEventSelectsOnTap() throws {
@@ -59,8 +64,8 @@ final class MapMarkerAccessibilityTests: XCTestCase {
         }
         let clusters = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Cluster,'"))
         XCTAssertTrue(clusters.firstMatch.waitForExistence(timeout: 30))
-        // Zoomed in through clusters until a single event shows (one drawn under a cluster is in
-        // the tree but not hittable).
+        // Zoomed in through clusters until a single event shows (one MapKit hides under a cluster
+        // stays in the tree with no frame, and isn't hittable).
         var found = visible(singleEvents(app))
         for _ in 0..<5 where found == nil {
             guard let cluster = visible(clusters) else { break }
@@ -68,7 +73,10 @@ final class MapMarkerAccessibilityTests: XCTestCase {
             sleep(3)
             found = visible(singleEvents(app))
         }
-        guard let found else { throw XCTSkip("no single event on screen") }
+        guard let found else {
+            XCTFail("no single event on screen after zooming into clusters")
+            return
+        }
         // Dragged to the upper map: the layer legend floats mid-map and the sheet holds the
         // bottom, and a tap there lands on them (`isHittable` can't tell: they don't hide the
         // marker from the accessibility tree).
@@ -105,7 +113,7 @@ final class MapMarkerAccessibilityTests: XCTestCase {
     // MARK: - Helpers
 
     private nonisolated static var api: String {
-        ProcessInfo.processInfo.environment["SHIELD_UITEST_API"] ?? "http://localhost:8081"
+        ProcessInfo.processInfo.environment["SHIELD_UITEST_API"] ?? "http://localhost:8080"
     }
 
     private nonisolated static func apiAnswers() -> Bool {
@@ -115,7 +123,7 @@ final class MapMarkerAccessibilityTests: XCTestCase {
         let done = DispatchSemaphore(value: 0)
         nonisolated(unsafe) var answered = false
         URLSession.shared.dataTask(with: request) { _, response, _ in
-            answered = (response as? HTTPURLResponse) != nil
+            answered = (response as? HTTPURLResponse).map { (200..<300).contains($0.statusCode) } ?? false
             done.signal()
         }.resume()
         _ = done.wait(timeout: .now() + 5)
@@ -132,6 +140,8 @@ final class MapMarkerAccessibilityTests: XCTestCase {
     private func singleEvents(_ app: XCUIApplication) -> XCUIElementQuery {
         app.buttons.matching(NSPredicate(format: "label CONTAINS ', updated ' AND NOT label BEGINSWITH 'Cluster,'"))
     }
+
+    private struct NoMarker: Error {}
 
     private func isolated(_ app: XCUIApplication, prefix: String) throws -> XCUIElement {
         try isolated(app, query: app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)))
@@ -155,7 +165,8 @@ final class MapMarkerAccessibilityTests: XCTestCase {
             if neighbours.count == 1 { return candidate }
         }
         let found = query.allElementsBoundByIndex.prefix(6).map { "\($0.label.prefix(30)) \($0.frame.integral)" }
-        throw XCTSkip("no marker stands alone on screen among \(found)")
+        XCTFail("no marker stands alone on the upper map among \(found)")
+        throw NoMarker()
     }
 
     private func assertTarget(_ marker: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {

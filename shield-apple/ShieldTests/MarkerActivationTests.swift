@@ -93,6 +93,19 @@ final class MarkerActivationTests: XCTestCase {
         XCTAssertTrue(frame.insetBy(dx: -2, dy: -2).contains(drawn), "\(frame) doesn't hold \(drawn)")
     }
 
+    /// The selected event never loses a collision, as a selected base or site doesn't: hidden, it
+    /// would vanish from the map and from VoiceOver while its detail is open.
+    func testTheSelectedEventIsNeverHidden() throws {
+        let event = try XCTUnwrap(SampleData.events().first {
+            !$0.isResolved && $0.type != .conflict && $0.severity.displayPriority != .required
+        })
+        let view = EventMarkerView(annotation: EventAnnotation(event), reuseIdentifier: nil)
+        view.configure(event, isStale: false, isSelected: true, localClustering: true)
+        XCTAssertEqual(view.displayPriority, .required)
+        view.configure(event, isStale: false, isSelected: false, localClustering: true)
+        XCTAssertEqual(view.displayPriority, event.severity.displayPriority)
+    }
+
     /// MapKit hides a marker beaten in a collision (or a member of a cluster it draws) with
     /// `isHidden` and leaves it in its container, which still offers it to accessibility; seen
     /// in the app on 2026-11-26, an event under a cluster read as a button at the cluster.

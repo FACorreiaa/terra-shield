@@ -160,7 +160,10 @@ final class EventMarkerView: SwiftUIAnnotationView {
             ? (isConflict ? Self.conflictClusteringID : Self.clusteringID) : nil
         collisionMode = .circle
         // Hazards first (ADR 27): a conflict gives way to any active hazard it collides with.
-        displayPriority = event.isResolved ? MKFeatureDisplayPriority(rawValue: 100)
+        // The selected event never gives way: hidden, it would leave the map (and VoiceOver)
+        // while its detail is open.
+        displayPriority = isSelected ? .required
+            : event.isResolved ? MKFeatureDisplayPriority(rawValue: 100)
             : isConflict ? MKFeatureDisplayPriority(rawValue: 150 + Float(event.severity.rank) * 20)
             : event.severity.displayPriority
         zPriority = isSelected ? .max
