@@ -151,7 +151,7 @@ struct FilterSheet: View {
 
     // MARK: Historic sites
 
-    /// The layer's switch (the map's ⌥⌘S control) and its groups (ADR 30). The groups stay
+    /// The layer's switch (the map's ⌥⌘L control) and its groups (ADR 30). The groups stay
     /// settable with the layer off, and the last one stays on: the API reads none as all.
     private var historicToggles: some View {
         VStack(spacing: 0) {

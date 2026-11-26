@@ -54,7 +54,7 @@ enum HistoricFixture {
         #expect(r.box.map(close(to: GeoBox(minLongitude: 0.005, minLatitude: 35.005, maxLongitude: 29.995, maxLatitude: 54.995))) == true)
         #expect((r.box?.longitudeSpan ?? 99) < 30 && (r.box.map { $0.maxLatitude - $0.minLatitude } ?? 99) < 20)
         // The same view is served by its own answer: asking again would bring the same.
-        #expect(r.serves(MapViewport(box: wide, zoom: 8), kinds: all, truncated: false, sites: 5_000))
+        #expect(r.serves(MapViewport(box: wide, zoom: 8), kinds: all, truncated: false))
         // Across the antimeridian.
         let pacific = GeoBox(minLongitude: 160, minLatitude: -10, maxLongitude: -150, maxLatitude: 5)
         let p = HistoricRequest(MapViewport(box: pacific, zoom: 9), kinds: all)
@@ -84,6 +84,13 @@ enum HistoricFixture {
         #expect(!every.serves(MapViewport(box: alps, zoom: 9), kinds: all, worldHeritageOnly: true, truncated: true))
         let grid = HistoricRequest(MapViewport(box: alps, zoom: 4), kinds: all)
         #expect(!grid.serves(MapViewport(box: alps, zoom: 4), kinds: all, worldHeritageOnly: true, truncated: false))
+    }
+
+    /// A cut-short answer is still the answer for a view that differs only past the 4 decimals sent.
+    @Test func aViewDifferingOnlyPastTheDecimalsSentIsTheSameRequest() {
+        let r = HistoricRequest(MapViewport(box: alps, zoom: 9), kinds: all)
+        let jitter = GeoBox(minLongitude: 10 + 1e-9, minLatitude: 47, maxLongitude: 11 - 1e-9, maxLatitude: 48)
+        #expect(r.serves(MapViewport(box: jitter, zoom: 9), kinds: all, truncated: true))
     }
 
     @Test func landmarksAreAKindOfTheirOwn() {
@@ -151,15 +158,44 @@ enum HistoricFixture {
         #expect(!r.serves(MapViewport(box: inside, zoom: 7), kinds: all, truncated: false))
     }
 
-    /// Above `chipLimit` the sites are drawn as dots, which can't be picked: zooming in asks again
-    /// for the smaller view, so the chips come back once few enough are in it.
-    @Test func anAnswerTooDenseForChipsIsAskedAgainOnZoomingIn() {
+    /// A complete answer holds every site in its box, so any view inside it is served however
+    /// dense: the chips are the best known in the view, chosen on the device.
+    @Test func aCompleteAnswerServesAnyViewInsideItHoweverDense() {
         let r = HistoricRequest(MapViewport(box: alps, zoom: 8), kinds: all)
         let inside = GeoBox(minLongitude: 10.2, minLatitude: 47.2, maxLongitude: 10.6, maxLatitude: 47.6)
-        #expect(r.serves(MapViewport(box: inside, zoom: 10), kinds: all, truncated: false, sites: HistoricLayer.chipLimit))
-        #expect(!r.serves(MapViewport(box: inside, zoom: 10), kinds: all, truncated: false, sites: HistoricLayer.chipLimit + 1))
+        #expect(r.serves(MapViewport(box: inside, zoom: 10), kinds: all, truncated: false))
+        #expect(!r.serves(MapViewport(box: inside, zoom: 10), kinds: all, truncated: true))
         // The same view is still served: asking again would bring the same answer.
-        #expect(r.serves(MapViewport(box: alps, zoom: 8), kinds: all, truncated: false, sites: HistoricLayer.chipLimit + 1))
+        #expect(r.serves(MapViewport(box: alps, zoom: 8), kinds: all, truncated: true))
+    }
+
+    /// Past `chipLimit` the best known in the view are chips: by sitelinks, then World Heritage,
+    /// then ID, so a pan never reshuffles sites that tie.
+    @Test func theBestKnownSitesInTheViewAreTheChips() {
+        func site(_ id: String, links: Int, lon: Double = 10.5, wh: Bool = false) -> HistoricSite {
+            var s = HistoricFixture.fortress
+            s.id = id
+            s.sitelinks = links
+            s.worldHeritage = wh
+            s.coordinate = Coordinate(latitude: 47.5, longitude: lon)
+            return s
+        }
+        let few = HistoricFixture.points([site("Q1", links: 0), site("Q2", links: 5, lon: 20)])
+        // Few enough: every site, in the view or not.
+        #expect(Set(few.chipSites(in: alps).map(\.id)) == ["Q1", "Q2"])
+
+        var many = (0..<HistoricLayer.chipLimit).map { site("Q\(1000 + $0)", links: 1) }
+        many += [site("Q9", links: 1, wh: true), site("Q8", links: 40), site("Q7", links: 99, lon: 20)]
+        let chips = HistoricFixture.points(many).chipSites(in: alps)
+        #expect(chips.count == HistoricLayer.chipLimit)
+        #expect(chips.prefix(2).map(\.id) == ["Q8", "Q9"]) // Q7 is outside the view
+        #expect(!chips.contains { $0.id == "Q7" })
+        #expect(chips.last?.id == "Q1997") // ties by ID: Q1998 and Q1999 are left out
+        #expect(HistoricFixture.points(many.shuffled()).chipSites(in: alps).map(\.id) == chips.map(\.id))
+        // Cut short: the best known in the view, too.
+        #expect(HistoricFixture.points([site("Q1", links: 0), site("Q2", links: 5, lon: 20)], truncated: true)
+                    .chipSites(in: alps).map(\.id) == ["Q1"])
+        #expect(HistoricFixture.grid(HistoricFixture.cells).chipSites(in: alps).isEmpty)
     }
 
     @Test func anAnswerForMoreGroupsServesFewerUnlessCutShort() {
@@ -312,11 +348,10 @@ enum HistoricFixture {
 
     /// A zoom-in while the wider view's request is in flight waits for it; when that answer turns
     /// out too dense for chips, the zoomed-in view is asked for at once, not at the next move.
-    @Test func aZoomInWaitingOnATooDenseAnswerIsAskedForWhenItArrives() async {
+    @Test func aZoomInWaitingOnACutShortAnswerIsAskedForWhenItArrives() async {
         let p = ScriptedProvider()
         p.historicDelay = .milliseconds(80)
-        p.historicAnswer = HistoricFixture.points(Array(repeating: HistoricFixture.fortress,
-                                                        count: HistoricLayer.chipLimit + 1))
+        p.historicAnswer = HistoricFixture.points([HistoricFixture.fortress], truncated: true)
         let m = model(p)
         m.showsHistoric = true
         m.viewportDidChange(alps)
@@ -399,6 +434,31 @@ enum HistoricFixture {
     private struct SlowDown: UserFacingError {
         var userMessage: String { "Too many requests." }
         var isRateLimit: Bool { true }
+        var retryAfter: TimeInterval? = nil
+    }
+
+    /// A filter change doesn't get past a rate limit, and the server's Retry-After is the wait.
+    @Test func aRateLimitHoldsThroughFilterChangesForTheServersWait() async {
+        let p = ScriptedProvider()
+        let clock = Clock()
+        p.historicFailure = SlowDown(retryAfter: 120)
+        let m = model(p, clock: clock)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        p.historicFailure = nil
+        m.historicKinds = [.castle, .military]
+        m.historicWorldHeritageOnly = true
+        await m.settle()
+        #expect(p.historicRequests.count == 1)
+        clock.now += 90
+        m.reload()
+        await m.settle()
+        #expect(p.historicRequests.count == 1)
+        clock.now += 31
+        m.reload()
+        await m.settle()
+        #expect(p.historicRequests.count == 2)
     }
 
     /// A rate limit is the server asking for quiet: every request waits the minute, not only the
@@ -461,6 +521,140 @@ enum HistoricFixture {
         await m.settle()
         #expect(p.historicRequests.last?.worldHeritage == false)
         #expect(p.historicRequests.count == 3)
+    }
+
+    /// The chips follow the view under one answer: a pan picks the best known in the new view
+    /// without asking.
+    @Test func theChipsFollowTheViewWithoutAsking() async {
+        let p = ScriptedProvider()
+        var far = HistoricFixture.fortress
+        far.id = "Q99"
+        far.coordinate = Coordinate(latitude: 47.5, longitude: 10.95)
+        p.historicAnswer = HistoricFixture.points([HistoricFixture.neuschwanstein, far]
+                                                  + (0..<HistoricLayer.chipLimit).map { i in
+                                                      var s = HistoricFixture.fortress
+                                                      s.id = "Q\(5000 + i)"
+                                                      return s
+                                                  })
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        #expect(m.historicChips.count == HistoricLayer.chipLimit)
+        #expect(!m.historicChips.contains { $0.id == "Q99" })
+        let east = MapViewport(box: GeoBox(minLongitude: 10.9, minLatitude: 47.4, maxLongitude: 11, maxLatitude: 47.6), zoom: 12)
+        m.viewportDidChange(east)
+        await m.settle()
+        #expect(m.historicChips.map(\.id) == ["Q99"])
+        #expect(p.historicRequests.count == 1)
+    }
+
+    /// An answer that can't show the new filters leaves the screen at once (the legend says
+    /// loading), instead of showing the old sites under the new title.
+    @Test func filtersTheAnswerCantShowClearTheLayerUntilTheirAnswer() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alpsWide)
+        await m.settle()
+        #expect(m.historic != nil)
+        p.historicDelay = .milliseconds(60)
+        m.historicWorldHeritageOnly = true // the grid has no World Heritage counts
+        #expect(m.historic == nil)
+        await m.settle()
+        #expect(m.historic != nil)
+
+        p.historicDelay = nil
+        m.historicKinds = [.castle] // narrower: filtered at once, kept
+        #expect(m.historic != nil)
+        await m.settle()
+        p.historicDelay = .milliseconds(60)
+        m.historicWorldHeritageOnly = false
+        #expect(m.historic == nil)
+        await m.settle()
+    }
+
+    /// The selected site stays selected (and on the map) while new filters it still matches wait
+    /// for their answer.
+    @Test func theSelectedSiteOutlastsTheWaitForNewFilters() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.historicKinds = [.castle]
+        m.viewportDidChange(alps)
+        await m.settle()
+        let site = try! #require(m.historic?.sites.first)
+        m.selectedHistoricID = site.id
+        p.historicDelay = .milliseconds(60)
+        m.historicKinds = Set(HistoricKind.allCases) // more than asked for: waits for the answer
+        #expect(m.historic == nil)
+        #expect(m.selectedHistoricSite?.id == site.id)
+        await m.settle()
+        #expect(m.selectedHistoricID == site.id)
+    }
+
+    /// During a rate limit's hold-back, a view or filters the answer can't show are not asked for,
+    /// and the legend says so (didn't load) instead of "loading" or the old count.
+    @Test func whatAHoldBackLeavesUnaskedIsReportedAsNotLoaded() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.historicKinds = [.castle]
+        m.viewportDidChange(alps)
+        await m.settle()
+        p.historicFailure = SlowDown()
+        m.viewportDidChange(MapViewport(box: GeoBox(minLongitude: 20, minLatitude: 47, maxLongitude: 21, maxLatitude: 48), zoom: 9))
+        await m.settle()
+        m.viewportDidChange(alps)
+        await m.settle()
+        #expect(!m.historicFailed) // back inside the answer
+        m.historicKinds = Set(HistoricKind.allCases) // more than asked for, held back
+        await m.settle()
+        #expect(p.historicRequests.count == 2)
+        #expect(m.historic == nil)
+        #expect(m.historicFailed)
+        m.historicKinds = [.castle] // the answer shows it again
+        await m.settle()
+        #expect(m.historic != nil)
+        #expect(!m.historicFailed)
+        m.viewportDidChange(MapViewport(box: GeoBox(minLongitude: 30, minLatitude: 47, maxLongitude: 31, maxLatitude: 48), zoom: 9))
+        await m.settle()
+        #expect(p.historicRequests.count == 2)
+        #expect(m.historicFailed) // a new view, held back
+    }
+
+    @Test func backInsideTheAnswerAfterAFailureClearsTheWarning() async {
+        let p = ScriptedProvider()
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        await m.settle()
+        p.historicFailure = URLError(.badServerResponse)
+        m.viewportDidChange(MapViewport(box: GeoBox(minLongitude: 20, minLatitude: 47, maxLongitude: 21, maxLatitude: 48), zoom: 9))
+        await m.settle()
+        #expect(m.historicFailed)
+        m.viewportDidChange(alps)
+        await m.settle()
+        #expect(!m.historicFailed)
+    }
+
+    /// A view that waited on a request in flight is asked for when that request fails.
+    @Test func aViewWaitingOnAFailedRequestIsAskedForAtOnce() async {
+        let p = ScriptedProvider()
+        p.historicDelay = .milliseconds(60)
+        p.historicFailure = URLError(.badServerResponse)
+        let m = model(p)
+        m.showsHistoric = true
+        m.viewportDidChange(alps)
+        for _ in 0..<200 where p.historicRequests.isEmpty { try? await Task.sleep(for: .milliseconds(2)) }
+        let inside = MapViewport(box: GeoBox(minLongitude: 10.2, minLatitude: 47.2, maxLongitude: 10.6, maxLatitude: 47.6), zoom: 11)
+        m.viewportDidChange(inside)
+        await m.settleMap()
+        #expect(p.historicRequests.count == 1)
+        for _ in 0..<200 where p.historicRequests.count < 2 { try? await Task.sleep(for: .milliseconds(5)) }
+        #expect(p.historicRequests.map(\.box) == [alps.box, inside.box])
+        try? await Task.sleep(for: .milliseconds(150)) // and the second failure asks nothing more
+        #expect(p.historicRequests.count == 2)
     }
 
     @Test func moreKindsThanTheAnswerHeldAreAskedFor() async {
@@ -667,7 +861,7 @@ enum HistoricFixture {
 
         let dense = HistoricFixture.points(Array(repeating: HistoricFixture.fortress, count: 1_200))
         #expect(dense.headline(in: belgium, kinds: all) == "Historic sites · 1,200 in this view")
-        #expect(dense.hint == "Zoom in to pick a site.")
+        #expect(dense.hint == "The best-known sites have symbols. Zoom in for the rest.")
 
         let cut = HistoricFixture.points([HistoricFixture.fortress], truncated: true)
         #expect(cut.headline(in: belgium, kinds: all) == "Historic sites · over 1 in this view")

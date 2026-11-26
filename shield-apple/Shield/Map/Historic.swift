@@ -26,7 +26,7 @@ final class HistoricAnnotation: NSObject, MKAnnotation {
 /// A site's chip. Up to `HistoricLayer.chipLimit` are drawn (beyond it, dots), so each draws one
 /// image rendered once per kind. Context: under bases and every event, and
 /// hidden by MapKit where they crowd each other.
-final class HistoricMarkerView: MKAnnotationView {
+final class HistoricMarkerView: MarkerView {
     static let reuseID = "historic"
     static let width: CGFloat = 28
     static let height: CGFloat = 22
@@ -39,26 +39,23 @@ final class HistoricMarkerView: MKAnnotationView {
         collisionMode = .circle
         // Never clustered, and never changed while on the map (see `AnnotationSet.renewEvents`).
         clusteringIdentifier = nil
-        image = HistoricGlyphs.image(site.kind, isSelected: isSelected)
-        let label = Self.spoken(site)
-        #if os(iOS)
-        isAccessibilityElement = true
-        accessibilityLabel = label
-        #else
-        setAccessibilityElement(true)
-        setAccessibilityLabel(label)
-        #endif
+        image = HistoricGlyphs.image(site.kind, worldHeritage: site.worldHeritage, isSelected: isSelected)
+        speak(Self.spoken(site), isSelected: isSelected)
     }
 
-    /// "Historic site, Neuschwanstein Castle, castle".
+    /// "Historic site, Neuschwanstein Castle, castle"; "…, World Heritage Site" when it is one.
     static func spoken(_ s: HistoricSite) -> String {
         var parts = ["Historic site", s.name]
         if !s.className.isEmpty { parts.append(s.className) }
+        if s.worldHeritage, !s.className.localizedCaseInsensitiveContains("world heritage") {
+            parts.append("World Heritage Site")
+        }
         return parts.joined(separator: ", ")
     }
 }
 
-/// The chips as images, rendered on first use and kept: four looks, selected or not.
+/// The chips as images, rendered on first use and kept: a look per group, with or without the
+/// World Heritage seal, selected or not.
 @MainActor
 enum HistoricGlyphs {
     #if os(iOS)
@@ -67,13 +64,14 @@ enum HistoricGlyphs {
     typealias PlatformImage = NSImage
     #endif
 
-    private struct Key: Hashable { let kind: HistoricKind?; let isSelected: Bool }
+    private struct Key: Hashable { let kind: HistoricKind?; let worldHeritage: Bool; let isSelected: Bool }
     private static var cache: [Key: PlatformImage] = [:]
 
-    static func image(_ kind: HistoricKind?, isSelected: Bool) -> PlatformImage? {
-        let key = Key(kind: kind, isSelected: isSelected)
+    static func image(_ kind: HistoricKind?, worldHeritage: Bool, isSelected: Bool) -> PlatformImage? {
+        let key = Key(kind: kind, worldHeritage: worldHeritage, isSelected: isSelected)
         if let image = cache[key] { return image }
-        let renderer = ImageRenderer(content: HistoricMarker(kind: kind, isSelected: isSelected)
+        let renderer = ImageRenderer(content: HistoricMarker(kind: kind, worldHeritage: worldHeritage,
+                                                             isSelected: isSelected)
             .environment(\.colorScheme, .dark)) // the map is always dark
         #if os(iOS)
         renderer.scale = 3
@@ -107,6 +105,7 @@ private let unknownKindSymbol = "mappin"
 /// triangle, octagon, DESIGN.md §4) nor a base's square.
 struct HistoricMarker: View {
     let kind: HistoricKind?
+    var worldHeritage = false
     var isSelected = false
 
     var body: some View {
@@ -128,6 +127,15 @@ struct HistoricMarker: View {
             Image(systemName: kind?.sfSymbol ?? unknownKindSymbol)
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(Color.ink.opacity(0.85))
+            if worldHeritage {
+                // UNESCO World Heritage: the filter's seal on the chip's shoulder, in ink on the
+                // canvas (never the accent, which is the selection).
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(Color.ink)
+                    .background(Circle().fill(Color.canvas).frame(width: 9, height: 9))
+                    .offset(x: 9, y: -6) // the 9 pt backing stays inside the 28 pt image
+            }
         }
         .frame(width: HistoricMarkerView.width, height: HistoricMarkerView.height)
     }
