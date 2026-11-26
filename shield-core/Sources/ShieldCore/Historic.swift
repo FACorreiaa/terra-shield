@@ -290,8 +290,9 @@ public struct HistoricRequest: Sendable, Hashable {
         return box?.contains(viewport.box) ?? true
     }
 
-    /// The most a points request may span (the server answers 400 beyond).
-    public static let maxPointsSpan = (longitude: 30.0, latitude: 20.0)
+    /// The most a points request spans: the server's cap (30° by 20°, a 400 beyond) less a hair,
+    /// so the `bbox` rounded to 4 decimals never passes it.
+    public static let maxPointsSpan = (longitude: 29.99, latitude: 19.99)
 
     /// The view, or for one wider than the server takes (a big display, a pitched camera) as much
     /// as it takes around the view's centre.

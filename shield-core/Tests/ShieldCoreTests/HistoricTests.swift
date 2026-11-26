@@ -50,15 +50,24 @@ enum HistoricFixture {
     @Test func aPointsViewWiderThanTheServerTakesIsClampedAroundItsCentre() {
         let wide = GeoBox(minLongitude: -10, minLatitude: 30, maxLongitude: 40, maxLatitude: 60)
         let r = HistoricRequest(MapViewport(box: wide, zoom: 8), kinds: all)
-        #expect(r.box == GeoBox(minLongitude: 0, minLatitude: 35, maxLongitude: 30, maxLatitude: 55))
+        // A hair inside the cap, so the 4-decimal `bbox` can't round past it.
+        #expect(r.box.map(close(to: GeoBox(minLongitude: 0.005, minLatitude: 35.005, maxLongitude: 29.995, maxLatitude: 54.995))) == true)
+        #expect((r.box?.longitudeSpan ?? 99) < 30 && (r.box.map { $0.maxLatitude - $0.minLatitude } ?? 99) < 20)
         // The same view is served by its own answer: asking again would bring the same.
         #expect(r.serves(MapViewport(box: wide, zoom: 8), kinds: all, truncated: false, sites: 5_000))
         // Across the antimeridian.
         let pacific = GeoBox(minLongitude: 160, minLatitude: -10, maxLongitude: -150, maxLatitude: 5)
         let p = HistoricRequest(MapViewport(box: pacific, zoom: 9), kinds: all)
-        #expect(p.box == GeoBox(minLongitude: 170, minLatitude: -10, maxLongitude: -160, maxLatitude: 5))
+        #expect(p.box.map(close(to: GeoBox(minLongitude: 170.005, minLatitude: -10, maxLongitude: -160.005, maxLatitude: 5))) == true)
         // The grid is not capped.
         #expect(HistoricRequest(MapViewport(box: wide, zoom: 7), kinds: all).box?.longitudeSpan ?? 0 > 30)
+    }
+
+    private func close(to want: GeoBox) -> (GeoBox) -> Bool {
+        { got in
+            [got.minLongitude - want.minLongitude, got.maxLongitude - want.maxLongitude,
+             got.minLatitude - want.minLatitude, got.maxLatitude - want.maxLatitude].allSatisfy { abs($0) < 1e-9 }
+        }
     }
 
     @Test func landmarksAreAKindOfTheirOwn() {
