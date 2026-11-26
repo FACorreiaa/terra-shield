@@ -38,3 +38,55 @@ export const kindTokens = {
   forecast: { label: "Forecast" },
   detection: { label: "Satellite heat detection" },
 } as const;
+
+/** Colours for canvas-drawn surfaces (MapLibre style, marker images) that cannot read CSS. */
+export const colorTokens = {
+  "canvas": "#080E1A",
+  "panel": "#111C2D",
+  "raised": "#203550",
+  "ink": "#E8EEF6",
+  "muted": "#9AABC2",
+  "faint": "#6F819A",
+  "hairline": "#24324A",
+  "accent": "#52B6FF",
+  "on-accent": "#080E1A",
+  "warning": "#FFB54A",
+  "danger": "#F35D62",
+  "ok": "#4FD1A1",
+} as const;
+export const severityColors = {
+  minor: "#8DA2BE",
+  moderate: "#FFB54A",
+  severe: "#FF8540",
+  extreme: "#F35D62",
+} as const satisfies Record<SeverityKey, string>;
+export const kindColors = {
+  detection: "#F7D774",
+} as const;
+
+/** Opacities (DESIGN.md §5, §8). */
+export const alphaTokens = {
+  hairline: 0.08,
+  hairlineStrong: 0.14,
+  areaFillObserved: 0.18,
+  areaFillWarning: 0.1,
+  stale: 0.45,
+  scrim: 0.6,
+  pressed: 0.85,
+  matrixTint: 0.25,
+} as const;
+
+/** Shadows: offset y, blur radius, colour and opacity (DESIGN.md §8). */
+export const elevationTokens = {
+  floating: { y: 8, blur: 24, color: "#000000", opacity: 0.35 },
+  marker: { y: 1, blur: 3, color: "#000000", opacity: 0.5 },
+} as const;
+
+/** Durations in ms; the spring is response seconds and damping fraction (DESIGN.md §13). */
+export const motionTokens = {
+  fast: 150,
+  standard: 240,
+  arrive: 400,
+  extremePulse: 1800,
+  spring: { response: 0.35, dampingFraction: 0.86 },
+} as const;

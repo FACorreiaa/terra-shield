@@ -4,6 +4,9 @@ import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
 import countries110m from "world-atlas/countries-110m.json" with { type: "json" };
 
+import { palette } from "./basemapPalette.ts";
+import type { Projection } from "./basemapStyle.ts";
+
 function isTopology(value: unknown): value is Topology {
   return typeof value === "object" && value !== null && "type" in value && value.type === "Topology";
 }
@@ -46,9 +49,8 @@ function unwrapGeometry(geometry: Geometry): Geometry {
 }
 
 /**
- * Near-black navy basemap from Natural Earth (public domain) via world-atlas, bundled, so no
- * third-party tiles or licence are involved. A detailed tile basemap is an open owner verdict
- * (DESIGN.md §9: Protomaps / OpenFreeMap after a licence check).
+ * The fallback basemap: Natural Earth 1:110m (public domain) via world-atlas, bundled, used when
+ * OpenFreeMap's tiles cannot load (offline, blocked, down). Coarse, but the hazards stay readable.
  */
 function countriesGeoJSON(): FeatureCollection {
   const topology: unknown = countries110m;
@@ -69,31 +71,26 @@ function countriesGeoJSON(): FeatureCollection {
   return collection;
 }
 
-interface BasemapColors {
-  canvas: string;
-  panel: string;
-  hairline: string;
-}
-
 const BORDER_WIDTH = 0.6;
 
-function basemapStyle(colors: BasemapColors): StyleSpecification {
+/** Same palette as the tile basemap, so a fallback swap does not change the look. */
+function fallbackStyle(projection: Projection): StyleSpecification {
+  const colors = palette();
   return {
     version: 8,
-    sources: {
-      countries: { type: "geojson", data: countriesGeoJSON() },
-    },
+    projection: { type: projection },
+    sources: { countries: { type: "geojson", data: countriesGeoJSON() } },
     layers: [
-      { id: "background", type: "background", paint: { "background-color": colors.canvas } },
-      { id: "countries-fill", type: "fill", source: "countries", paint: { "fill-color": colors.panel } },
+      { id: "ocean", type: "background", paint: { "background-color": colors.ocean } },
+      { id: "countries-fill", type: "fill", source: "countries", paint: { "fill-color": colors.land } },
       {
         id: "countries-line",
         type: "line",
         source: "countries",
-        paint: { "line-color": colors.hairline, "line-width": BORDER_WIDTH },
+        paint: { "line-color": colors.admin0, "line-width": BORDER_WIDTH },
       },
     ],
   };
 }
 
-export { basemapStyle };
+export { fallbackStyle };

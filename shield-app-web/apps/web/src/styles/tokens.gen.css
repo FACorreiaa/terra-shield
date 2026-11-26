@@ -18,12 +18,16 @@
   --color-severity-severe: #FF8540;
   --color-severity-extreme: #F35D62;
   --color-kind-detection: #F7D774;
+  --color-hairline-strong: color-mix(in srgb, #E8EEF6 14%, transparent);
 
   --radius-xs: 0.25rem;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1.125rem;
   --radius-pill: 9999px;
+
+  --shadow-floating: 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-marker: 0 1px 3px rgb(0 0 0 / 0.5);
 
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
@@ -52,4 +56,25 @@
     0% { transform: scale(1); opacity: 0.45; }
     100% { transform: scale(1.9); opacity: 0; }
   }
+}
+
+:root {
+  --alpha-hairline: 0.08;
+  --alpha-hairline-strong: 0.14;
+  --alpha-area-fill-observed: 0.18;
+  --alpha-area-fill-warning: 0.1;
+  --alpha-stale: 0.45;
+  --alpha-scrim: 0.6;
+  --alpha-pressed: 0.85;
+  --alpha-matrix-tint: 0.25;
+  --motion-fast: 150ms;
+  --motion-standard: 240ms;
+  --motion-arrive: 400ms;
+  --motion-extreme-pulse: 1800ms;
+  --motion-spring: 350ms;
+}
+
+@utility material-floating {
+  background: rgb(17 28 45 / 0.72);
+  backdrop-filter: blur(20px) saturate(140%);
 }
