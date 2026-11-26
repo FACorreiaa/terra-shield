@@ -180,6 +180,32 @@ func upsertOne(ctx context.Context, q *eventsdb.Queries, sourceID string, e *dom
 	return true, nil
 }
 
+// KnownQuakes reports, for each quake, whether sourceID already stores
+// the same earthquake (active or ended) within m. Two networks report one
+// earthquake a few seconds, kilometers and tenths of magnitude apart.
+func (r *EventRepository) KnownQuakes(ctx context.Context, sourceID string, quakes []domain.QuakeOrigin, m domain.QuakeMatch) ([]bool, error) {
+	out := make([]bool, len(quakes))
+	if len(quakes) == 0 {
+		return out, nil
+	}
+	p := eventsdb.KnownQuakesParams{
+		SourceID: sourceID, Seconds: m.Within.Seconds(), Meters: m.Meters, MagDelta: m.MagDelta,
+		Times: make([]time.Time, len(quakes)), Lons: make([]float64, len(quakes)),
+		Lats: make([]float64, len(quakes)), Mags: make([]float64, len(quakes)),
+	}
+	for i, q := range quakes {
+		p.Times[i], p.Lons[i], p.Lats[i], p.Mags[i] = q.At, q.Lon, q.Lat, q.Mag
+	}
+	idx, err := eventsdb.New(r.pool).KnownQuakes(ctx, p)
+	if err != nil {
+		return nil, fmt.Errorf("known quakes: %w", err)
+	}
+	for _, i := range idx {
+		out[i-1] = true
+	}
+	return out, nil
+}
+
 // ActiveIDs lists the source event ids of a source's active events.
 func (r *EventRepository) ActiveIDs(ctx context.Context, sourceID string) ([]string, error) {
 	return eventsdb.New(r.pool).ActiveEventIDs(ctx, sourceID)

@@ -398,6 +398,70 @@ func (q *Queries) InsertEventTombstones(ctx context.Context, eventIds []uuid.UUI
 	return err
 }
 
+const knownQuakes = `-- name: KnownQuakes :many
+SELECT q.idx::int AS idx
+FROM unnest($1::timestamptz[]) WITH ORDINALITY AS q(t, idx)
+WHERE EXISTS (
+    SELECT 1 FROM events e
+    WHERE e.source_id = $2 AND e.type = 'earthquake'
+      AND e.observed_at BETWEEN q.t - make_interval(secs => $3::float8)
+                            AND q.t + make_interval(secs => $3::float8)
+      AND ST_DWithin(e.centroid,
+                     ST_SetSRID(ST_MakePoint(($4::float8[])[q.idx], ($5::float8[])[q.idx]), 4326)::geography,
+                     $6::float8)
+      -- A row whose mag is not a number matches nothing, rather than
+      -- failing the cast and the poll.
+      AND CASE WHEN jsonb_typeof(e.attrs -> 'mag') = 'number'
+               THEN abs((e.attrs ->> 'mag')::float8 - ($7::float8[])[q.idx]) <= $8::float8
+               ELSE false END
+)
+ORDER BY q.idx
+`
+
+type KnownQuakesParams struct {
+	Times    []time.Time
+	SourceID string
+	Seconds  float64
+	Lons     []float64
+	Lats     []float64
+	Meters   float64
+	Mags     []float64
+	MagDelta float64
+}
+
+// Of the given quakes (parallel arrays), the 1-based positions of those
+// another source already stores, active or ended, within @seconds of the
+// origin time, @meters of the epicenter and @mag_delta of the magnitude:
+// the same earthquake reported by two networks (ADR 34).
+func (q *Queries) KnownQuakes(ctx context.Context, arg KnownQuakesParams) ([]int32, error) {
+	rows, err := q.db.Query(ctx, knownQuakes,
+		arg.Times,
+		arg.SourceID,
+		arg.Seconds,
+		arg.Lons,
+		arg.Lats,
+		arg.Meters,
+		arg.Mags,
+		arg.MagDelta,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var idx int32
+		if err := rows.Scan(&idx); err != nil {
+			return nil, err
+		}
+		items = append(items, idx)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const latestEventChange = `-- name: LatestEventChange :one
 SELECT GREATEST(
     COALESCE((SELECT max(change_seq) FROM events), 0),

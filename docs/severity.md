@@ -23,6 +23,7 @@ The highest of three signals wins.
 - **Tsunami flag** (`tsunami=1`) means tsunami information may exist for a large oceanic event, not that a
   tsunami happened. It floors the level at moderate. Official tsunami warnings come from their own sources.
 - Events without a magnitude are skipped until USGS assigns one.
+- EMSC earthquakes (Europe and the Mediterranean, ADR 34) use the same magnitude table with no PAGER alert or tsunami flag, so every one below M5 is minor; a quake USGS also lists is stored only as USGS's.
 
 ## GDACS (cyclones, floods, droughts, wildfires, volcanoes)
 
