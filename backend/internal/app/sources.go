@@ -42,7 +42,7 @@ func (c *container) sources() []ingest.Source {
 		usgs.New(feeds, c.repos.Events),
 		emsc.New(feeds, c.repos.Events, c.logger),
 		gdacs.New(feeds, c.repos.Events, c.logger),
-		eonet.New(feeds, c.repos.Events),
+		eonet.New(feeds, c.repos.Events, c.logger),
 		firms.New(bulk, c.repos.Fires),
 		meteoalarm.New(feeds, c.repos.Events, meteoalarm.NewResolver(c.repos.WarningAreas), c.logger),
 		tsunami.New(feeds, c.repos.Events, c.repos.NWSZones, c.logger),

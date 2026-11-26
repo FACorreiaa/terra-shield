@@ -69,6 +69,9 @@
   2. [x] **"What changed in 24h"** (ADR 33, `GET /v1/changes`; clients still to show it): one endpoint over `event_revisions` (new, escalated, ended, by country and type). Part of Phase 3, but needs no sign-in.
   3. [x] **EMSC earthquakes** for Europe and the Mediterranean (ADR 34): M2+, where USGS lists only from about M4; USGS keeps the quakes it lists.
   4. [ ] **Volcano advisories:** Smithsonian GVP weekly reports and the aviation ash centres (VAACs). Licence check first.
+     - [x] Open eruptions on the map (2026-11-26): EONET's 30-day window had dropped every continuing eruption (all 32 open, Fuego's since 2002); they now come from EONET's open list and resolve when they leave it. GVP read directly is not used: its terms forbid commercial use without permission (owner's to request; `sources-licensing.md`).
+     - [ ] USGS volcano alert levels (HANS): US volcanoes, ground alert level and aviation colour code. Licence and coordinates to check.
+     - [ ] Volcanic ash: VAAC advisories, or the ash SIGMETs aviationweather.gov relays (issued by national offices worldwide). Licence, identity across reissues, and whether an aviation layer is opt-in like conflicts (owner).
   5. [ ] **Phase 5 extras:** timeline replay over revisions; cross-source merging (one hazard, several sources, ADR 5); vector tiles only if a measured payload needs them.
   6. [ ] **Small items:** clip GeoJSON shapes to the view at zoom 10+ (dense coast is 337–378 KB); NWS known limits (latest segment per zone decides; a shrink guard), if seen live (ADR 31).
   7. [ ] **AI agent with first-party integration in every app** (ADR 23; owner, 2026-11-26: "Anthropic SDK or any cheaper Chinese model"). Built after items 1–6, with no key until the owner says.
