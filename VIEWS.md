@@ -15,7 +15,7 @@ routes are those in `docs/ARCHITECTURE.md` §4. If a route changes there, update
 |---|---|---|---|---|---|
 | Monitor (live map) | Root: full-screen map + sheet | Sidebar "Monitor" → map canvas | `/map` | `GET /v1/events`, `GET /v1/stream`, `GET /v1/fires` | MVP |
 | Event detail | Sheet (large detent) | Inspector | Right panel / sheet; deep link `/e/{id}` | `GET /v1/events/{id}` | MVP |
-| Country overview | Sheet (large) | Sidebar "Countries" list → content + inspector | `/c/{iso2}` | `GET /v1/countries`, `GET /v1/countries/{iso2}/summary` | MVP |
+| Country overview | Sheet (large) | Sidebar "Countries" list → content + inspector | `/countries`, `/countries/{iso2}` (`/c/{iso2}` redirects) | `GET /v1/countries`, `GET /v1/countries/{iso2}/summary` | MVP |
 | Filters | Sheet over sheet | Toolbar popover | Popover / sheet | (local state) | MVP |
 | Sources & attribution | From capsule menu | Sidebar "Sources" | `/sources` | `GET /v1/sources` | MVP |
 | Onboarding | First run, 3 cards | First run window | Landing hero at `/` (owner, 2026-11-19), replaces the cards | none | MVP |
@@ -335,9 +335,6 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      - **No places.** The apps search places with MapKit's completer. The web has no geocoder, so it
        searches countries and events only, and the placeholder reads "Search countries or events".
        A geocoder (Photon, or a paid one) is an open item in the web plan.
-     - **Countries only move the map** until W5's country overview takes them. A country across
-       ±180° (United States, Russia, Fiji) is framed by its events in view, so with none in view the
-       map shows the whole band of the world; W5's overview brings the country's own events.
      - **Phone peek.** The field takes the place of the visible "Live events" title, which stays as
        a heading for screen readers. Peek is the field over the compact strip.
      - **A failed country list** shows no countries and no error; events stay searchable.
@@ -358,8 +355,6 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
      history. A stale source (from `/v1/sources`, every 60 s) adds the stale banner and fades the
      marker; a resolved event shows its resolution in `ok` and a muted header.
    - **Deviations for the owner:**
-     - **Countries are plain text** in the header until part 2's country overview (`/c/<iso2>`)
-       gives them somewhere to go.
      - **A link to an event never seen here** that answers 404 shows only "This event is no longer
        published by its source" and Close. The apps drop such a selection; on the web links are how
        people arrive, so it says why the page is empty.
@@ -372,6 +367,37 @@ Client work follows the API: endpoint, then DTO in `shield-api`, then view. This
        user came from on a shared link. Owner call.
      - **Header art** is drawn at 30% and fades out radially; over the dark panel the Wildfire art
        reads as a soft red glow behind the title. Owner verdict wanted.
+   - **W5, part 2: country overview and Countries.** After `CountryView.swift` and the Mac's
+     Countries sidebar. `/countries` (key 2) lists every country with a boundary, those with active
+     events first (highest severity, then most events, then name) with the severity shape and the
+     count, the rest under "No active events", with its own filter field; the map's search field
+     steps aside there. `/countries/<iso2>` (`/c/<iso2>` redirects) shows the overview from
+     `/v1/countries/{iso2}/summary`, refreshed every 60 s: name with the ISO code, "Updated …",
+     Active · Severe+ · Official warnings ("100+" when capped), the type × severity matrix (a cell
+     filters the events below, with a chip to remove it), the coverage notice with "Absence of data
+     is not safety." once, changes in the last 24 h (four, then "Show all N"), and the events, each
+     "Near Chile, 38 km offshore" where it is offshore. A capped list says how many it shows. A quiet
+     country shows the mascot and "No active events in Portugal from covered sources." over its
+     coverage. A code with no boundary says "We have no boundary for this place."; a failed load
+     offers Retry, and a failed refresh keeps the summary with a warning. Opening a country frames
+     its box once (unless the address also opens an event; a country across ±180°, such as Fiji, by
+     its events, the short way round, as in the apps), focuses its name, and on a phone opens
+     the sheet at half height, as in `MapScreen.swift`; the map's own strip steps aside there.
+     Choosing a country in search, or a country's name in an event's header, opens its overview and
+     closes the event. An event chosen from a country opens beside it and is drawn on the map even
+     when the map's list doesn't hold it; the country keeps its filter and camera underneath, and
+     a search carried into the Countries list ends there. Escape ends the search, then clears the
+     event, then closes the country, with keyboard focus back on its row.
+   - **Deviations for the owner:**
+     - **Close goes up to Countries**, not back: on a shared link there may be nothing to go back
+       to. Same reasoning as the event's Close.
+     - **No 60% scrim** behind the phone overview: the sheet already separates it from the map.
+     - **↑/↓ step the Monitor list only.** On Countries they would select from a list that isn't
+       on screen.
+     - **Half height on a phone**, where DESIGN §10.2 says large, so the framed country stays in view
+       above its overview. The iPhone app does the same and flags it for the owner too.
+     - **Choosing the open country again** (from search) frames it again and closes the event, as in
+       `MapScreen.swift`; the address doesn't change, so Back doesn't see it.
 10. **Phase 3 (gate: 10 strangers).** `SavedRegionCard`, `RegionEditor`, `AlertRow`,
     `AlertPreferences`, after the accounts + push API exist.
 

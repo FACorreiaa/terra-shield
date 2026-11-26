@@ -19,12 +19,13 @@ async function request(signal: AbortSignal): Promise<Country[]> {
  * `GET /v1/countries`: every country with a boundary, its active count and worst severity. Loaded
  * on first use (`enabled`), as the apps do when search opens; search works without it.
  */
-function useCountries(enabled: boolean): UseQueryResult<Country[]> {
+function useCountries(enabled: boolean, { fresh = false }: { fresh?: boolean } = {}): UseQueryResult<Country[]> {
   return useQuery({
     queryKey: ["countries"],
     queryFn: ({ signal }) => request(signal),
     enabled,
-    staleTime: COUNTRIES_FRESH_MS,
+    // The Countries section asks again on each visit: its counts should be current (MapScreen.swift).
+    staleTime: fresh ? 0 : COUNTRIES_FRESH_MS,
   });
 }
 

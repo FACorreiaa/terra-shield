@@ -27,6 +27,9 @@ const test = base.extend<{ stubTiles: undefined; stubApi: undefined }>({
     async ({ page }, use) => {
       await page.route("**/v1/sources", (route) => route.fulfill({ json: { sources: [] } }));
       await page.route("**/v1/events/*", (route) => route.fulfill({ status: 503, json: { error: "unavailable" } }));
+      await page.route("**/v1/countries/*/summary", (route) =>
+        route.fulfill({ status: 503, json: { error: "unavailable" } }),
+      );
       await use(undefined);
     },
     { auto: true },

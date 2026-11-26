@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { DisclaimerBanner } from "@/components/DisclaimerBanner.tsx";
 import { LiveMap } from "@/features/map/LiveMap.tsx";
@@ -18,7 +18,16 @@ import { useSelectionUpkeep } from "./useDetailFocus.ts";
  */
 function AppFrame({ children }: { children: ReactNode }): ReactElement {
   const wide = useIsWide();
-  const { list, clusters, selectedId, selectedShape, staleSources, setView, select, setMap } = useLiveMap();
+  const { list, clusters, selected, detail, selectedId, selectedShape, staleSources, setView, select, setMap } =
+    useLiveMap();
+  // The selection draws even when the map's list lacks it (a shared link, a country's event), but
+  // not once its source has dropped it.
+  const gone = detail?.kind === "gone";
+  const events = useMemo(
+    () =>
+      selected === undefined || gone || list.some((event) => event.id === selected.id) ? list : [...list, selected],
+    [list, selected, gone],
+  );
   const frame = useRef<HTMLDivElement>(null);
   const applyInsets = useInsets(frame);
   useSelectionUpkeep(selectedId);
@@ -34,7 +43,7 @@ function AppFrame({ children }: { children: ReactNode }): ReactElement {
       <div ref={frame} className="relative min-h-0 flex-1 overflow-hidden">
         <div className={wide ? `absolute inset-y-0 right-0 ${MAP_LEFT_CLASS}` : "absolute inset-0"}>
           <LiveMap
-            events={list}
+            events={events}
             clusters={clusters}
             staleSources={staleSources}
             selectedId={selectedId}

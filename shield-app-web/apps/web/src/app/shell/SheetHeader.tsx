@@ -7,6 +7,7 @@ import { MapSearchBox } from "./MapSearchBox.tsx";
 import { useMapSearch } from "./mapSearchContext.ts";
 import { RestingDetent } from "./sheetDetents.ts";
 import { useCells } from "./useCells.ts";
+import { usePage } from "./usePage.ts";
 
 /**
  * Always in view, even at peek (DESIGN.md §10 shells): the search field over the compact strip.
@@ -18,10 +19,12 @@ function SheetHeader(): ReactElement {
   const detent = use(RestingDetent);
   const { active } = useMapSearch();
   const cells = useCells();
+  const { onMap, listing } = usePage();
   return (
     <div className="flex flex-col gap-2 px-4 pb-3">
-      <h1 className="sr-only">Live events</h1>
-      <MapSearchBox cancel />
+      <h1 className="sr-only">{onMap ? "Live events" : "Countries"}</h1>
+      {/* The Countries list has its own filter. */}
+      {listing ? undefined : <MapSearchBox cancel />}
       <div className={detent === "peek" && !active ? undefined : "invisible"} data-testid="sheet-strip-line">
         <CompactStatStrip cells={cells} />
       </div>

@@ -108,7 +108,7 @@ test.describe("search on a wide screen", () => {
     await expect(page.getByRole("status").filter({ hasText: /results?$/u })).toHaveText("No results");
   });
 
-  test("choosing a country ends the search, drops the selection and frames the country", async ({ page }) => {
+  test("choosing a country ends the search, closes the event and opens the country, framed", async ({ page }) => {
     const queries = await serve(page);
     await page.goto("/map");
     await page.getByRole("button", { name: new RegExp(STORM, "u") }).click();
@@ -118,7 +118,9 @@ test.describe("search on a wide screen", () => {
     await field.fill("chile");
     await page.getByRole("region", { name: "Countries" }).getByRole("button", { name: /Chile/u }).click();
     await expect(field).toHaveValue("");
-    await expect(field).toBeFocused();
+    await expect(page).toHaveURL(/\/countries\/CL$/u);
+    // Keyboard focus moves to the country's name, where its overview starts.
+    await expect(page.getByRole("heading", { name: /^Chile/u })).toBeFocused();
     await expect(inspector).toBeHidden();
     // The next view zooms in and holds Chile. A 1280 px globe at zoom 3 still spans ~175°, so the
     // box's width says little; the zoom says the map moved in.
@@ -244,7 +246,7 @@ test.describe("search on a phone", () => {
     await expect(handle).toHaveAccessibleName("Resize sheet, now half height");
   });
 
-  test("choosing a country collapses the sheet, then frames the country", async ({ page }) => {
+  test("choosing a country opens it at half height, then frames it", async ({ page }) => {
     const queries = await serve(page);
     await page.goto("/map");
     await expect.poll(() => queries.length).toBeGreaterThan(0);
@@ -252,14 +254,19 @@ test.describe("search on a phone", () => {
     const handle = page.getByRole("button", { name: /^Resize sheet/u });
     const field = page.getByRole("searchbox", { name: "Search countries or events" });
     await field.tap();
-    await field.fill("chile");
-    await page.getByRole("region", { name: "Countries" }).getByRole("button", { name: /Chile/u }).tap();
-    await expect(handle).toHaveAccessibleName("Resize sheet, now collapsed");
+    // Portugal: small enough to frame above a half-height sheet without the globe's whole-world view.
+    await field.fill("portugal");
+    await page
+      .getByRole("region", { name: "Countries" })
+      .getByRole("button", { name: /Portugal/u })
+      .tap();
+    await expect(handle).toHaveAccessibleName("Resize sheet, now half height");
+    await expect(page.getByRole("heading", { name: /^Portugal/u })).toBeInViewport();
     await expect
       .poll(() => {
         const last = queries.at(-1);
         const [west = 0, south = 0, east = 0, north = 0] = boxOf(last);
-        return Number(last?.get("zoom")) > startZoom && west < -71 && east > -71 && south < -30 && north > -30;
+        return Number(last?.get("zoom")) > startZoom && west < -8 && east > -8 && south < 39.5 && north > 39.5;
       })
       .toBe(true);
   });

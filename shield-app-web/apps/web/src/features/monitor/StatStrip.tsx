@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils.ts";
 
 interface StatStripProps {
   cells: readonly StatCell[];
-  /** The current filters, to show which cell's filter is on. */
-  query: EventQuery;
+  /** The current filters, to show which cell's filter is on; absent where cells filter nothing (a country). */
+  query?: EventQuery;
   /** Tapping a cell with a filter toggles it (DESIGN.md §10.1). */
-  onToggle: (filter: StatFilter) => void;
+  onToggle?: (filter: StatFilter) => void;
 }
 
 function Number({ cell }: { cell: StatCell }): ReactElement {
@@ -66,7 +66,7 @@ function StatStrip({ cells, query, onToggle }: StatStripProps): ReactElement {
   return (
     <div className="grid grid-cols-3 gap-3">
       {cells.map((cell) =>
-        cell.filter === undefined ? (
+        cell.filter === undefined || query === undefined || onToggle === undefined ? (
           <p key={cell.label} className="flex flex-col items-start pb-1.5">
             <Number cell={cell} />
             <Words cell={cell} />

@@ -10,9 +10,11 @@ import type { LiveMap } from "./liveMapContext.ts";
 import { useLiveMap } from "./liveMapContext.ts";
 import type { MapSearch } from "./mapSearchContext.ts";
 import { useMapSearch } from "./mapSearchContext.ts";
+import type { Section } from "./sections.ts";
 import { SECTIONS } from "./sections.ts";
 import type { Shortcut } from "./shortcuts.ts";
 import { neighbour, shortcutFor } from "./shortcuts.ts";
+import { useCloseCountry, usePage } from "./usePage.ts";
 
 interface ShortcutTargets {
   toggleInspector: () => void;
@@ -22,7 +24,11 @@ interface ShortcutTargets {
 interface Context extends ShortcutTargets {
   live: LiveMap;
   search: MapSearch;
-  goTo: (to: "/map") => void;
+  goTo: (to: Section["to"]) => void;
+  /** ↑/↓ walk the map's list only where it shows. */
+  onMap: boolean;
+  /** Closes an open country's overview, up to the Countries list; false with none open. */
+  closeCountry: () => boolean;
 }
 
 /** Each action, run with the app's current state; true when it did something (the key is then consumed). */
@@ -35,9 +41,10 @@ function revealSelected(id: string): void {
   });
 }
 
-function step({ live, search }: Context, direction: 1 | -1): boolean {
-  // While searching, the list under the results is hidden: stepping through it would select blind.
-  if (search.active) {
+function step({ live, search, onMap }: Context, direction: 1 | -1): boolean {
+  // While searching, the list under the results is hidden, and other sections don't show it:
+  // stepping through it would select blind.
+  if (search.active || !onMap) {
     return false;
   }
   const next = neighbour(live.list, live.selectedId, direction);
@@ -59,13 +66,17 @@ const HANDLERS: Readonly<Record<Shortcut["action"], Handler>> = {
   },
   next: (context) => step(context, 1),
   previous: (context) => step(context, -1),
-  clear: ({ live, search }) => {
+  // Search, then the event, then the country (MapScreen.swift).
+  clear: ({ live, search, closeCountry }) => {
     if (search.active) {
       search.end();
       return true;
     }
-    live.select(undefined);
-    return live.selectedId !== undefined;
+    if (live.selectedId !== undefined) {
+      live.select(undefined);
+      return true;
+    }
+    return closeCountry();
   },
   source: ({ live: { selected, sources, detail } }) => {
     const source = selected === undefined ? undefined : sourceOf(selected, sources, detail);
@@ -101,12 +112,21 @@ function useShortcuts(targets: ShortcutTargets): void {
   const live = useLiveMap();
   const search = useMapSearch();
   const navigate = useNavigate();
+  const { onMap, country } = usePage();
+  const close = useCloseCountry();
   const run = useEffectEvent((shortcut: Shortcut): boolean => {
-    const goTo = (to: "/map"): void => {
+    const closeCountry = (): boolean => {
+      if (country === undefined) {
+        return false;
+      }
+      close(country.toUpperCase());
+      return true;
+    };
+    const goTo = (to: Section["to"]): void => {
       // As the sidebar's links: the selected event stays open beside the section.
       void navigate({ to, search: (previous) => ({ event: previous.event }) });
     };
-    return HANDLERS[shortcut.action]({ ...targets, live, search, goTo }, shortcut);
+    return HANDLERS[shortcut.action]({ ...targets, live, search, goTo, onMap, closeCountry }, shortcut);
   });
 
   useEffect(() => {

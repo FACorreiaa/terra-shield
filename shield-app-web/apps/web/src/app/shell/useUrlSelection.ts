@@ -1,9 +1,14 @@
+import type { HazardEvent } from "@shield/api-client";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 interface UrlSelection {
   selectedId: string | undefined;
   select: (id: string | undefined) => void;
+  /** The copy of an event chosen outside the map's list (a country's), while it is selected. */
+  chosen: HazardEvent | undefined;
+  /** Selects an event the map may not show, keeping its copy until the detail loads. */
+  choose: (event: HazardEvent) => void;
 }
 
 /**
@@ -27,7 +32,15 @@ function useUrlSelection(): UrlSelection {
     },
     [selectedId, navigate],
   );
-  return { selectedId, select };
+  const [chosen, setChosen] = useState<HazardEvent>();
+  const choose = useCallback(
+    (event: HazardEvent) => {
+      setChosen(event);
+      select(event.id);
+    },
+    [select],
+  );
+  return { selectedId, select, chosen: chosen?.id === selectedId ? chosen : undefined, choose };
 }
 
 export { useUrlSelection };

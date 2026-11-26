@@ -17,11 +17,12 @@ interface EventRowProps {
   selected: boolean;
   onSelect: (id: string) => void;
   now: Date;
+  /** Where, in words: the event's countries on the map, "Near Chile, 38 km offshore" or nothing in a country. */
+  where: string | undefined;
 }
 
-function EventRow({ event, selected, onSelect, now }: EventRowProps): ReactElement {
+function EventRow({ event, selected, onSelect, now, where }: EventRowProps): ReactElement {
   const typeToken = hazardTypeTokens[hazardType(event.type)];
-  const where = place(event);
   const select = useCallback(() => {
     onSelect(event.id);
   }, [onSelect, event.id]);
@@ -65,7 +66,14 @@ function EventList({ events, selectedId, onSelect, now }: EventListProps): React
   return (
     <ul className="divide-y divide-ink/8">
       {events.map((event) => (
-        <EventRow key={event.id} event={event} selected={selectedId === event.id} onSelect={onSelect} now={now} />
+        <EventRow
+          key={event.id}
+          event={event}
+          selected={selectedId === event.id}
+          onSelect={onSelect}
+          now={now}
+          where={place(event)}
+        />
       ))}
     </ul>
   );

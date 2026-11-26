@@ -19,9 +19,10 @@ interface KeyPress {
 /** Shown in the help sheet, in this order. */
 const SHORTCUT_HELP: readonly { keys: string; does: string }[] = [
   { keys: "1", does: "Monitor" },
+  { keys: "2", does: "Countries" },
   { keys: "/", does: "Search countries and events in view" },
   { keys: "↑ ↓", does: "Previous or next event in the list" },
-  { keys: "Esc", does: "End the search, then clear the selection" },
+  { keys: "Esc", does: "End the search, then clear the selection, then close the country" },
   { keys: "o", does: "Open the selected event's official source" },
   { keys: "i", does: "Show or hide the inspector" },
   { keys: "0", does: "Show the whole world" },

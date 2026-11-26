@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppMapRouteImport } from './routes/_app.map'
+import { Route as CIso2RouteImport } from './routes/c.$iso2'
 import { Route as EIdRouteImport } from './routes/e.$id'
+import { Route as AppCountriesIndexRouteImport } from './routes/_app.countries.index'
+import { Route as AppCountriesIso2RouteImport } from './routes/_app.countries.$iso2'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,40 +31,74 @@ const AppMapRoute = AppMapRouteImport.update({
   path: '/map',
   getParentRoute: () => AppRoute,
 } as any)
+const CIso2Route = CIso2RouteImport.update({
+  id: '/c/$iso2',
+  path: '/c/$iso2',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EIdRoute = EIdRouteImport.update({
   id: '/e/$id',
   path: '/e/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppCountriesIndexRoute = AppCountriesIndexRouteImport.update({
+  id: '/countries/',
+  path: '/countries/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCountriesIso2Route = AppCountriesIso2RouteImport.update({
+  id: '/countries/$iso2',
+  path: '/countries/$iso2',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/map': typeof AppMapRoute
+  '/c/$iso2': typeof CIso2Route
   '/e/$id': typeof EIdRoute
+  '/countries/$iso2': typeof AppCountriesIso2Route
+  '/countries/': typeof AppCountriesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/map': typeof AppMapRoute
+  '/c/$iso2': typeof CIso2Route
   '/e/$id': typeof EIdRoute
+  '/countries/$iso2': typeof AppCountriesIso2Route
+  '/countries': typeof AppCountriesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_app/map': typeof AppMapRoute
+  '/c/$iso2': typeof CIso2Route
   '/e/$id': typeof EIdRoute
+  '/_app/countries/$iso2': typeof AppCountriesIso2Route
+  '/_app/countries/': typeof AppCountriesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/map' | '/e/$id'
+  fullPaths:
+    '/' | '/map' | '/c/$iso2' | '/e/$id' | '/countries/$iso2' | '/countries/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/map' | '/e/$id'
-  id: '__root__' | '/' | '/_app' | '/_app/map' | '/e/$id'
+  to: '/' | '/map' | '/c/$iso2' | '/e/$id' | '/countries/$iso2' | '/countries'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/_app/map'
+    | '/c/$iso2'
+    | '/e/$id'
+    | '/_app/countries/$iso2'
+    | '/_app/countries/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  CIso2Route: typeof CIso2Route
   EIdRoute: typeof EIdRoute
 }
 
@@ -88,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMapRouteImport
       parentRoute: typeof AppRoute
     }
+    '/c/$iso2': {
+      id: '/c/$iso2'
+      path: '/c/$iso2'
+      fullPath: '/c/$iso2'
+      preLoaderRoute: typeof CIso2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/e/$id': {
       id: '/e/$id'
       path: '/e/$id'
@@ -95,15 +139,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/countries/': {
+      id: '/_app/countries/'
+      path: '/countries'
+      fullPath: '/countries/'
+      preLoaderRoute: typeof AppCountriesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/countries/$iso2': {
+      id: '/_app/countries/$iso2'
+      path: '/countries/$iso2'
+      fullPath: '/countries/$iso2'
+      preLoaderRoute: typeof AppCountriesIso2RouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppMapRoute: typeof AppMapRoute
+  AppCountriesIso2Route: typeof AppCountriesIso2Route
+  AppCountriesIndexRoute: typeof AppCountriesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppMapRoute: AppMapRoute,
+  AppCountriesIso2Route: AppCountriesIso2Route,
+  AppCountriesIndexRoute: AppCountriesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -111,6 +173,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  CIso2Route: CIso2Route,
   EIdRoute: EIdRoute,
 }
 export const routeTree = rootRouteImport
