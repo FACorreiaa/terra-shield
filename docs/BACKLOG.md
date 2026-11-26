@@ -65,7 +65,7 @@
 - **Phase 4 — Android:** Kotlin + Compose + MapLibre Native.
 - **AI agent (ADR 23, owner 2026-11-19), after the MVP backlog is done:** an Anthropic adapter in the backend on the official Go SDK, then the API surface, web and Apple UI for an AI agent as a first-class part of the app. Read `platform/infra/docs/llm-haiku-trial.md` first.
 - **More sources (owner, 2026-11-19).** Tsunami warnings done (S1.11). After the MVP, each with its licence checked first:
-  - **US official warnings:** National Weather Service CAP alerts (`api.weather.gov`, public domain, no key). Official-warning coverage is Europe only today (ADR 7).
+  - [x] **US official warnings (backend done, ADR 31, 2026-11-26):** National Weather Service alerts (`api.weather.gov`, public domain, no key), source `nws`, every minute. One event per VTEC hazard event across its alerts, drawn from forecast zones, fire-weather zones, counties or the storm polygon; ends only when NWS stops listing it in force. First live poll: 160 events. Official-warning coverage now Europe and the US with its territories (ADR 7). Left out, changeable: marine-only alerts, alerts with no VTEC (Special Weather Statements, Air Quality, Avalanche), tsunami products (the tsunami source owns them). Map shapes now drop sub-pixel parts (ADR 9 note). Clients: nothing new to build; the US gains warnings and the country view's coverage notice changes.
   - **EMSC:** European-Mediterranean earthquakes below USGS's M2.5 cut.
   - **IPMA earthquakes** (Portugal, Azores, Madeira) below M2.5; its weather warnings already arrive through MeteoAlarm. API licence not found yet.
   - **Official cyclone forecasts:** NHC and JTWC tracks and cones (public domain), then other regional centres; GDACS gives impact only.

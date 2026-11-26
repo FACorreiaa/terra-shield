@@ -101,6 +101,22 @@ which members fill differently (DWD sends `Minor` for yellow; MeteoAlarm's own l
 `source_severity` shows "Yellow warning" / "Orange warning" / "Red warning". The CAP `severity`, `certainty` and
 `urgency` are kept in attrs.
 
+## National Weather Service (US official warnings; ADR 31)
+
+NWS sets CAP `severity` itself, product by product, so it is taken as sent. An event split over several alerts takes
+the highest of its segments.
+
+| CAP `severity` | Shield | For example |
+|---|---|---|
+| Extreme | extreme | Tornado Warning, Tornado Watch, Extreme Wind Warning |
+| Severe | severe | Winter Storm Warning, High Wind Warning, Flash Flood Warning |
+| Moderate | moderate | Wind Advisory, Winter Weather Advisory, Flood Watch |
+| Minor | minor | Frost Advisory, Coastal Flood Advisory, Rip Current Statement |
+| Unknown (or missing) | by VTEC significance: warning severe, watch moderate, advisory or statement minor | |
+
+`source_severity` is the CAP severity and the significance in words ("Severe (warning)"). Watches are `kind=warning`
+like the rest: an official alert, not a forecast product.
+
 ## Tsunami (NOAA warning centers; owner, 2026-11-19)
 
 US products (Hawaii, Alaska, the US West Coast, Guam, American Samoa, the Marianas, Puerto Rico, the Virgin

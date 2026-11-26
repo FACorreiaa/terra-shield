@@ -73,6 +73,24 @@ The API lifts `attrs.severityProvisional` to the top-level `severityProvisional`
 | `emmaIds` | string[], **always** | MeteoAlarm area codes |
 | `country` | string, **always** | ISO2 of the member feed |
 
+## National Weather Service (US official warnings; ADR 31)
+
+One event is one NWS hazard event (its P-VTEC code); the latest message speaks for it.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `office` | string, **always** | Issuing office (`KPQR` Portland, `KWNS` Storm Prediction Center) |
+| `phenomena` | string, **always** | VTEC phenomenon code (`TO` tornado, `WS` winter storm, `CF` coastal flood, …) |
+| `significance` | string, **always** | VTEC significance: `W` warning, `A` watch, `Y` advisory, `S` statement |
+| `etn` | string, **always** | Event tracking number (per office, phenomenon and significance; restarts each year) |
+| `event` | string, **always** | NWS product name ("Winter Storm Warning") |
+| `capSeverity` | string, **always** | CAP `severity` of the segment that set the level (may be empty when NWS sent `Unknown`) |
+| `certainty` | string, **always** | CAP certainty of the latest message |
+| `urgency` | string, **always** | CAP urgency of the latest message |
+| `sender` | string, **always** | Issuing office's name ("NWS Portland OR") |
+| `areas` | string[], **always** | Area names of every segment in force, sorted |
+| `endsAt` | date-time | When the event is expected to end (CAP `ends`, else the VTEC end); not an expiry, the event stays while NWS lists it |
+
 ## Tsunami (NOAA warning centers; ADR 25)
 
 Two kinds of event: US alerts (`kind=warning`, id `<center>-<incident>-<product>-warning|advisory|watch`, one event

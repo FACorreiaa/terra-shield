@@ -107,3 +107,23 @@ func TestConflictFatalities(t *testing.T) {
 		}
 	}
 }
+
+func TestNWSAlert(t *testing.T) {
+	for _, c := range []struct {
+		capSeverity, significance string
+		want                      Level
+	}{
+		{"Extreme", "A", Extreme}, // a Tornado Watch: NWS's own level wins
+		{"Severe", "W", Severe},
+		{"Moderate", "Y", Moderate},
+		{"Minor", "S", Minor},
+		{"Unknown", "W", Severe},
+		{"Unknown", "A", Moderate},
+		{"", "Y", Minor},
+		{"Unknown", "S", Minor},
+	} {
+		if got := NWSAlert(c.capSeverity, c.significance); got != c.want {
+			t.Errorf("%q %q: %v, want %v", c.capSeverity, c.significance, got, c.want)
+		}
+	}
+}
